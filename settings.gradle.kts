@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             content {
@@ -24,4 +25,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "BodyPlan"
 include(":app")
+include(":core:designsystem")
+include(":core:ui")
+include(":core:domain")
+include(":core:data")
+include(":core:local")
+include(":feature:home")
  

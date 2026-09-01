@@ -9,7 +9,7 @@ model: sonnet
 
 ## 절차
 
-1. 대상 범위의 테스트를 실행해 현재 상태를 확인한다. 범위가 클래스 목록이면 그 클래스만 실행한다 — Android 모듈(`:app`, `:core:ui`, `:core:data`, `:core:database`, `:core:designsystem`)은 `./gradlew :<모듈>:testDebugUnitTest --tests "*ClassName"`, JVM 모듈(`:core:domain`)은 `./gradlew :core:domain:test --tests "*ClassName"`. Android 모듈의 `test`는 집계 태스크라 `--tests` 필터를 받지 못한다. 모듈 전체 실행은 범위가 모듈로 지정된 경우에만 한다.
+1. 대상 범위의 테스트를 실행해 현재 상태를 확인한다. 범위가 클래스 목록이면 그 클래스만 실행한다 — Android 모듈(`:app`, `:core:ui`, `:core:data`, `:core:local`, `:core:designsystem`)은 `./gradlew :<모듈>:testDebugUnitTest --tests "*ClassName"`, JVM 모듈(`:core:domain`)은 `./gradlew :core:domain:test --tests "*ClassName"`. Android 모듈의 `test`는 집계 태스크라 `--tests` 필터를 받지 못한다. 모듈 전체 실행은 범위가 모듈로 지정된 경우에만 한다.
 2. 테스트 작성 규칙은 대상 모듈의 기존 테스트 코드를 따른다.
 3. 수용 조건이 주어졌으면 그것을 케이스 선정의 축으로 삼는다. 구현 코드는 대상 동작을 파악하는 데만 쓰고, 수용 조건과 어긋나는 구현 동작을 기대값으로 삼지 않는다 — 어긋나면 구현 결함 의심으로 보고한다.
 4. 요청된 작업(검증·수정·추가·제거)을 수행한다. 대상 모듈의 테스트 소스(`src/test`)만 수정한다.

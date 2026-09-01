@@ -9,9 +9,7 @@ paths:
 
 ## 표기
 
-- [Kotlin 공식 코딩 컨벤션](https://kotlinlang.org/docs/coding-conventions.html)과 [Android Kotlin 스타일 가이드](https://developer.android.com/kotlin/style-guide)를 따른다. 아래는 그중 판정이 갈리는 항목만 고정한 것이다.
-- 들여쓰기 4칸. 여러 줄로 나눈 파라미터·인자 목록은 마지막에 trailing comma를 붙인다.
-- 와일드카드 import를 쓰지 않는다.
+- 포맷·import·줄바꿈은 ktlint(spotless)가 강제한다 — `.kt` 편집 후 훅이 `./gradlew spotlessApply`를 실행한다. 규칙 값은 루트 `build.gradle.kts`의 `ktlintSettings`와 `.editorconfig`에 있고, 기준은 [Kotlin 공식 코딩 컨벤션](https://kotlinlang.org/docs/coding-conventions.html)과 [Android Kotlin 스타일 가이드](https://developer.android.com/kotlin/style-guide)다. 아래는 도구가 판정하지 못하는 항목이다.
 - 이름은 축약하지 않는다 — `vm`이 아니라 `viewModel`. 널리 쓰이는 축약(`id`, `url`, `db`)은 예외다.
 - 주석은 "왜"만 적는다. 코드가 그대로 말하는 "무엇"은 적지 않는다.
 

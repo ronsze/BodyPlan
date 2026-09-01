@@ -1,0 +1,21 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+# Android Kotlin 스타일 가이드에 맞춘 ktlint 프리셋. ktlint_official은 초기화식·when 분기를
+# 강제로 풀어써 이 가이드와 어긋난다.
+ktlint_code_style = android_studio
+# Composable 함수는 PascalCase다 — Android 공식 가이드라인.
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# NavKeys.kt처럼 선언을 모으는 파일을 허용한다.
+ktlint_standard_filename = disabled
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
