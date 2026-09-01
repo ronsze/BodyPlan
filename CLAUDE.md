@@ -21,7 +21,7 @@
 
 Android 앱. Kotlin + Jetpack Compose, 멀티모듈 Gradle(Kotlin DSL). 의존성 버전은 전부 `gradle/libs.versions.toml`에서 관리하고 빌드 스크립트에 직접 적지 않는다.
 
-모듈 공통 빌드 설정(SDK·Java·Compose·Hilt)은 `build-logic`의 컨벤션 플러그인에 있다 — `bodyplan.android.application` / `.library` / `.compose` / `.hilt` / `.feature`, `bodyplan.jvm.library`. 모듈의 `build.gradle.kts`에는 적용할 컨벤션 플러그인, `namespace`, 그 모듈 고유 의존성만 적는다. 여러 모듈에 같은 설정을 반복하게 되면 컨벤션 플러그인으로 올린다.
+모듈 공통 빌드 설정(SDK·Java·Compose·Hilt)은 `build-logic`의 컨벤션 플러그인에 있다 — `bodyplan.android.application` / `.library` / `.compose` / `.hilt` / `.feature.api` / `.feature.impl`, `bodyplan.jvm.library`. 모듈의 `build.gradle.kts`에는 적용할 컨벤션 플러그인, `namespace`, 그 모듈 고유 의존성만 적는다. 여러 모듈에 같은 설정을 반복하게 되면 컨벤션 플러그인으로 올린다.
 
 - 빌드: `./gradlew :app:assembleDebug`
 - 컴파일 확인: `./gradlew :app:compileDebugKotlin` (`:core:*`·`:feature:*`는 `:app` 의존 그래프에 있어 함께 컴파일된다)
@@ -32,17 +32,21 @@ Android 앱. Kotlin + Jetpack Compose, 멀티모듈 Gradle(Kotlin DSL). 의존�
 
 | 모듈 | 역할 |
 |---|---|
-| `:app` | Application·MainActivity·NavKey 정의·루트 `NavDisplay` |
-| `:feature:<이름>` | 화면 한 벌 — Route/Screen/Contract/ViewModel |
-| `:core:ui` | MVI 베이스(`MviViewModel`, `UiState`/`UiIntent`/`UiEffect`), 공용 UI 유틸 |
-| `:core:designsystem` | Theme·Color·Typography, 공용 컴포넌트 |
+| `:app` | Application·MainActivity·루트 `NavDisplay` |
+| `:feature:<이름>:api` | 외부 공개 계약 — NavKey 선언, `BodyPlanNavigator` 확장 navigate 함수 |
+| `:feature:<이름>:impl` | 내부 구현 — navGraph 확장 함수, Contracts/ViewModel/View |
+| `:core:navigation` | `BodyPlanNavKey`·`BodyPlanNavigator`·`BodyPlanEntryProviderScope` |
+| `:core:ui:coordinator` | MVI 베이스 — `BaseViewModel`, `Contracts.kt`의 `State`/`Intent`/`Effect`, `CollectEffect` |
+| `:core:ui:components` | 도메인에 종속된 공용 UI — 여러 화면이 함께 쓰는 뷰 |
+| `:core:designsystem` | 도메인에 종속되지 않는 것 — Theme·Color·Typography, 범용 컴포넌트 |
 | `:core:domain` | 순수 JVM — 도메인 모델, Repository 인터페이스, UseCase |
 | `:core:data` | Repository 구현, DI 모듈 |
 | `:core:local` | 로컬 저장소. **껍데기만 생성된 상태 — 스키마·DAO는 아직 없다** |
 
-- 의존 방향은 `app → feature → core:ui → core:designsystem`, `feature·core:data → core:domain` 한 방향이다. `core:domain`은 Android에 의존하지 않는다.
-- 화면 상태 관리는 MVI다. `core:ui`의 `MviViewModel<S, I, E>`을 상속하고 `onIntent`로만 입력을 받는다.
-- 네비게이션은 Navigation 3. 목적지는 `:app`의 `navigation/NavKeys.kt`에 `@Serializable` NavKey로 선언하고 `BodyPlanNavDisplay`의 `entryProvider`에 등록한다.
+- 의존 방향은 `app → feature:impl → core:ui:components → core:ui:coordinator·core:designsystem`, `feature·core:data → core:domain` 한 방향이다. `core:domain`은 Android에 의존하지 않는다.
+- **다른 feature는 상대의 `api`만 의존한다.** `impl`을 의존하지 않는다. `:app`은 `bodyplan.android.application` 컨벤션 플러그인이 `:feature:*:impl`을 전부 자동으로 의존하므로 feature를 추가해도 `app/build.gradle.kts`를 고치지 않는다.
+- 화면 상태 관리는 MVI다. `core:ui:coordinator`의 `BaseViewModel<S, I, E>`을 상속하고 `handleIntent`로만 입력을 받는다. 초기 로드는 화면이 `uiState`를 구독할 때 `initializeData()`로 한 번 실행된다.
+- 네비게이션은 Navigation 3. NavKey는 `feature:<이름>:api`에 `BodyPlanNavKey`를 상속해 선언하고, 화면 등록은 `impl`의 navGraph 확장 함수가 하며, `:app`의 `BodyPlanNavDisplay`가 그것을 호출한다.
 - DI는 Hilt. KSP 생성 소스 때문에 `gradle.properties`의 `android.disallowKotlinSourceSets=false`가 필요하다.
 
 ## 하네스

@@ -32,7 +32,8 @@ gradlePlugin {
         registerConvention(libs.plugins.bodyplan.android.library, "AndroidLibraryConventionPlugin")
         registerConvention(libs.plugins.bodyplan.android.compose, "AndroidComposeConventionPlugin")
         registerConvention(libs.plugins.bodyplan.android.hilt, "AndroidHiltConventionPlugin")
-        registerConvention(libs.plugins.bodyplan.android.feature, "AndroidFeatureConventionPlugin")
+        registerConvention(libs.plugins.bodyplan.android.feature.api, "AndroidFeatureApiConventionPlugin")
+        registerConvention(libs.plugins.bodyplan.android.feature.impl, "AndroidFeatureImplConventionPlugin")
         registerConvention(libs.plugins.bodyplan.jvm.library, "JvmLibraryConventionPlugin")
     }
 }

@@ -26,9 +26,12 @@ dependencyResolutionManagement {
 rootProject.name = "BodyPlan"
 include(":app")
 include(":core:designsystem")
-include(":core:ui")
+include(":core:ui:coordinator")
+include(":core:ui:components")
 include(":core:domain")
 include(":core:data")
 include(":core:local")
-include(":feature:home")
+include(":core:navigation")
+include(":feature:home:api")
+include(":feature:home:impl")
  

@@ -73,5 +73,6 @@ bodyplan-android-application = { id = "bodyplan.android.application", version = 
 bodyplan-android-library = { id = "bodyplan.android.library", version = "unspecified" }
 bodyplan-android-compose = { id = "bodyplan.android.compose", version = "unspecified" }
 bodyplan-android-hilt = { id = "bodyplan.android.hilt", version = "unspecified" }
-bodyplan-android-feature = { id = "bodyplan.android.feature", version = "unspecified" }
+bodyplan-android-feature-api = { id = "bodyplan.android.feature.api", version = "unspecified" }
+bodyplan-android-feature-impl = { id = "bodyplan.android.feature.impl", version = "unspecified" }
 bodyplan-jvm-library = { id = "bodyplan.jvm.library", version = "unspecified" }
