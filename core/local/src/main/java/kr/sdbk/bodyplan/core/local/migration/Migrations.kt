@@ -25,3 +25,47 @@ internal val MIGRATION_1_2 = object : Migration(1, 2) {
         )
     }
 }
+
+/** 사용자 정보 테이블을 더한다. 기존 기록은 건드리지 않는다. */
+internal val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `user_profile` (" +
+                "`id` INTEGER NOT NULL, " +
+                "`ageYears` INTEGER, " +
+                "`heightCm` INTEGER, " +
+                "`weightKg` INTEGER, " +
+                "`gender` TEXT, " +
+                "`goals` TEXT NOT NULL, " +
+                "`targetWeightKg` INTEGER, " +
+                "`targetNote` TEXT, " +
+                "PRIMARY KEY(`id`))",
+        )
+    }
+}
+
+/** 분석 결과 테이블을 더한다. 기존 기록은 건드리지 않는다. */
+internal val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `analysis_result` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`scopeKey` TEXT NOT NULL, " +
+                "`summary` TEXT NOT NULL, " +
+                "`sections` TEXT NOT NULL, " +
+                "`createdAtMillis` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_analysis_result_kind_scopeKey` " +
+                "ON `analysis_result` (`kind`, `scopeKey`)",
+        )
+    }
+}
+
+/** 인바디 결과가 분석한 사진을 가리킨다. 다른 분석은 비어 있다. */
+internal val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `analysis_result` ADD COLUMN `imageFileName` TEXT")
+    }
+}

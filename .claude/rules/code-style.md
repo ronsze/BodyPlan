@@ -22,7 +22,7 @@ paths:
 
 ## MVI
 
-- 화면 하나는 `<화면>Contracts.kt`(`<화면>State` data class / `<화면>Intent` sealed interface / `<화면>Effect` sealed interface) / `<화면>ViewModel.kt` / `<화면>View.kt` 세 파일이다. 화면 안에서만 쓰는 타입은 `internal`.
+- 화면 하나는 패키지 하나다. `impl` 아래 `<화면>/`에 `<화면>Contracts.kt`(`<화면>State` data class / `<화면>Intent` sealed interface / `<화면>Effect` sealed interface)와 `<화면>ViewModel.kt`를 두고, Composable은 `<화면>/composable/`에 모은다. 화면 안에서만 쓰는 타입은 `internal`.
 - ViewModel은 `core:ui:coordinator`의 `BaseViewModel<S, I, E>`을 상속하고 `handleIntent`만 공개한다. 상태 변경은 `updateState`, 일회성 동작은 `updateEffect`, 진입 초기 로드는 `initializeData()` 재정의로만 한다.
 - `<화면>View`는 `uiState` 수집·`UiEvents` 조립·effect 처리만 하고, UI는 `<화면>ViewImpl`에만 둔다. `ViewImpl`은 `state`와 `uiEvents`만 받고 ViewModel을 보지 않는다.
 - 화면 밖으로 나가는 이벤트(화면 이동)는 `<화면>Events`, 화면 안에서 나는 이벤트(클릭·입력)는 `<화면>UiEvents`로 나눈다.
@@ -32,5 +32,5 @@ paths:
 
 - 계층 의존은 `ui → domain ← data` 한 방향이다. `domain`은 Android·Compose·다른 모듈에 의존하지 않는다.
 - 데이터 소스 타입(Entity·DTO)은 `data` 밖으로 내보내지 않는다 — 경계에서 domain 모델로 매핑한다.
-- 새 화면은 `:feature:<이름>:impl`에 만들고, NavKey와 navigate 확장 함수는 `:feature:<이름>:api`에 둔다.
+- 새 화면은 `:feature:<이름>:impl`의 화면 패키지에 만들고, NavKey와 navigate 확장 함수는 `:feature:<이름>:api`에 둔다. navGraph는 화면 패키지 밖, 모듈 루트에 하나만 둔다.
 - 여러 화면이 함께 쓰는 컴포넌트는 도메인에 종속되면 `core:ui:components`, 종속되지 않으면 `core:designsystem`에 둔다. MVI 베이스(`BaseViewModel`)·`State`/`Intent`/`Effect` 인터페이스·`CollectEffect`는 `core:ui:coordinator`다.

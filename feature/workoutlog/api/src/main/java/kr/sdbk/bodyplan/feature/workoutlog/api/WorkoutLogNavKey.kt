@@ -21,6 +21,13 @@ data class WorkoutEntryEditNavKey(val dateEpochDay: Long, val entryId: Long? = n
 @Serializable
 data object ExerciseManageNavKey : BodyPlanNavKey()
 
+/** 분석 화면 하나가 셋을 겸한다. 기간만 다르고 화면이 하는 일은 같다. */
+enum class WorkoutAnalysisPeriod { DAILY, WEEKLY, MONTHLY }
+
+/** [dateEpochDay]는 기간에 든 아무 날이다. 기간의 시작과 끝은 화면이 되짚는다. */
+@Serializable
+data class WorkoutAnalysisNavKey(val period: WorkoutAnalysisPeriod, val dateEpochDay: Long) : BodyPlanNavKey()
+
 fun BodyPlanNavigator.navigateToWorkoutCalendar() = navigate(WorkoutCalendarNavKey)
 
 fun BodyPlanNavigator.navigateToWorkoutLog(date: LocalDate) = navigate(WorkoutLogNavKey(date.toEpochDay()))
@@ -29,3 +36,6 @@ fun BodyPlanNavigator.navigateToWorkoutEntryEdit(date: LocalDate, entryId: Long?
     navigate(WorkoutEntryEditNavKey(date.toEpochDay(), entryId))
 
 fun BodyPlanNavigator.navigateToExerciseManage() = navigate(ExerciseManageNavKey)
+
+fun BodyPlanNavigator.navigateToWorkoutAnalysis(period: WorkoutAnalysisPeriod, date: LocalDate) =
+    navigate(WorkoutAnalysisNavKey(period, date.toEpochDay()))
