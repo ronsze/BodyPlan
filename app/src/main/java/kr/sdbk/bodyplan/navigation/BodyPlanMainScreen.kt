@@ -5,12 +5,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -30,6 +35,7 @@ import androidx.navigation3.ui.NavDisplay
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanIcon
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanIcons
+import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.Accent
 import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.Border
@@ -56,6 +62,9 @@ fun BodyPlanMainScreen(modifier: Modifier = Modifier) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Background,
+        // 화면은 시스템 바 아래까지 그린다. 여백은 여기서 한 번만 잡아 화면마다 되풀이하지 않는다.
+        // safeDrawing은 키보드까지 포함하므로 입력이 열리면 내용 영역이 그만큼 줄어든다.
+        contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             // 깊은 화면에서는 탭을 감춘다. 작성하다 다른 일지로 빠져나가는 일을 막는다.
             if (currentTab != null) {
@@ -67,6 +76,11 @@ fun BodyPlanMainScreen(modifier: Modifier = Modifier) {
                             backStack.add(tab.navKey)
                         }
                     },
+                    // 탭 바는 Scaffold 바깥 끝에 놓이므로 아래 여백을 스스로 잡는다.
+                    // 키보드는 피하지 않는다 — 탭 화면에는 입력이 없고, 피하면 키보드 위로 떠오른다.
+                    modifier = Modifier.windowInsetsPadding(
+                        WindowInsets.navigationBars.only(WindowInsetsSides.Bottom),
+                    ),
                 )
             }
         },
@@ -91,22 +105,22 @@ fun BodyPlanMainScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MainBottomBar(currentTab: MainTab, onSelectTab: (MainTab) -> Unit) {
-    Column(modifier = Modifier.background(Surface)) {
+private fun MainBottomBar(currentTab: MainTab, onSelectTab: (MainTab) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.background(Surface)) {
         HorizontalDivider(color = Border)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .padding(horizontal = 32.dp),
+                .height(64.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             MainTab.entries.forEach { tab ->
                 MainTabItem(
                     tab = tab,
                     selected = tab == currentTab,
                     onClick = { onSelectTab(tab) },
+                    // 탭이 바의 절반씩 차지한다. 아이콘과 글자만 눌리면 누르기 어렵다.
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
@@ -114,14 +128,14 @@ private fun MainBottomBar(currentTab: MainTab, onSelectTab: (MainTab) -> Unit) {
 }
 
 @Composable
-private fun MainTabItem(tab: MainTab, selected: Boolean, onClick: () -> Unit) {
+private fun MainTabItem(tab: MainTab, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val tint = if (selected) Accent else TextTertiary
     Column(
-        modifier = Modifier
-            .width(80.dp)
+        modifier = modifier
+            .fillMaxHeight()
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.Center,
     ) {
         BodyPlanIcon(
             painter = tab.icon,
@@ -130,6 +144,7 @@ private fun MainTabItem(tab: MainTab, selected: Boolean, onClick: () -> Unit) {
             iconSize = 20.dp,
             tint = tint,
         )
+        VerticalSpacer(space = 4.dp)
         BaseText(
             text = tab.label,
             style = MaterialTheme.typography.labelSmall.copy(
