@@ -37,7 +37,7 @@
 | 수정 범위 | 사진 교체까지 허용 |
 | 캘린더 셀 | 그날 첫 항목의 사진 썸네일 한 장. 기록이 없으면 빈 칸 |
 | 자정 경계 | 화면 진입 시점에 한 번만 판정한다 |
-| 마이그레이션 | 배포 전까지 파괴적 마이그레이션. 테이블을 더하고 `version`만 올린다 |
+| 마이그레이션 | 정식 마이그레이션. 테이블을 더하고 `version`을 올리며 기존 기록은 지우지 않는다 (사용자 지시로 변경됨) |
 
 ### 수용 조건
 
@@ -419,9 +419,7 @@ fun BodyPlanNavigator.navigateToDietEntryEdit(date: LocalDate, entryId: Long? = 
 | `feature/dietlog/impl/.../DietCalendarViewModel.kt` | 신규 | 월 범위 구독, 월 이동 |
 | `feature/dietlog/impl/.../DietCalendarView.kt` | 신규 | 썸네일 셀 |
 | `feature/dietlog/impl/.../DietLogNavGraph.kt` | 수정 | 캘린더 entry 추가 |
-| `feature/home/impl/.../HomeView.kt` | 수정 | `식단 일지` 버튼 추가 |
-| `feature/home/impl/.../HomeNavGraph.kt` | 수정 | `HomeEvents`에 `goToDietCalendar` 추가 |
-| `feature/home/impl/build.gradle.kts` | 수정 | `:feature:dietlog:api` 의존 추가 |
+| `feature/home/impl/**` | 수정 후 제거 | 이 단위에서 `식단 일지` 버튼을 더했으나, 뒤이은 하단 탭 도입으로 홈 화면 자체가 없어졌다 |
 
 ### 구현 순서
 
@@ -453,7 +451,7 @@ ViewModel 테스트는 `Dispatchers.setMain`에 즉시 실행 디스패처를 �
 
 | 고치는 것 | 확인할 기존 화면 |
 |---|---|
-| `BodyPlanDatabase`의 `entities`와 `version` | 운동 일지 전체. 파괴적 마이그레이션이 켜져 있어 기존 데이터는 지워진다 |
+| `BodyPlanDatabase`의 `entities`와 `version` | 운동 일지 전체. `MIGRATION_1_2`가 식단 테이블만 더하므로 기존 운동 기록은 남는다 |
 | `core/local/.../di/LocalModule.kt` | 운동 일지의 DAO 주입 |
 | `core/data/.../di/DataModule.kt` | 운동 일지의 Repository 바인딩 |
 | `DietLogNavKey`를 `data object`에서 `data class`로 | `dietLogNavGraph`와 `BodyPlanNavDisplay`. 인자 없는 `navigateToDietLog()` 호출부가 남아 있는지 확인한다 |

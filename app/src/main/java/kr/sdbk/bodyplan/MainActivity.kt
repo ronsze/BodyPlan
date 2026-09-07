@@ -5,12 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
-import kr.sdbk.bodyplan.navigation.BodyPlanNavDisplay
+import kr.sdbk.bodyplan.navigation.BodyPlanMainScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -19,9 +17,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BodyPlanTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    BodyPlanNavDisplay(modifier = Modifier.padding(innerPadding))
-                }
+                BodyPlanMainScreen(modifier = Modifier.fillMaxSize())
             }
         }
     }

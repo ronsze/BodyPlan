@@ -15,6 +15,7 @@ import kr.sdbk.bodyplan.core.local.DefaultExercises
 import kr.sdbk.bodyplan.core.local.dao.DietEntryDao
 import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
+import kr.sdbk.bodyplan.core.local.migration.MIGRATION_1_2
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -24,9 +25,8 @@ object LocalModule {
     fun provideDatabase(@ApplicationContext context: Context): BodyPlanDatabase =
         Room.databaseBuilder(context, BodyPlanDatabase::class.java, DATABASE_NAME)
             .addCallback(SeedExercisesCallback)
-            // 배포 전까지만 쓴다. 스키마가 자주 바뀌는 동안 실행될 일 없는 마이그레이션이 쌓이는 것을 막는다.
-            // 개발 기기의 기존 데이터는 스키마가 바뀔 때마다 지워진다. 첫 배포 시점에 떼고 정식 마이그레이션으로 바꾼다.
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            // 스키마가 바뀌어도 이미 쌓인 기록을 지우지 않는다. 버전을 올릴 때마다 마이그레이션을 더한다.
+            .addMigrations(MIGRATION_1_2)
             .build()
 
     @Provides
