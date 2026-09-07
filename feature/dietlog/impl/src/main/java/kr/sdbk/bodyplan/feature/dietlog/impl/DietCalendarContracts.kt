@@ -2,6 +2,7 @@ package kr.sdbk.bodyplan.feature.dietlog.impl
 
 import java.time.LocalDate
 import java.time.YearMonth
+import kr.sdbk.bodyplan.core.domain.model.DietDayStatus
 import kr.sdbk.bodyplan.core.ui.coordinator.Effect
 import kr.sdbk.bodyplan.core.ui.coordinator.Intent
 import kr.sdbk.bodyplan.core.ui.coordinator.State
@@ -9,7 +10,7 @@ import kr.sdbk.bodyplan.core.ui.coordinator.State
 internal data class DietCalendarState(
     val yearMonth: YearMonth,
     val today: LocalDate,
-    val imagesByDate: Map<LocalDate, String> = emptyMap(),
+    val dayStatuses: Map<LocalDate, DietDayStatus> = emptyMap(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 ) : State

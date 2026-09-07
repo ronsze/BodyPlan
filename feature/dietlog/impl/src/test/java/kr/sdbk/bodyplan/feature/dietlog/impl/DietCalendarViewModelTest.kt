@@ -7,6 +7,9 @@ import java.time.ZoneOffset
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kr.sdbk.bodyplan.core.domain.model.DietDayStatus
+import kr.sdbk.bodyplan.core.domain.usecase.GetMonthlyDietStatusUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.IsEditableDateUseCase
 import kr.sdbk.bodyplan.feature.dietlog.impl.fake.FakeDietLogRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -20,11 +23,16 @@ internal class DietCalendarViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private val today: LocalDate = LocalDate.of(2026, 9, 7)
+    private val today: LocalDate = LocalDate.of(2026, 9, 8)
     private val clock: Clock = Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
 
-    private fun viewModel(repository: FakeDietLogRepository) =
-        DietCalendarViewModel(dietLogRepository = repository, clock = clock)
+    private fun viewModel(repository: FakeDietLogRepository): DietCalendarViewModel {
+        val isEditableDate = IsEditableDateUseCase(clock)
+        return DietCalendarViewModel(
+            getMonthlyDietStatus = GetMonthlyDietStatusUseCase(repository, isEditableDate, clock),
+            clock = clock,
+        )
+    }
 
     @Test
     fun `진입하면 이번 달과 오늘이 실린다`() = runTest {
@@ -37,7 +45,7 @@ internal class DietCalendarViewModelTest {
     }
 
     @Test
-    fun `기록이 있는 날만 사진이 실린다`() = runTest {
+    fun `기록이 있는 날은 사진이 실린다`() = runTest {
         val repository = FakeDietLogRepository(
             imagesByDate = mapOf(LocalDate.of(2026, 9, 3) to "/files/diet_images/a.jpg"),
         )
@@ -46,9 +54,52 @@ internal class DietCalendarViewModelTest {
         subscribe(viewModel)
 
         assertEquals(
-            mapOf(LocalDate.of(2026, 9, 3) to "/files/diet_images/a.jpg"),
-            viewModel.uiState.value.imagesByDate,
+            DietDayStatus.Recorded("/files/diet_images/a.jpg"),
+            viewModel.uiState.value.dayStatuses[LocalDate.of(2026, 9, 3)],
         )
+    }
+
+    @Test
+    fun `그저께 이전의 빈 날은 기록 안됨이다`() = runTest {
+        val viewModel = viewModel(FakeDietLogRepository())
+
+        subscribe(viewModel)
+
+        val statuses = viewModel.uiState.value.dayStatuses
+        assertEquals(DietDayStatus.Missed, statuses[today.minusDays(2)])
+        assertEquals(DietDayStatus.Missed, statuses[today.minusDays(5)])
+    }
+
+    @Test
+    fun `오늘과 어제는 비어 있어도 기록 안됨이 아니다`() = runTest {
+        val viewModel = viewModel(FakeDietLogRepository())
+
+        subscribe(viewModel)
+
+        val statuses = viewModel.uiState.value.dayStatuses
+        assertEquals(DietDayStatus.Pending, statuses[today])
+        assertEquals(DietDayStatus.Pending, statuses[today.minusDays(1)])
+    }
+
+    @Test
+    fun `오늘 이후는 아직 오지 않은 날이다`() = runTest {
+        val viewModel = viewModel(FakeDietLogRepository())
+
+        subscribe(viewModel)
+
+        assertEquals(DietDayStatus.Upcoming, viewModel.uiState.value.dayStatuses[today.plusDays(1)])
+    }
+
+    @Test
+    fun `그 달의 모든 날짜가 키로 들어간다`() = runTest {
+        val viewModel = viewModel(FakeDietLogRepository())
+
+        subscribe(viewModel)
+
+        val statuses = viewModel.uiState.value.dayStatuses
+        assertEquals(30, statuses.size)
+        assertNotNull(statuses[LocalDate.of(2026, 9, 1)])
+        assertNotNull(statuses[LocalDate.of(2026, 9, 30)])
     }
 
     @Test
@@ -66,7 +117,22 @@ internal class DietCalendarViewModelTest {
         advanceUntilIdle()
 
         assertEquals(YearMonth.of(2026, 8), viewModel.uiState.value.yearMonth)
-        assertEquals(setOf(LocalDate.of(2026, 8, 10)), viewModel.uiState.value.imagesByDate.keys)
+        assertEquals(31, viewModel.uiState.value.dayStatuses.size)
+        assertEquals(
+            DietDayStatus.Recorded("/files/diet_images/b.jpg"),
+            viewModel.uiState.value.dayStatuses[LocalDate.of(2026, 8, 10)],
+        )
+    }
+
+    @Test
+    fun `지난 달의 빈 날은 모두 기록 안됨이다`() = runTest {
+        val viewModel = viewModel(FakeDietLogRepository())
+        subscribe(viewModel)
+
+        viewModel.handleIntent(DietCalendarIntent.ChangeMonth(YearMonth.of(2026, 8)))
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.dayStatuses.values.all { it == DietDayStatus.Missed })
     }
 
     @Test
@@ -114,7 +180,7 @@ internal class DietCalendarViewModelTest {
         advanceUntilIdle()
 
         assertNull(viewModel.uiState.value.errorMessage)
-        assertTrue(viewModel.uiState.value.imagesByDate.isNotEmpty())
+        assertTrue(viewModel.uiState.value.dayStatuses.values.any { it is DietDayStatus.Recorded })
     }
 
     private fun kotlinx.coroutines.test.TestScope.subscribe(viewModel: DietCalendarViewModel) {

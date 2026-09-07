@@ -9,14 +9,14 @@ import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import kr.sdbk.bodyplan.core.domain.repository.DietLogRepository
+import kr.sdbk.bodyplan.core.domain.usecase.GetMonthlyDietStatusUseCase
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 
 @HiltViewModel
 internal class DietCalendarViewModel
 @Inject
 constructor(
-    private val dietLogRepository: DietLogRepository,
+    private val getMonthlyDietStatus: GetMonthlyDietStatusUseCase,
     clock: Clock,
 ) : BaseViewModel<DietCalendarState, DietCalendarIntent, DietCalendarEffect>(
     initialState = DietCalendarState(
@@ -52,10 +52,10 @@ constructor(
         updateState { it.copy(isLoading = true, errorMessage = null) }
         val yearMonth = state.value.yearMonth
         loadJob = viewModelScope.launch {
-            dietLogRepository.observeFirstImageInRange(yearMonth.atDay(1), yearMonth.atEndOfMonth())
+            getMonthlyDietStatus(yearMonth)
                 .catch { updateState { it.copy(isLoading = false, errorMessage = LOAD_ERROR) } }
-                .collect { images ->
-                    updateState { it.copy(isLoading = false, errorMessage = null, imagesByDate = images) }
+                .collect { statuses ->
+                    updateState { it.copy(isLoading = false, errorMessage = null, dayStatuses = statuses) }
                 }
         }
     }

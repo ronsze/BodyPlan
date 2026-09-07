@@ -7,9 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
@@ -17,16 +15,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 import java.time.YearMonth
 import kr.sdbk.bodyplan.core.designsystem.component.BannerTone
-import kr.sdbk.bodyplan.core.designsystem.component.BaseImage
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCalendar
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanIcons
@@ -36,6 +30,7 @@ import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
 import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
+import kr.sdbk.bodyplan.core.domain.model.DietDayStatus
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 
 internal data class DietCalendarEvents(val goToLog: (LocalDate) -> Unit)
@@ -102,26 +97,16 @@ internal fun DietCalendarViewImpl(state: DietCalendarState, uiEvents: DietCalend
                 onSelectDate = uiEvents.onSelectDate,
                 onChangeMonth = uiEvents.onChangeMonth,
                 cellHeight = CELL_HEIGHT,
-                dayContent = { date -> DayThumbnail(imagePath = state.imagesByDate[date]) },
+                dayContent = { date ->
+                    DietDayStatusIndicator(
+                        status = state.dayStatuses[date] ?: DietDayStatus.Pending,
+                    )
+                },
             )
-            MonthSummaryBanner(recordedDays = state.imagesByDate.size)
+            MonthSummaryBanner(
+                recordedDays = state.dayStatuses.values.count { it is DietDayStatus.Recorded },
+            )
         }
-    }
-}
-
-/** 그 날 첫 항목의 사진. 없는 날에도 자리를 비워 두어 칸 높이가 흔들리지 않는다. */
-@Composable
-private fun DayThumbnail(imagePath: String?) {
-    Box(modifier = Modifier.size(THUMBNAIL_SIZE)) {
-        if (imagePath == null) return@Box
-        BaseImage(
-            url = imagePath,
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(8.dp)),
-            placeholder = ColorPainter(Color.LightGray),
-        )
     }
 }
 
@@ -158,7 +143,6 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
 }
 
 // 사진이 무엇인지 알아볼 수 있어야 달력에 두는 뜻이 산다. 그만큼 셀도 높인다.
-private val THUMBNAIL_SIZE = 36.dp
 private val CELL_HEIGHT = 76.dp
 
 private val previewUiEvents = DietCalendarUiEvents(
@@ -175,9 +159,12 @@ private fun DietCalendarViewImplPreview() {
             state = DietCalendarState(
                 yearMonth = YearMonth.of(2026, 9),
                 today = LocalDate.of(2026, 9, 8),
-                imagesByDate = mapOf(
-                    LocalDate.of(2026, 9, 3) to "/files/diet_images/a.jpg",
-                    LocalDate.of(2026, 9, 5) to "/files/diet_images/b.jpg",
+                dayStatuses = mapOf(
+                    LocalDate.of(2026, 9, 3) to DietDayStatus.Recorded("/files/diet_images/a.jpg"),
+                    LocalDate.of(2026, 9, 4) to DietDayStatus.Missed,
+                    LocalDate.of(2026, 9, 5) to DietDayStatus.Recorded("/files/diet_images/b.jpg"),
+                    LocalDate.of(2026, 9, 6) to DietDayStatus.Missed,
+                    LocalDate.of(2026, 9, 8) to DietDayStatus.Pending,
                 ),
             ),
             uiEvents = previewUiEvents,
