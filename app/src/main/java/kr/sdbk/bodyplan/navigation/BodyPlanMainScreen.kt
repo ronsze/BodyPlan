@@ -44,6 +44,8 @@ import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.dietlog.api.DietCalendarNavKey
 import kr.sdbk.bodyplan.feature.dietlog.impl.dietLogNavGraph
+import kr.sdbk.bodyplan.feature.my.api.MyNavKey
+import kr.sdbk.bodyplan.feature.my.impl.myNavGraph
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutCalendarNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.impl.workoutLogNavGraph
 
@@ -99,6 +101,7 @@ fun BodyPlanMainScreen(modifier: Modifier = Modifier) {
                 entryProvider {
                     workoutLogNavGraph(navigator)
                     dietLogNavGraph(navigator)
+                    myNavGraph(navigator)
                 },
         )
     }
@@ -159,11 +162,13 @@ private fun MainTabItem(tab: MainTab, selected: Boolean, onClick: () -> Unit, mo
 private enum class MainTab(val label: String, val navKey: NavKey) {
     WORKOUT("운동 일지", WorkoutCalendarNavKey),
     DIET("식단 일지", DietCalendarNavKey),
+    MY("마이", MyNavKey),
     ;
 
     val icon: Painter
         @Composable get() = when (this) {
             WORKOUT -> BodyPlanIcons.Dumbbell
             DIET -> BodyPlanIcons.ForkKnifeCrossed
+            MY -> BodyPlanIcons.User
         }
 }

@@ -15,6 +15,7 @@ import kr.sdbk.bodyplan.core.local.DefaultExercises
 import kr.sdbk.bodyplan.core.local.dao.DietEntryDao
 import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
+import kr.sdbk.bodyplan.core.local.datastore.AppPreferences
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_1_2
 
 @Module
@@ -37,6 +38,10 @@ object LocalModule {
 
     @Provides
     fun provideDietEntryDao(database: BodyPlanDatabase): DietEntryDao = database.dietEntryDao()
+
+    @Provides
+    @Singleton
+    fun provideAppPreferences(@ApplicationContext context: Context): AppPreferences = AppPreferences(context)
 }
 
 /**

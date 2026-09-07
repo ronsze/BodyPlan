@@ -16,5 +16,6 @@ dependencies {
     // seed와 컬럼 값이 도메인 enum 이름을 그대로 쓴다. 문자열로 베껴 두면 이름이 바뀔 때 조용히 깨진다.
     implementation(project(":core:domain"))
     implementation(libs.room.runtime)
+    implementation(libs.androidx.datastore.preferences)
     ksp(libs.room.compiler)
 }
