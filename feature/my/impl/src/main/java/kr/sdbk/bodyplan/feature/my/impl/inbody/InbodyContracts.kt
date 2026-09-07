@@ -35,7 +35,12 @@ internal data class InbodyState(
      * 분석 직후 이력이 갱신되는 순서에 기대지 않으려고 상태로 들고 있지 않고 여기서 고른다.
      */
     val result: AnalysisResult?
-        get() = history.firstOrNull { it.id == selectedResultId } ?: history.firstOrNull()
+        get() {
+            // 새 사진을 고르는 중에는 지난 결과를 보이지 않는다. 그대로 두면 그 결과가
+            // 방금 고른 사진의 것으로 보인다.
+            if (pickedImageUri != null) return null
+            return history.firstOrNull { it.id == selectedResultId } ?: history.firstOrNull()
+        }
 
     /** 사진 자리에 그릴 것. 고르던 사진이 먼저고, 없으면 보고 있는 결과의 사진이다. */
     val shownImage: String? get() = pickedImageUri ?: result?.imagePath

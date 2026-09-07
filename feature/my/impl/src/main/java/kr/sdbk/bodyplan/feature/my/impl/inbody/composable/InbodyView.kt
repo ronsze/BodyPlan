@@ -29,6 +29,7 @@ import java.time.format.DateTimeFormatter
 import kr.sdbk.bodyplan.core.designsystem.component.BaseImage
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
+import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.Surface
@@ -118,6 +119,11 @@ internal fun InbodyViewImpl(state: InbodyState, uiEvents: InbodyUiEvents) {
         ),
         beforeResult = {
             PhotoSlot(state.shownImage, uiEvents.onClickPickImage)
+            // 사진 자리를 눌러도 되지만, 눌러 보기 전엔 그것이 추가라는 것을 알기 어렵다.
+            // 지난 결과를 보고 있을 때만 낸다 — 새 사진을 고른 뒤에는 아래 분석 버튼이 그 자리다.
+            if (state.pickedImageUri == null) {
+                OutlinedActionButton(text = "새 인바디 추가", onClick = uiEvents.onClickPickImage)
+            }
             // 그래프는 오래된 것부터 그린다. 이력 목록은 최신순이라 뒤집어 넘긴다.
             InbodyTrendChart(
                 points = state.history.reversed().mapNotNull { result ->
