@@ -70,6 +70,7 @@ class AnalyzeWorkoutUseCaseTest {
             when (it) {
                 is Intensity.Weight -> IntensityType.WEIGHT
                 is Intensity.Angle -> IntensityType.ANGLE
+                is Intensity.Duration -> IntensityType.DURATION
             }
         },
         sets = sets,
@@ -231,6 +232,103 @@ class AnalyzeWorkoutUseCaseTest {
         assertEquals(1160, request.totalWeightVolume)
         // 각도 종목의 횟수만 들어간다.
         assertEquals(15, request.totalBodyweightReps)
+    }
+
+    @Test
+    fun `유산소만 있는 기록은 총 시간만 채우고 볼륨과 횟수는 0이다`() = runTest {
+        val date = LocalDate.of(2026, 9, 7)
+        val cardioEntry = entry(
+            bodyPart = BodyPart.CARDIO,
+            exerciseName = "러닝",
+            sets = listOf(
+                WorkoutSet(repeatCount = 1, intensity = Intensity.Duration(30)),
+                WorkoutSet(repeatCount = 1, intensity = Intensity.Duration(20)),
+            ),
+        )
+        val workoutLogRepository = FakeWorkoutLogRepository(mapOf(date to listOf(cardioEntry)))
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(
+            workoutLogRepository = workoutLogRepository,
+            today = date,
+        )
+
+        useCase(
+            kind = AnalysisKind.WORKOUT_DAILY,
+            scopeKey = AnalysisScopeKey.daily(date),
+            periodLabel = "9월 7일",
+            from = date,
+            to = date,
+        )
+
+        val request = aiAnalysisRepository.lastRequest!!
+        assertEquals(50, request.totalCardioMinutes)
+        assertEquals(0, request.totalWeightVolume)
+        assertEquals(0, request.totalBodyweightReps)
+    }
+
+    @Test
+    fun `무게 각도 유산소가 섞인 기록에서 셋이 각각 제 축으로만 집계된다`() = runTest {
+        val date = LocalDate.of(2026, 9, 7)
+        val weightEntry = entry(
+            bodyPart = BodyPart.CHEST,
+            exerciseName = "벤치프레스",
+            sets = listOf(WorkoutSet(repeatCount = 10, intensity = Intensity.Weight(60))),
+        )
+        val angleEntry = entry(
+            bodyPart = BodyPart.LEG,
+            exerciseName = "레그레이즈",
+            sets = listOf(WorkoutSet(repeatCount = 15, intensity = Intensity.Angle(45))),
+        )
+        val cardioEntry = entry(
+            bodyPart = BodyPart.CARDIO,
+            exerciseName = "러닝",
+            sets = listOf(WorkoutSet(repeatCount = 1, intensity = Intensity.Duration(30))),
+        )
+        val workoutLogRepository = FakeWorkoutLogRepository(
+            mapOf(date to listOf(weightEntry, angleEntry, cardioEntry)),
+        )
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(
+            workoutLogRepository = workoutLogRepository,
+            today = date,
+        )
+
+        useCase(
+            kind = AnalysisKind.WORKOUT_DAILY,
+            scopeKey = AnalysisScopeKey.daily(date),
+            periodLabel = "9월 7일",
+            from = date,
+            to = date,
+        )
+
+        val request = aiAnalysisRepository.lastRequest!!
+        assertEquals(600, request.totalWeightVolume)
+        assertEquals(15, request.totalBodyweightReps)
+        assertEquals(30, request.totalCardioMinutes)
+    }
+
+    @Test
+    fun `유산소 세트의 반복 횟수가 몇이든 시간에는 곱해지지 않는다`() = runTest {
+        val date = LocalDate.of(2026, 9, 7)
+        val cardioEntry = entry(
+            bodyPart = BodyPart.CARDIO,
+            exerciseName = "러닝",
+            sets = listOf(WorkoutSet(repeatCount = 7, intensity = Intensity.Duration(30))),
+        )
+        val workoutLogRepository = FakeWorkoutLogRepository(mapOf(date to listOf(cardioEntry)))
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(
+            workoutLogRepository = workoutLogRepository,
+            today = date,
+        )
+
+        useCase(
+            kind = AnalysisKind.WORKOUT_DAILY,
+            scopeKey = AnalysisScopeKey.daily(date),
+            periodLabel = "9월 7일",
+            from = date,
+            to = date,
+        )
+
+        // 30분짜리 세트가 repeatCount=7이어도 곱해지지 않고 30분 그대로다.
+        assertEquals(30, aiAnalysisRepository.lastRequest?.totalCardioMinutes)
     }
 
     @Test

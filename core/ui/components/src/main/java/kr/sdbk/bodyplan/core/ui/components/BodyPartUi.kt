@@ -23,6 +23,7 @@ import kr.sdbk.bodyplan.core.designsystem.component.PillChip
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.PartBack
 import kr.sdbk.bodyplan.core.designsystem.theme.PartBiceps
+import kr.sdbk.bodyplan.core.designsystem.theme.PartCardio
 import kr.sdbk.bodyplan.core.designsystem.theme.PartChest
 import kr.sdbk.bodyplan.core.designsystem.theme.PartLeg
 import kr.sdbk.bodyplan.core.designsystem.theme.PartShoulder
@@ -39,6 +40,7 @@ val BodyPart.label: String
         BodyPart.LEG -> "하체"
         BodyPart.BICEPS -> "이두"
         BodyPart.TRICEPS -> "삼두"
+        BodyPart.CARDIO -> "유산소"
     }
 
 val BodyPart.color: Color
@@ -49,6 +51,7 @@ val BodyPart.color: Color
         BodyPart.LEG -> PartLeg
         BodyPart.BICEPS -> PartBiceps
         BodyPart.TRICEPS -> PartTriceps
+        BodyPart.CARDIO -> PartCardio
     }
 
 /**

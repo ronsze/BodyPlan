@@ -249,6 +249,7 @@ private val IntensityType.label: String
     get() = when (this) {
         IntensityType.WEIGHT -> "무게로 기록"
         IntensityType.ANGLE -> "각도로 기록"
+        IntensityType.DURATION -> "시간으로 기록"
     }
 
 @Composable

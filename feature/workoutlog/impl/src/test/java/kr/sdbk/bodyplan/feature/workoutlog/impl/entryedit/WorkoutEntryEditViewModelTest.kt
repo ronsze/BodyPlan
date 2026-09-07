@@ -32,11 +32,12 @@ internal class WorkoutEntryEditViewModelTest {
     private val benchPress = Exercise(1L, BodyPart.CHEST, "플랫 벤치프레스 머신", IntensityType.WEIGHT)
     private val pushUp = Exercise(2L, BodyPart.CHEST, "푸쉬업", IntensityType.ANGLE)
     private val latPullDown = Exercise(3L, BodyPart.BACK, "랫풀다운", IntensityType.WEIGHT)
+    private val running = Exercise(4L, BodyPart.CARDIO, "러닝", IntensityType.DURATION)
 
     private fun viewModel(
         entryId: Long? = null,
         exerciseRepository: FakeExerciseRepository = FakeExerciseRepository(
-            listOf(benchPress, pushUp, latPullDown),
+            listOf(benchPress, pushUp, latPullDown, running),
         ),
         workoutLogRepository: FakeWorkoutLogRepository = FakeWorkoutLogRepository(),
     ) = WorkoutEntryEditViewModel(
@@ -91,6 +92,18 @@ internal class WorkoutEntryEditViewModelTest {
         viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(pushUp.id))
 
         assertEquals(WorkoutOptions.angleDegrees.first(), viewModel.uiState.value.sets.single().intensityValue)
+    }
+
+    @Test
+    fun `유산소 종목을 고르면 시간 기본값으로 세트가 생긴다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CARDIO))
+        advanceUntilIdle()
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(running.id))
+
+        assertEquals(WorkoutOptions.durationMinutes.first(), viewModel.uiState.value.sets.single().intensityValue)
     }
 
     @Test

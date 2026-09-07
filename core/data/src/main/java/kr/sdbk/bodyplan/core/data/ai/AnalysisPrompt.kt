@@ -71,12 +71,12 @@ internal object AnalysisPrompt {
         appendLine()
         appendLine(profileBlock(request.profile))
         appendLine()
-        appendLine("운동한 날 ${request.workoutDayCount}일, 쉰 날 ${request.restDayCount}일입니다.")
-        appendLine(
-            "무게 종목 총 볼륨 ${request.totalWeightVolume}kg, " +
-                "맨몸 종목 총 ${request.totalBodyweightReps}회입니다.",
-        )
-        appendLine("아래 숫자는 앱이 센 정확한 값이니 다시 계산하지 말고 그대로 쓰세요.")
+        appendLine("아래 다섯 숫자는 앱이 센 정확한 값입니다. 다시 계산하지 말고 그대로 쓰세요.")
+        appendLine("- 운동한 날: ${request.workoutDayCount}일")
+        appendLine("- 쉰 날: ${request.restDayCount}일")
+        appendLine("- 무게 종목 총 볼륨: ${request.totalWeightVolume}kg")
+        appendLine("- 각도 종목 총 횟수: ${request.totalBodyweightReps}회")
+        appendLine("- 유산소 총 시간: ${request.totalCardioMinutes}분")
         appendLine()
         appendLine("기록 ${request.entries.size}건입니다.")
         request.entries.forEach { entry -> appendLine("- ${entry.line}") }
@@ -84,13 +84,25 @@ internal object AnalysisPrompt {
         appendLine("아래 네 묶음을 이 제목과 순서로 채우세요.")
         if (request.kind == AnalysisKind.WORKOUT_DAILY) {
             appendLine("- 수행한 운동: 부위별로 어떤 종목을 몇 세트 했는지 적습니다.")
-            appendLine("- 볼륨: 합계는 위 값을 그대로 쓰고, 어느 종목에 몰렸는지와 목적에 맞는지를 적습니다.")
-            appendLine("- 부위 균형: 이 날 자극한 부위와 빠진 부위를 적습니다.")
+            appendLine(
+                "- 볼륨: 합계는 위 값을 그대로 쓰고, 어느 종목에 몰렸는지와 목적에 맞는지를 적습니다. " +
+                    "유산소는 볼륨이 아니라 시간으로 적습니다.",
+            )
+            appendLine(
+                "- 부위 균형: 이 날 자극한 부위와 빠진 부위를 적습니다. " +
+                    "유산소는 부위가 아니므로 빠진 부위로 세지 말고 따로 언급합니다.",
+            )
             appendLine("- 개선 방향: 목표에 견주어 무엇을 바꿀지 적습니다.")
         } else {
             appendLine("- 기간 흐름: 운동한 날과 쉰 날이 어떻게 갈렸는지, 빈도가 적절한지 적습니다.")
-            appendLine("- 볼륨 흐름: 총 볼륨은 위 값을 그대로 쓰고, 날짜별 오르내림을 목적에 견줍니다.")
-            appendLine("- 부위 균형: 기간 전체에서 부위별 분할이 치우치지 않았는지 적습니다.")
+            appendLine(
+                "- 볼륨 흐름: 총 볼륨은 위 값을 그대로 쓰고, 날짜별 오르내림을 목적에 견줍니다. " +
+                    "유산소는 볼륨이 아니라 시간으로 적습니다.",
+            )
+            appendLine(
+                "- 부위 균형: 기간 전체에서 부위별 분할이 치우치지 않았는지 적습니다. " +
+                    "유산소는 부위가 아니므로 빠진 부위로 세지 말고 비중만 따로 봅니다.",
+            )
             appendLine("- 개선 방향: 다음 기간에 무엇을 바꿀지 적습니다.")
         }
     }
@@ -144,7 +156,11 @@ private val WorkoutAnalysisEntry.line: String
         val sets = sets.joinToString(", ") { set ->
             when (set.intensityType) {
                 IntensityType.WEIGHT -> "${set.intensityValue}kg×${set.repeatCount}회"
+
                 IntensityType.ANGLE -> "각도 ${set.intensityValue}도×${set.repeatCount}회"
+
+                // 시간으로 재는 종목은 한 세트가 한 회차라 횟수를 적지 않는다.
+                IntensityType.DURATION -> "${set.intensityValue}분"
             }
         }
         return "$date ${bodyPart.text} · $exerciseName: $sets"
@@ -158,4 +174,5 @@ private val BodyPart.text: String
         BodyPart.LEG -> "하체"
         BodyPart.BICEPS -> "이두"
         BodyPart.TRICEPS -> "삼두"
+        BodyPart.CARDIO -> "유산소"
     }

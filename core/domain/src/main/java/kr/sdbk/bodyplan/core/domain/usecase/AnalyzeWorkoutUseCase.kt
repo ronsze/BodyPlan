@@ -61,6 +61,7 @@ constructor(
                 restDayCount = passedDates.count { it !in workoutDates },
                 totalWeightVolume = entries.sumOf { entry -> entry.volumeOf(IntensityType.WEIGHT) },
                 totalBodyweightReps = entries.sumOf { entry -> entry.repsOf(IntensityType.ANGLE) },
+                totalCardioMinutes = entries.sumOf { entry -> entry.minutesOf(IntensityType.DURATION) },
             ),
         )
         analysisResultRepository.save(kind, scopeKey, content)
@@ -95,3 +96,7 @@ private fun WorkoutAnalysisEntry.volumeOf(type: IntensityType): Int =
 
 private fun WorkoutAnalysisEntry.repsOf(type: IntensityType): Int =
     sets.filter { it.intensityType == type }.sumOf { it.repeatCount }
+
+/** 시간으로 재는 종목은 한 세트가 한 회차라 횟수를 곱하지 않는다. */
+private fun WorkoutAnalysisEntry.minutesOf(type: IntensityType): Int =
+    sets.filter { it.intensityType == type }.sumOf { it.intensityValue }

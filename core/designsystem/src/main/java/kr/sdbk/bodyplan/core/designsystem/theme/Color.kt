@@ -33,6 +33,7 @@ val PartShoulder = Color(0xFFE8A33D)
 val PartLeg = Color(0xFF5FA86B)
 val PartBiceps = Color(0xFF9B72C7)
 val PartTriceps = Color(0xFF3FA9A0)
+val PartCardio = Color(0xFFE8734A)
 
 // AI 제공자를 가리키는 색. 부위 색과 같은 자리에 둔다.
 val AiClaude = Color(0xFFD97757)

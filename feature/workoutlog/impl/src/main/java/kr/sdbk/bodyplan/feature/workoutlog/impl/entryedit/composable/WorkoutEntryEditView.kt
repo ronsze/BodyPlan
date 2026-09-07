@@ -48,6 +48,7 @@ import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutOptions
+import kr.sdbk.bodyplan.core.domain.model.countsRepeats
 import kr.sdbk.bodyplan.core.ui.components.BodyPartTabRow
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.SetInput
@@ -203,9 +204,18 @@ private fun androidx.compose.foundation.lazy.LazyListScope.setItems(
     val intensityOptions = when (intensityType) {
         IntensityType.WEIGHT -> WorkoutOptions.weightKilograms
         IntensityType.ANGLE -> WorkoutOptions.angleDegrees
+        IntensityType.DURATION -> WorkoutOptions.durationMinutes
     }
-    val intensityLabel = if (intensityType == IntensityType.WEIGHT) "무게" else "각도"
-    val intensitySuffix = if (intensityType == IntensityType.WEIGHT) "kg" else "도"
+    val intensityLabel = when (intensityType) {
+        IntensityType.WEIGHT -> "무게"
+        IntensityType.ANGLE -> "각도"
+        IntensityType.DURATION -> "시간"
+    }
+    val intensitySuffix = when (intensityType) {
+        IntensityType.WEIGHT -> "kg"
+        IntensityType.ANGLE -> "도"
+        IntensityType.DURATION -> "분"
+    }
 
     itemsIndexed(items = state.sets, key = { _, setInput -> setInput.id }) { index, setInput ->
         SetCard(
@@ -214,6 +224,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.setItems(
             intensityOptions = intensityOptions,
             intensityLabel = intensityLabel,
             intensitySuffix = intensitySuffix,
+            showRepeatCount = intensityType.countsRepeats,
             canRemove = state.canRemoveSet,
             onClickRemove = { uiEvents.onClickRemoveSet(setInput.id) },
             onSelectRepeatCount = { uiEvents.onSelectSetRepeatCount(setInput.id, it) },
@@ -229,6 +240,7 @@ private fun SetCard(
     intensityOptions: List<Int>,
     intensityLabel: String,
     intensitySuffix: String,
+    showRepeatCount: Boolean,
     canRemove: Boolean,
     onClickRemove: () -> Unit,
     onSelectRepeatCount: (Int) -> Unit,
@@ -263,14 +275,17 @@ private fun SetCard(
                 modifier = Modifier.weight(1f),
                 suffix = intensitySuffix,
             )
-            WheelPicker(
-                label = "횟수",
-                options = WorkoutOptions.repeatCounts,
-                selected = setInput.repeatCount,
-                onSelect = onSelectRepeatCount,
-                modifier = Modifier.weight(1f),
-                suffix = "회",
-            )
+            // 시간으로 재는 종목은 한 세트가 한 회차라 횟수를 고를 것이 없다.
+            if (showRepeatCount) {
+                WheelPicker(
+                    label = "횟수",
+                    options = WorkoutOptions.repeatCounts,
+                    selected = setInput.repeatCount,
+                    onSelect = onSelectRepeatCount,
+                    modifier = Modifier.weight(1f),
+                    suffix = "회",
+                )
+            }
         }
     }
 }

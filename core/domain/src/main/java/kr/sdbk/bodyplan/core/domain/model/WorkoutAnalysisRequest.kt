@@ -36,4 +36,6 @@ data class WorkoutAnalysisRequest(
     val totalWeightVolume: Int,
     /** 각도 종목의 총 횟수. 무게가 없어 볼륨에 섞지 않는다. */
     val totalBodyweightReps: Int,
+    /** 유산소의 총 시간(분). 무게도 횟수도 없어 따로 센다. */
+    val totalCardioMinutes: Int,
 )

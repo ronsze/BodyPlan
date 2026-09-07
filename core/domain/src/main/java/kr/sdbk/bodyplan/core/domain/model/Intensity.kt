@@ -13,10 +13,15 @@ sealed interface Intensity {
         override val value: Int get() = degrees
     }
 
+    data class Duration(val minutes: Int) : Intensity {
+        override val value: Int get() = minutes
+    }
+
     companion object {
         fun of(type: IntensityType, value: Int): Intensity = when (type) {
             IntensityType.WEIGHT -> Weight(value)
             IntensityType.ANGLE -> Angle(value)
+            IntensityType.DURATION -> Duration(value)
         }
     }
 }

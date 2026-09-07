@@ -7,7 +7,14 @@ import kr.sdbk.bodyplan.core.local.entity.ExerciseEntity
 /** 첫 실행 때 심는 기본 종목. 사용자가 이후 더하거나 고칠 수 있다. */
 internal object DefaultExercises {
     val all: List<ExerciseEntity> =
-        chest() + back() + shoulder() + leg() + biceps() + triceps()
+        chest() + back() + shoulder() + leg() + biceps() + triceps() + cardio()
+
+    /** 유산소만 따로 낸다. 이미 쓰던 사용자에게 마이그레이션으로 심어야 한다. */
+    fun cardio() = listOf(
+        duration(BodyPart.CARDIO, "런닝머신"),
+        duration(BodyPart.CARDIO, "스텝밀"),
+        duration(BodyPart.CARDIO, "싸이클"),
+    )
 
     private fun chest() = listOf(
         weight(BodyPart.CHEST, "인클라인 벤치프레스 머신"),
@@ -62,5 +69,11 @@ internal object DefaultExercises {
         bodyPart = bodyPart.name,
         name = name,
         intensityType = IntensityType.ANGLE.name,
+    )
+
+    private fun duration(bodyPart: BodyPart, name: String) = ExerciseEntity(
+        bodyPart = bodyPart.name,
+        name = name,
+        intensityType = IntensityType.DURATION.name,
     )
 }

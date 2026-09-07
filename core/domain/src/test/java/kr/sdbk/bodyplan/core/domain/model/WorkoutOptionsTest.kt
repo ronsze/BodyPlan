@@ -33,4 +33,14 @@ class WorkoutOptionsTest {
     fun `각도 종목의 기본 강도는 최소 각도다`() {
         assertEquals(Intensity.Angle(0), WorkoutOptions.defaultIntensity(IntensityType.ANGLE))
     }
+
+    @Test
+    fun `시간은 5부터 120까지 5단위다`() {
+        assertEquals((5..120 step 5).toList(), WorkoutOptions.durationMinutes)
+    }
+
+    @Test
+    fun `유산소 종목의 기본 강도는 최소 시간이다`() {
+        assertEquals(Intensity.Duration(5), WorkoutOptions.defaultIntensity(IntensityType.DURATION))
+    }
 }

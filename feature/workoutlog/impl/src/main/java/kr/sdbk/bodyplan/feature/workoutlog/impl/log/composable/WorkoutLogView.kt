@@ -209,12 +209,13 @@ private fun SetRow(setNumber: Int, set: WorkoutSet) {
     }
 }
 
-private fun intensityText(set: WorkoutSet): String {
-    val unit = when (set.intensity) {
-        is Intensity.Weight -> "kg"
-        is Intensity.Angle -> "도"
-    }
-    return "${set.intensity.value}$unit × ${set.repeatCount}회"
+private fun intensityText(set: WorkoutSet): String = when (set.intensity) {
+    is Intensity.Weight -> "${set.intensity.value}kg × ${set.repeatCount}회"
+
+    is Intensity.Angle -> "${set.intensity.value}도 × ${set.repeatCount}회"
+
+    // 시간으로 재는 종목은 한 세트가 한 회차라 횟수를 적지 않는다.
+    is Intensity.Duration -> "${set.intensity.value}분"
 }
 
 @Composable

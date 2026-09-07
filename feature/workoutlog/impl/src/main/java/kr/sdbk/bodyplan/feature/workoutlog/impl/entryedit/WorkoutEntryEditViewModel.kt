@@ -16,6 +16,7 @@ import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutOptions
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
+import kr.sdbk.bodyplan.core.domain.model.countsRepeats
 import kr.sdbk.bodyplan.core.domain.repository.ExerciseRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
@@ -158,9 +159,14 @@ constructor(
         }
     }
 
+    /** 시간으로 재는 종목은 한 세트가 한 회차다. 화면에서 감춘 값이 4로 저장되지 않게 여기서 정한다. */
     private fun newSetInput(id: Long, intensityType: IntensityType) = SetInput(
         id = id,
-        repeatCount = WorkoutOptions.repeatCounts.first(),
+        repeatCount = if (intensityType.countsRepeats) {
+            WorkoutOptions.repeatCounts.first()
+        } else {
+            WorkoutOptions.SINGLE_REPEAT
+        },
         intensityValue = WorkoutOptions.defaultIntensity(intensityType).value,
     )
 
