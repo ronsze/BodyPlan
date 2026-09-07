@@ -14,6 +14,7 @@ import kr.sdbk.bodyplan.core.network.AiClient
 import kr.sdbk.bodyplan.core.network.AiHttpException
 import kr.sdbk.bodyplan.core.network.AiImage
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -64,14 +65,14 @@ internal class AiAnalysisRepositoryImplTest {
     }
 
     @Test
-    fun `사유를 읽어낼 수 없으면 기본 문구로 떨어진다`() = runTest {
+    fun `사유를 읽어낼 수 없으면 응답 코드라도 남긴다`() = runTest {
         val client = FakeAiClient(verifyFailure = AiHttpException(400, "이건 JSON이 아닙니다"))
         val repository = repository(client)
 
         val failure = runCatching { repository.verifyCredential(credential) }.exceptionOrNull()
 
         assertTrue(failure is AiRequestFailedException)
-        assertNull((failure as AiRequestFailedException).reason)
+        assertEquals("HTTP 400", (failure as AiRequestFailedException).reason)
     }
 
     @Test
@@ -138,24 +139,37 @@ internal class AiAnalysisRepositoryImplTest {
     }
 
     @Test
-    fun `error message가 JSON null이면 사유 없는 실패가 된다`() = runTest {
+    fun `error message가 JSON null이면 문자열 null이 아니라 응답 코드가 담긴다`() = runTest {
         val client = FakeAiClient(verifyFailure = AiHttpException(400, """{"error": {"message": null}}"""))
         val repository = repository(client)
 
         val failure = runCatching { repository.verifyCredential(credential) }.exceptionOrNull()
 
-        assertNull((failure as AiRequestFailedException).reason)
+        assertEquals("HTTP 400", (failure as AiRequestFailedException).reason)
     }
 
     @Test
-    fun `네트워크 단절은 사유 없는 실패가 된다`() = runTest {
+    fun `네트워크 단절은 끊긴 종류를 사유로 남긴다`() = runTest {
         val client = FakeAiClient(verifyFailure = IOException("disconnected"))
         val repository = repository(client)
 
         val failure = runCatching { repository.verifyCredential(credential) }.exceptionOrNull()
 
         assertTrue(failure is AiRequestFailedException)
-        assertNull((failure as AiRequestFailedException).reason)
+        assertEquals("IOException: disconnected", (failure as AiRequestFailedException).reason)
+    }
+
+    @Test
+    fun `네트워크 예외 메시지에 키가 섞여도 사유에 실리지 않는다`() = runTest {
+        val client = FakeAiClient(
+            verifyFailure = IOException("failed to connect to host?key=${credential.token}"),
+        )
+        val repository = repository(client)
+
+        val failure = runCatching { repository.verifyCredential(credential) }.exceptionOrNull()
+
+        val reason = (failure as AiRequestFailedException).reason.orEmpty()
+        assertFalse(reason.contains(credential.token))
     }
 
     private class FakeAiClient(private val verifyFailure: Throwable? = null) : AiClient {

@@ -101,14 +101,25 @@ constructor(
         this is AiHttpException && code == BAD_REQUEST && errorReason.isInvalidKey(body) ->
             AiUnauthorizedException()
 
-        this is AiHttpException ->
-            AiRequestFailedException(this, errorReason.of(body)?.let { errorReason.withoutSecrets(it, token) })
+        this is AiHttpException -> AiRequestFailedException(this, httpReason(token))
 
-        this is IOException -> AiRequestFailedException(this)
+        this is IOException -> AiRequestFailedException(this, networkReason(token))
 
         else -> this
     }
+
+    /** 사유를 읽어 내지 못해도 코드는 남긴다. 아무것도 없으면 어디를 볼지 정할 수 없다. */
+    private fun AiHttpException.httpReason(token: String): String =
+        errorReason.of(body)?.let { errorReason.withoutSecrets(it, token) } ?: "HTTP $code"
+
+    /** 끊긴 이유가 시간 초과인지 이름 풀이 실패인지에 따라 볼 곳이 다르다. */
+    private fun IOException.networkReason(token: String): String {
+        val detail = message?.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
+        return errorReason.withoutSecrets("${javaClass.simpleName}$detail", token).take(REASON_MAX_LENGTH)
+    }
 }
+
+private const val REASON_MAX_LENGTH = 300
 
 private val UNAUTHORIZED_CODES = setOf(401, 403)
 private const val BAD_REQUEST = 400
