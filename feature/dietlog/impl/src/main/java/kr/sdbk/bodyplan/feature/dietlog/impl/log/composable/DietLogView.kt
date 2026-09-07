@@ -202,7 +202,11 @@ private fun EntryCard(
     onLongClick: () -> Unit,
     onClickDelete: () -> Unit,
 ) {
-    BodyPlanCard(contentPadding = 16.dp) {
+    // 카드 어디를 눌러도 들어간다. 사진만 눌리면 누를 곳을 찾아야 한다.
+    BodyPlanCard(
+        modifier = if (isEditable) Modifier.clickable(onClick = onClick) else Modifier,
+        contentPadding = 16.dp,
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             BaseText(
                 text = title,
@@ -233,6 +237,7 @@ private fun EntryCard(
                     .size(72.dp)
                     .clip(RoundedCornerShape(12.dp))
                     // 사진을 길게 누르면 갤러리로 내보낸다. 조회만 되는 날짜에서도 저장은 할 수 있다.
+                    // 짧게 누르는 것은 카드가 받으므로 여기서는 길게 누르는 것만 본다.
                     .combinedClickable(
                         onClick = { if (isEditable) onClick() },
                         onLongClick = onLongClick,
