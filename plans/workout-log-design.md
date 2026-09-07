@@ -74,7 +74,7 @@
 - [ ] 부위를 고르기 전에는 종목 목록이 비어 있다.
 - [ ] 부위를 고르면 그 부위의 삭제되지 않은 종목만 나온다.
 - [ ] 종목을 고르면 세트가 한 줄 생긴다.
-- [ ] 세트를 추가하면 직전 세트의 무게·횟수가 복사된 새 줄이 붙는다.
+- [ ] 세트를 추가하면 앞 세트 값을 물려받지 않고 기본값 줄이 뒤에 붙는다. 앞 세트는 그대로 남는다.
 - [ ] 세트마다 무게(또는 각도)와 횟수를 서로 다르게 고를 수 있다.
 - [ ] 강도 타입이 무게인 종목은 세트 줄에 5~100kg 선택지가, 각도인 종목은 0~60도 선택지가 나온다.
 - [ ] 세트가 10개면 세트 추가 버튼이 비활성이다.
@@ -83,6 +83,7 @@
 - [ ] 종목을 바꾸면 세트 목록이 한 줄로 초기화된다.
 - [ ] 고른 부위에 종목이 하나도 없으면 빈 상태 문구가 보인다.
 - [ ] 저장이 실패하면 화면이 닫히지 않고 실패 문구가 뜬다.
+- [ ] 저장에 성공하면 저장 중 표시가 풀린다. 같은 화면을 다시 열었을 때 저장 버튼이 잠겨 있으면 안 된다.
 
 **캘린더 화면**
 
@@ -426,7 +427,7 @@ internal data class SetInput(
 |---|---|
 | `SelectBodyPart(bodyPart: BodyPart)` | `selectedBodyPart` 교체, `selectedExercise = null`, `sets = emptyList()`, 그 부위 종목 구독 |
 | `SelectExercise(id: Long)` | `selectedExercise` 교체, `sets`를 `defaultIntensity` 값으로 만든 한 줄로 초기화 |
-| `ClickAddSet` | `sets`의 마지막 줄을 복사해 뒤에 붙인다. `sets.size == MAX_SET_COUNT`면 무시 |
+| `ClickAddSet` | 기본값 줄을 뒤에 붙인다. `sets.size == MAX_SET_COUNT`면 무시 |
 | `ClickRemoveSet(setInputId: Long)` | 그 줄을 지운다. `sets.size == 1`이면 무시 |
 | `SelectSetRepeatCount(setInputId: Long, value: Int)` | 그 줄의 `repeatCount` 교체 |
 | `SelectSetIntensity(setInputId: Long, value: Int)` | 그 줄의 `intensityValue` 교체 |
@@ -705,7 +706,7 @@ fun BodyPlanNavigator.navigateToExerciseManage()
 | `core/ui/components/.../BodyPartUi.kt` | 신규 | `BodyPart.label`·`BodyPart.color`, `BodyPartTabRow` |
 | `core/designsystem/.../theme/Color.kt` | 수정 | 부위 6색 추가 |
 | `core/designsystem/.../component/OptionChipRow.kt` | 신규 | 선택지 칩 줄 |
-| `app/.../navigation/BodyPlanNavDisplay.kt` | 수정 | `workoutLogNavGraph(navigator)` 호출 추가 |
+| `app/.../navigation/BodyPlanNavDisplay.kt` | 수정 | `workoutLogNavGraph(navigator)` 호출과 `entryDecorators` 추가. `NavDisplay` 기본값에는 ViewModel 저장소 데코레이터가 없어, 없으면 모든 화면의 ViewModel이 액티비티에 붙는다 |
 
 #### 단위 3 — 캘린더 화면
 

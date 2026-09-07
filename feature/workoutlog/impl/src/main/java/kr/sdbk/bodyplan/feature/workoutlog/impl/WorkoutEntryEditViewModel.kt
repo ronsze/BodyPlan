@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.Intensity
+import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutOptions
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
@@ -137,33 +138,31 @@ constructor(
 
     private fun selectExercise(id: Long) {
         val exercise = state.value.exercises.firstOrNull { it.id == id } ?: return
-        val defaultIntensity = WorkoutOptions.defaultIntensity(exercise.intensityType)
         updateState { current ->
             current.copy(
                 selectedExercise = exercise,
-                sets = listOf(
-                    SetInput(
-                        id = current.nextSetInputId,
-                        repeatCount = WorkoutOptions.repeatCounts.first(),
-                        intensityValue = defaultIntensity.value,
-                    ),
-                ),
+                sets = listOf(newSetInput(current.nextSetInputId, exercise.intensityType)),
                 nextSetInputId = current.nextSetInputId + 1,
             )
         }
     }
 
     private fun addSet() {
+        val intensityType = state.value.selectedExercise?.intensityType ?: return
         updateState { current ->
-            val last = current.sets.lastOrNull()
-            if (!current.canAddSet || last == null) return@updateState current
-            // 직전 세트를 복사한다. 무게를 조금씩 올려가며 같은 값을 여러 번 고르는 일을 줄인다.
+            if (!current.canAddSet) return@updateState current
             current.copy(
-                sets = current.sets + last.copy(id = current.nextSetInputId),
+                sets = current.sets + newSetInput(current.nextSetInputId, intensityType),
                 nextSetInputId = current.nextSetInputId + 1,
             )
         }
     }
+
+    private fun newSetInput(id: Long, intensityType: IntensityType) = SetInput(
+        id = id,
+        repeatCount = WorkoutOptions.repeatCounts.first(),
+        intensityValue = WorkoutOptions.defaultIntensity(intensityType).value,
+    )
 
     private fun removeSet(setInputId: Long) {
         updateState { current ->
@@ -201,6 +200,7 @@ constructor(
                     workoutLogRepository.updateEntry(entryId, exercise, sets)
                 }
             }.onSuccess {
+                updateState { it.copy(isSaving = false) }
                 updateEffect(WorkoutEntryEditEffect.GoBack)
             }.onFailure {
                 updateState { it.copy(isSaving = false) }

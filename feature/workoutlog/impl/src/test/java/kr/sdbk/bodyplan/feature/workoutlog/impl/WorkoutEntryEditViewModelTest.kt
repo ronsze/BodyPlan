@@ -93,7 +93,7 @@ internal class WorkoutEntryEditViewModelTest {
     }
 
     @Test
-    fun `세트를 추가하면 직전 세트가 복사된다`() = runTest {
+    fun `세트를 추가하면 앞 세트 값을 물려받지 않고 기본값으로 생긴다`() = runTest {
         val viewModel = viewModel()
         subscribe(viewModel)
         selectBenchPress(viewModel)
@@ -105,9 +105,42 @@ internal class WorkoutEntryEditViewModelTest {
 
         val sets = viewModel.uiState.value.sets
         assertEquals(2, sets.size)
-        assertEquals(45, sets[1].intensityValue)
-        assertEquals(8, sets[1].repeatCount)
+        assertEquals(WorkoutOptions.weightKilograms.first(), sets[1].intensityValue)
+        assertEquals(WorkoutOptions.repeatCounts.first(), sets[1].repeatCount)
         assertEquals(2, sets.map { it.id }.distinct().size)
+        // 앞 세트는 그대로 남는다.
+        assertEquals(45, sets[0].intensityValue)
+        assertEquals(8, sets[0].repeatCount)
+    }
+
+    @Test
+    fun `각도 종목은 세트를 더해도 각도 기본값으로 생긴다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CHEST))
+        advanceUntilIdle()
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(pushUp.id))
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ClickAddSet)
+
+        assertEquals(
+            listOf(WorkoutOptions.angleDegrees.first(), WorkoutOptions.angleDegrees.first()),
+            viewModel.uiState.value.sets.map { it.intensityValue },
+        )
+    }
+
+    @Test
+    fun `저장에 성공하면 저장 중 표시가 풀린다`() = runTest {
+        val logRepository = FakeWorkoutLogRepository()
+        val viewModel = viewModel(workoutLogRepository = logRepository)
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isSaving)
+        assertTrue(viewModel.uiState.value.canSave)
     }
 
     @Test
