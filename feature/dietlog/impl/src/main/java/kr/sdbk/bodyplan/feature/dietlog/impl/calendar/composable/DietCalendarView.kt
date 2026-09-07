@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -31,15 +32,21 @@ import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.domain.model.DietDayStatus
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
+import kr.sdbk.bodyplan.feature.dietlog.api.DietAnalysisPeriod
 import kr.sdbk.bodyplan.feature.dietlog.impl.calendar.DietCalendarEffect
 import kr.sdbk.bodyplan.feature.dietlog.impl.calendar.DietCalendarIntent
 import kr.sdbk.bodyplan.feature.dietlog.impl.calendar.DietCalendarState
 import kr.sdbk.bodyplan.feature.dietlog.impl.calendar.DietCalendarViewModel
 
-internal data class DietCalendarEvents(val goToLog: (LocalDate) -> Unit)
+internal data class DietCalendarEvents(
+    val goToLog: (LocalDate) -> Unit,
+    val goToAnalysis: (DietAnalysisPeriod, LocalDate) -> Unit,
+)
 
 internal data class DietCalendarUiEvents(
     val onSelectDate: (LocalDate) -> Unit,
+    val onClickWeeklyAnalysis: () -> Unit,
+    val onClickMonthlyAnalysis: () -> Unit,
     val onChangeMonth: (YearMonth) -> Unit,
     val onClickRetry: () -> Unit,
 )
@@ -47,7 +54,7 @@ internal data class DietCalendarUiEvents(
 @Composable
 internal fun DietCalendarView(events: DietCalendarEvents, viewModel: DietCalendarViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val uiEvents = rememberUiEvents(viewModel)
+    val uiEvents = rememberUiEvents(events, viewModel, state.yearMonth, state.today)
 
     DietCalendarViewImpl(
         state = state,
@@ -61,10 +68,26 @@ internal fun DietCalendarView(events: DietCalendarEvents, viewModel: DietCalenda
     }
 }
 
+/**
+ * 분석 진입은 보고 있는 달과 오늘을 캡처하므로 키를 준다.
+ * 키가 없으면 달을 넘겨도 처음 들어온 달을 계속 분석하게 된다.
+ *
+ * 주간은 이번 달을 보고 있을 때만 낸다. 지난 달의 어느 주를 뜻하는지 버튼 하나로는 정할 수 없고,
+ * 그 달 첫 주는 전달에 걸쳐 있어 "이번 주"라는 이름과도 맞지 않는다.
+ */
 @Composable
-private fun rememberUiEvents(viewModel: DietCalendarViewModel): DietCalendarUiEvents = remember {
+private fun rememberUiEvents(
+    events: DietCalendarEvents,
+    viewModel: DietCalendarViewModel,
+    yearMonth: YearMonth,
+    today: LocalDate,
+): DietCalendarUiEvents = remember(yearMonth, today) {
+    val isCurrentMonth = YearMonth.from(today) == yearMonth
+    val dateInMonth = if (isCurrentMonth) today else yearMonth.atDay(1)
     DietCalendarUiEvents(
         onSelectDate = { viewModel.handleIntent(DietCalendarIntent.ClickDate(it)) },
+        onClickWeeklyAnalysis = { events.goToAnalysis(DietAnalysisPeriod.WEEKLY, today) },
+        onClickMonthlyAnalysis = { events.goToAnalysis(DietAnalysisPeriod.MONTHLY, dateInMonth) },
         onChangeMonth = { viewModel.handleIntent(DietCalendarIntent.ChangeMonth(it)) },
         onClickRetry = { viewModel.handleIntent(DietCalendarIntent.ClickRetry) },
     )
@@ -107,6 +130,21 @@ internal fun DietCalendarViewImpl(state: DietCalendarState, uiEvents: DietCalend
             MonthSummaryBanner(
                 recordedDays = state.dayStatuses.values.count { it is DietDayStatus.Recorded },
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 지난 달에서는 주간을 내지 않는다. 어느 주를 뜻하는지 버튼 하나로는 정할 수 없다.
+                if (isCurrentMonth(state)) {
+                    OutlinedActionButton(
+                        text = "이번 주 분석",
+                        onClick = uiEvents.onClickWeeklyAnalysis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                OutlinedActionButton(
+                    text = if (isCurrentMonth(state)) "이번 달 분석" else "이 달 분석",
+                    onClick = uiEvents.onClickMonthlyAnalysis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
@@ -146,8 +184,12 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
 // 사진이 무엇인지 알아볼 수 있어야 달력에 두는 뜻이 산다. 그만큼 셀도 높인다.
 private val CELL_HEIGHT = 76.dp
 
+private fun isCurrentMonth(state: DietCalendarState): Boolean = YearMonth.from(state.today) == state.yearMonth
+
 private val previewUiEvents = DietCalendarUiEvents(
     onSelectDate = {},
+    onClickWeeklyAnalysis = {},
+    onClickMonthlyAnalysis = {},
     onChangeMonth = {},
     onClickRetry = {},
 )

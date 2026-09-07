@@ -55,13 +55,18 @@ import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.DietEntry
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
+import kr.sdbk.bodyplan.feature.dietlog.api.DietAnalysisPeriod
 import kr.sdbk.bodyplan.feature.dietlog.impl.log.DietLogEffect
 import kr.sdbk.bodyplan.feature.dietlog.impl.log.DietLogIntent
 import kr.sdbk.bodyplan.feature.dietlog.impl.log.DietLogState
 import kr.sdbk.bodyplan.feature.dietlog.impl.log.DietLogViewModel
 import kr.sdbk.bodyplan.feature.dietlog.impl.log.mealTitle
 
-internal data class DietLogEvents(val goBack: () -> Unit, val goToEntryEdit: (LocalDate, Long?) -> Unit)
+internal data class DietLogEvents(
+    val goBack: () -> Unit,
+    val goToEntryEdit: (LocalDate, Long?) -> Unit,
+    val goToAnalysis: (DietAnalysisPeriod, LocalDate) -> Unit,
+)
 
 internal data class DietLogUiEvents(
     val onBackPressed: () -> Unit,
@@ -69,13 +74,14 @@ internal data class DietLogUiEvents(
     val onClickEntry: (Long) -> Unit,
     val onLongClickEntry: (Long) -> Unit,
     val onClickDeleteEntry: (Long) -> Unit,
+    val onClickAnalyze: () -> Unit,
     val onClickRetry: () -> Unit,
 )
 
 @Composable
 internal fun DietLogView(events: DietLogEvents, viewModel: DietLogViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val uiEvents = rememberUiEvents(events, viewModel)
+    val uiEvents = rememberUiEvents(events, viewModel, state.date)
     val context = LocalContext.current
 
     DietLogViewImpl(
@@ -96,7 +102,7 @@ internal fun DietLogView(events: DietLogEvents, viewModel: DietLogViewModel) {
 }
 
 @Composable
-private fun rememberUiEvents(events: DietLogEvents, viewModel: DietLogViewModel): DietLogUiEvents {
+private fun rememberUiEvents(events: DietLogEvents, viewModel: DietLogViewModel, date: LocalDate): DietLogUiEvents {
     val context = LocalContext.current
     // 안드로이드 9만 공용 저장소 쓰기 권한이 필요하다. 10부터는 MediaStore가 권한 없이 쓴다.
     val pendingExportId = remember { mutableStateOf<Long?>(null) }
@@ -112,7 +118,7 @@ private fun rememberUiEvents(events: DietLogEvents, viewModel: DietLogViewModel)
         }
     }
 
-    return remember(viewModel, requestWritePermission) {
+    return remember(viewModel, requestWritePermission, date) {
         DietLogUiEvents(
             onBackPressed = events.goBack,
             onClickAddEntry = { viewModel.handleIntent(DietLogIntent.ClickAddEntry) },
@@ -126,6 +132,7 @@ private fun rememberUiEvents(events: DietLogEvents, viewModel: DietLogViewModel)
                 }
             },
             onClickDeleteEntry = { viewModel.handleIntent(DietLogIntent.ClickDeleteEntry(it)) },
+            onClickAnalyze = { events.goToAnalysis(DietAnalysisPeriod.DAILY, date) },
             onClickRetry = { viewModel.handleIntent(DietLogIntent.ClickRetry) },
         )
     }
@@ -145,11 +152,23 @@ internal fun DietLogViewImpl(state: DietLogState, uiEvents: DietLogUiEvents) {
             onClickAction = uiEvents.onClickAddEntry,
         )
 
-        when {
-            state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
-            state.isLoading && state.entries.isEmpty() -> LoadingContent()
-            state.entries.isEmpty() -> EmptyContent()
-            else -> EntryList(state, uiEvents)
+        Box(modifier = Modifier.weight(1f)) {
+            when {
+                state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
+                state.isLoading && state.entries.isEmpty() -> LoadingContent()
+                state.entries.isEmpty() -> EmptyContent()
+                else -> EntryList(state, uiEvents)
+            }
+        }
+
+        // 조회만 되는 날짜에서도 분석은 할 수 있다. 지난 기록을 돌아보는 것이 분석의 쓸모다.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            OutlinedActionButton(text = "식단 분석", onClick = uiEvents.onClickAnalyze)
         }
     }
 }
@@ -274,6 +293,7 @@ private val previewEntries = listOf(
 
 private val previewUiEvents = DietLogUiEvents(
     onBackPressed = {},
+    onClickAnalyze = {},
     onClickAddEntry = {},
     onClickEntry = {},
     onLongClickEntry = {},

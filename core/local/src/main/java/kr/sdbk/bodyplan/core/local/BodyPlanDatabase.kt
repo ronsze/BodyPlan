@@ -2,10 +2,12 @@ package kr.sdbk.bodyplan.core.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import kr.sdbk.bodyplan.core.local.dao.AnalysisResultDao
 import kr.sdbk.bodyplan.core.local.dao.DietEntryDao
 import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
 import kr.sdbk.bodyplan.core.local.dao.UserProfileDao
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
+import kr.sdbk.bodyplan.core.local.entity.AnalysisResultEntity
 import kr.sdbk.bodyplan.core.local.entity.DietEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.ExerciseEntity
 import kr.sdbk.bodyplan.core.local.entity.UserProfileEntity
@@ -19,8 +21,9 @@ import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
         WorkoutSetEntity::class,
         DietEntryEntity::class,
         UserProfileEntity::class,
+        AnalysisResultEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class BodyPlanDatabase : RoomDatabase() {
@@ -31,4 +34,6 @@ abstract class BodyPlanDatabase : RoomDatabase() {
     abstract fun dietEntryDao(): DietEntryDao
 
     abstract fun userProfileDao(): UserProfileDao
+
+    abstract fun analysisResultDao(): AnalysisResultDao
 }

@@ -4,13 +4,19 @@ import androidx.compose.runtime.remember
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kr.sdbk.bodyplan.core.navigation.BodyPlanEntryProviderScope
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
+import kr.sdbk.bodyplan.feature.my.api.navigateToAiToken
 import kr.sdbk.bodyplan.feature.workoutlog.api.ExerciseManageNavKey
+import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutCalendarNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutEntryEditNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToExerciseManage
+import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutAnalysis
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutEntryEdit
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutLog
+import kr.sdbk.bodyplan.feature.workoutlog.impl.analysis.WorkoutAnalysisViewModel
+import kr.sdbk.bodyplan.feature.workoutlog.impl.analysis.composable.WorkoutAnalysisEvents
+import kr.sdbk.bodyplan.feature.workoutlog.impl.analysis.composable.WorkoutAnalysisView
 import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.composable.WorkoutCalendarEvents
 import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.composable.WorkoutCalendarView
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.WorkoutEntryEditViewModel
@@ -28,6 +34,7 @@ fun BodyPlanEntryProviderScope.workoutLogNavGraph(navigator: BodyPlanNavigator) 
             WorkoutCalendarEvents(
                 goToLog = navigator::navigateToWorkoutLog,
                 goToExerciseManage = navigator::navigateToExerciseManage,
+                goToAnalysis = navigator::navigateToWorkoutAnalysis,
             )
         }
         WorkoutCalendarView(events = events, viewModel = hiltViewModel())
@@ -43,11 +50,27 @@ fun BodyPlanEntryProviderScope.workoutLogNavGraph(navigator: BodyPlanNavigator) 
             WorkoutLogEvents(
                 goBack = navigator::goBack,
                 goToEntryEdit = navigator::navigateToWorkoutEntryEdit,
+                goToAnalysis = navigator::navigateToWorkoutAnalysis,
             )
         }
         WorkoutLogView(
             events = events,
             viewModel = hiltViewModel<WorkoutLogViewModel, WorkoutLogViewModel.Factory> {
+                it.create(navKey)
+            },
+        )
+    }
+
+    entry<WorkoutAnalysisNavKey> { navKey ->
+        val events = remember {
+            WorkoutAnalysisEvents(
+                goBack = navigator::goBack,
+                goToAiToken = navigator::navigateToAiToken,
+            )
+        }
+        WorkoutAnalysisView(
+            events = events,
+            viewModel = hiltViewModel<WorkoutAnalysisViewModel, WorkoutAnalysisViewModel.Factory> {
                 it.create(navKey)
             },
         )

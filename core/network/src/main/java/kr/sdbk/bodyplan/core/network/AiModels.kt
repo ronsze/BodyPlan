@@ -10,4 +10,7 @@ object AiModels {
     const val CLAUDE = "claude-sonnet-5"
     const val GPT = "gpt-4o"
     const val GEMINI = "gemini-2.0-flash"
+
+    /** 답 한 번의 최대 길이. 요약과 개선 방향이 잘리지 않을 만큼만 준다. */
+    const val MAX_OUTPUT_TOKENS = 2048
 }

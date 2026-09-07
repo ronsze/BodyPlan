@@ -47,25 +47,31 @@ import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.ui.components.label
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
+import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisPeriod
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogIntent
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogState
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogViewModel
 
-internal data class WorkoutLogEvents(val goBack: () -> Unit, val goToEntryEdit: (LocalDate, Long?) -> Unit)
+internal data class WorkoutLogEvents(
+    val goBack: () -> Unit,
+    val goToEntryEdit: (LocalDate, Long?) -> Unit,
+    val goToAnalysis: (WorkoutAnalysisPeriod, LocalDate) -> Unit,
+)
 
 internal data class WorkoutLogUiEvents(
     val onBackPressed: () -> Unit,
     val onClickAddEntry: () -> Unit,
     val onClickEntry: (Long) -> Unit,
     val onClickDeleteEntry: (Long) -> Unit,
+    val onClickAnalyze: () -> Unit,
     val onClickRetry: () -> Unit,
 )
 
 @Composable
 internal fun WorkoutLogView(events: WorkoutLogEvents, viewModel: WorkoutLogViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val uiEvents = rememberUiEvents(events, viewModel)
+    val uiEvents = rememberUiEvents(events, viewModel, state.date)
     val context = LocalContext.current
 
     WorkoutLogViewImpl(
@@ -86,12 +92,17 @@ internal fun WorkoutLogView(events: WorkoutLogEvents, viewModel: WorkoutLogViewM
 }
 
 @Composable
-private fun rememberUiEvents(events: WorkoutLogEvents, viewModel: WorkoutLogViewModel): WorkoutLogUiEvents = remember {
+private fun rememberUiEvents(
+    events: WorkoutLogEvents,
+    viewModel: WorkoutLogViewModel,
+    date: LocalDate,
+): WorkoutLogUiEvents = remember(viewModel, date) {
     WorkoutLogUiEvents(
         onBackPressed = events.goBack,
         onClickAddEntry = { viewModel.handleIntent(WorkoutLogIntent.ClickAddEntry) },
         onClickEntry = { viewModel.handleIntent(WorkoutLogIntent.ClickEntry(it)) },
         onClickDeleteEntry = { viewModel.handleIntent(WorkoutLogIntent.ClickDeleteEntry(it)) },
+        onClickAnalyze = { events.goToAnalysis(WorkoutAnalysisPeriod.DAILY, date) },
         onClickRetry = { viewModel.handleIntent(WorkoutLogIntent.ClickRetry) },
     )
 }
@@ -110,11 +121,23 @@ internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEv
             onClickAction = uiEvents.onClickAddEntry,
         )
 
-        when {
-            state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
-            state.isLoading && state.entries.isEmpty() -> LoadingContent()
-            state.entries.isEmpty() -> EmptyContent()
-            else -> EntryList(state, uiEvents)
+        Box(modifier = Modifier.weight(1f)) {
+            when {
+                state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
+                state.isLoading && state.entries.isEmpty() -> LoadingContent()
+                state.entries.isEmpty() -> EmptyContent()
+                else -> EntryList(state, uiEvents)
+            }
+        }
+
+        // 조회만 되는 날짜에서도 분석은 할 수 있다. 지난 기록을 돌아보는 것이 분석의 쓸모다.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            OutlinedActionButton(text = "운동 분석", onClick = uiEvents.onClickAnalyze)
         }
     }
 }
@@ -252,6 +275,7 @@ private val previewEntries = listOf(
 
 private val previewUiEvents = WorkoutLogUiEvents(
     onBackPressed = {},
+    onClickAnalyze = {},
     onClickAddEntry = {},
     onClickEntry = {},
     onClickDeleteEntry = {},

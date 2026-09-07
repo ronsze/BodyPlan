@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -33,15 +34,22 @@ import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.DayStatus
 import kr.sdbk.bodyplan.core.ui.components.DayStatusIndicator
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
+import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisPeriod
 import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.WorkoutCalendarEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.WorkoutCalendarIntent
 import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.WorkoutCalendarState
 import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.WorkoutCalendarViewModel
 
-internal data class WorkoutCalendarEvents(val goToLog: (LocalDate) -> Unit, val goToExerciseManage: () -> Unit)
+internal data class WorkoutCalendarEvents(
+    val goToLog: (LocalDate) -> Unit,
+    val goToExerciseManage: () -> Unit,
+    val goToAnalysis: (WorkoutAnalysisPeriod, LocalDate) -> Unit,
+)
 
 internal data class WorkoutCalendarUiEvents(
     val onSelectDate: (LocalDate) -> Unit,
+    val onClickWeeklyAnalysis: () -> Unit,
+    val onClickMonthlyAnalysis: () -> Unit,
     val onChangeMonth: (YearMonth) -> Unit,
     val onClickManageExercise: () -> Unit,
     val onClickRetry: () -> Unit,
@@ -50,7 +58,7 @@ internal data class WorkoutCalendarUiEvents(
 @Composable
 internal fun WorkoutCalendarView(events: WorkoutCalendarEvents, viewModel: WorkoutCalendarViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val uiEvents = rememberUiEvents(viewModel)
+    val uiEvents = rememberUiEvents(events, viewModel, state.yearMonth, state.today)
 
     WorkoutCalendarViewImpl(
         state = state,
@@ -65,10 +73,25 @@ internal fun WorkoutCalendarView(events: WorkoutCalendarEvents, viewModel: Worko
     }
 }
 
+/**
+ * 분석 진입은 보고 있는 달과 오늘을 캡처하므로 키를 준다.
+ * 키가 없으면 달을 넘겨도 처음 들어온 달을 계속 분석하게 된다.
+ *
+ * 주간은 이번 달을 보고 있을 때만 낸다. 지난 달의 어느 주를 뜻하는지 버튼 하나로는 정할 수 없다.
+ */
 @Composable
-private fun rememberUiEvents(viewModel: WorkoutCalendarViewModel): WorkoutCalendarUiEvents = remember {
+private fun rememberUiEvents(
+    events: WorkoutCalendarEvents,
+    viewModel: WorkoutCalendarViewModel,
+    yearMonth: YearMonth,
+    today: LocalDate,
+): WorkoutCalendarUiEvents = remember(yearMonth, today) {
+    val isCurrentMonth = YearMonth.from(today) == yearMonth
+    val dateInMonth = if (isCurrentMonth) today else yearMonth.atDay(1)
     WorkoutCalendarUiEvents(
         onSelectDate = { viewModel.handleIntent(WorkoutCalendarIntent.ClickDate(it)) },
+        onClickWeeklyAnalysis = { events.goToAnalysis(WorkoutAnalysisPeriod.WEEKLY, today) },
+        onClickMonthlyAnalysis = { events.goToAnalysis(WorkoutAnalysisPeriod.MONTHLY, dateInMonth) },
         onChangeMonth = { viewModel.handleIntent(WorkoutCalendarIntent.ChangeMonth(it)) },
         onClickManageExercise = { viewModel.handleIntent(WorkoutCalendarIntent.ClickManageExercise) },
         onClickRetry = { viewModel.handleIntent(WorkoutCalendarIntent.ClickRetry) },
@@ -111,6 +134,21 @@ internal fun WorkoutCalendarViewImpl(state: WorkoutCalendarState, uiEvents: Work
                 },
             )
             MonthSummaryBanner(state)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 지난 달에서는 주간을 내지 않는다. 어느 주를 뜻하는지 버튼 하나로는 정할 수 없다.
+                if (isCurrentMonth(state)) {
+                    OutlinedActionButton(
+                        text = "이번 주 분석",
+                        onClick = uiEvents.onClickWeeklyAnalysis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                OutlinedActionButton(
+                    text = if (isCurrentMonth(state)) "이번 달 분석" else "이 달 분석",
+                    onClick = uiEvents.onClickMonthlyAnalysis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
@@ -158,8 +196,13 @@ private val previewStatuses = mapOf(
     LocalDate.of(2026, 9, 8) to DayStatus.Pending,
 )
 
+/** 보고 있는 달이 오늘이 든 달인지. 버튼 문구가 갈린다. */
+private fun isCurrentMonth(state: WorkoutCalendarState): Boolean = YearMonth.from(state.today) == state.yearMonth
+
 private val previewUiEvents = WorkoutCalendarUiEvents(
     onSelectDate = {},
+    onClickWeeklyAnalysis = {},
+    onClickMonthlyAnalysis = {},
     onChangeMonth = {},
     onClickManageExercise = {},
     onClickRetry = {},
