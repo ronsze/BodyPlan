@@ -33,9 +33,12 @@ internal class FakeExerciseDao : ExerciseDao {
         return seed(entity)
     }
 
-    override suspend fun update(entity: ExerciseEntity) {
+    override suspend fun updateFields(id: Long, bodyPart: String, name: String, intensityType: String) {
         updateFailure?.let { throw it }
-        state.value = state.value + (entity.id to entity)
+        val existing = state.value[id] ?: return
+        // 실제 쿼리와 같이 isDeleted는 건드리지 않는다.
+        state.value = state.value +
+            (id to existing.copy(bodyPart = bodyPart, name = name, intensityType = intensityType))
     }
 
     override suspend fun markDeleted(id: Long) {

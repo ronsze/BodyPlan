@@ -12,6 +12,9 @@ internal class FakeExerciseRepository(initial: List<Exercise> = emptyList()) : E
     private val exercises = MutableStateFlow(initial)
 
     var observeFailure: Throwable? = null
+    var mutateFailure: Throwable? = null
+
+    private var nextId: Long = 1000L
 
     override fun observeExercises(bodyPart: BodyPart): Flow<List<Exercise>> = exercises.map { list ->
         observeFailure?.let { throw it }
@@ -20,10 +23,23 @@ internal class FakeExerciseRepository(initial: List<Exercise> = emptyList()) : E
 
     override suspend fun getExercise(id: Long): Exercise? = exercises.value.firstOrNull { it.id == id }
 
-    override suspend fun addExercise(bodyPart: BodyPart, name: String, intensityType: IntensityType): Long =
-        throw UnsupportedOperationException("단위 4에서 쓴다")
+    override suspend fun addExercise(bodyPart: BodyPart, name: String, intensityType: IntensityType): Long {
+        mutateFailure?.let { throw it }
+        val id = nextId++
+        exercises.value = exercises.value + Exercise(id, bodyPart, name, intensityType)
+        return id
+    }
 
-    override suspend fun updateExercise(exercise: Exercise) = throw UnsupportedOperationException("단위 4에서 쓴다")
+    override suspend fun updateExercise(exercise: Exercise) {
+        mutateFailure?.let { throw it }
+        // 실제 구현은 삭제 표시를 건드리지 않는다. 페이크도 저장된 값을 유지한다.
+        exercises.value = exercises.value.map { stored ->
+            if (stored.id == exercise.id) exercise.copy(isDeleted = stored.isDeleted) else stored
+        }
+    }
 
-    override suspend fun deleteExercise(id: Long) = throw UnsupportedOperationException("단위 4에서 쓴다")
+    override suspend fun deleteExercise(id: Long) {
+        mutateFailure?.let { throw it }
+        exercises.value = exercises.value.map { if (it.id == id) it.copy(isDeleted = true) else it }
+    }
 }

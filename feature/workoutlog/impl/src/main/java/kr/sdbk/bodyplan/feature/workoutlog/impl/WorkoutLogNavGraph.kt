@@ -4,18 +4,28 @@ import androidx.compose.runtime.remember
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kr.sdbk.bodyplan.core.navigation.BodyPlanEntryProviderScope
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
+import kr.sdbk.bodyplan.feature.workoutlog.api.ExerciseManageNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutCalendarNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutEntryEditNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
+import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToExerciseManage
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutEntryEdit
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutLog
 
 fun BodyPlanEntryProviderScope.workoutLogNavGraph(navigator: BodyPlanNavigator) {
     entry<WorkoutCalendarNavKey> {
         val events = remember {
-            WorkoutCalendarEvents(goToLog = navigator::navigateToWorkoutLog)
+            WorkoutCalendarEvents(
+                goToLog = navigator::navigateToWorkoutLog,
+                goToExerciseManage = navigator::navigateToExerciseManage,
+            )
         }
         WorkoutCalendarView(events = events, viewModel = hiltViewModel())
+    }
+
+    entry<ExerciseManageNavKey> {
+        val events = remember { ExerciseManageEvents(goBack = navigator::goBack) }
+        ExerciseManageView(events = events, viewModel = hiltViewModel())
     }
 
     entry<WorkoutLogNavKey> { navKey ->

@@ -21,9 +21,13 @@ internal sealed interface WorkoutCalendarIntent : Intent {
 
     data class ClickDate(val date: LocalDate) : WorkoutCalendarIntent
 
+    data object ClickManageExercise : WorkoutCalendarIntent
+
     data object ClickRetry : WorkoutCalendarIntent
 }
 
 internal sealed interface WorkoutCalendarEffect : Effect {
     data class NavigateToLog(val date: LocalDate) : WorkoutCalendarEffect
+
+    data object NavigateToExerciseManage : WorkoutCalendarEffect
 }

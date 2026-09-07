@@ -29,14 +29,11 @@ constructor(private val exerciseDao: ExerciseDao) : ExerciseRepository {
         )
 
     override suspend fun updateExercise(exercise: Exercise) {
-        exerciseDao.update(
-            ExerciseEntity(
-                id = exercise.id,
-                bodyPart = exercise.bodyPart.name,
-                name = exercise.name,
-                intensityType = exercise.intensityType.name,
-                isDeleted = exercise.isDeleted,
-            ),
+        exerciseDao.updateFields(
+            id = exercise.id,
+            bodyPart = exercise.bodyPart.name,
+            name = exercise.name,
+            intensityType = exercise.intensityType.name,
         )
     }
 

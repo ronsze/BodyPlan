@@ -1,7 +1,9 @@
 package kr.sdbk.bodyplan.feature.workoutlog.impl
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,11 +27,12 @@ import kr.sdbk.bodyplan.core.domain.model.DayStatus
 import kr.sdbk.bodyplan.core.ui.components.DayStatusIndicator
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 
-internal data class WorkoutCalendarEvents(val goToLog: (LocalDate) -> Unit)
+internal data class WorkoutCalendarEvents(val goToLog: (LocalDate) -> Unit, val goToExerciseManage: () -> Unit)
 
 internal data class WorkoutCalendarUiEvents(
     val onSelectDate: (LocalDate) -> Unit,
     val onChangeMonth: (YearMonth) -> Unit,
+    val onClickManageExercise: () -> Unit,
     val onClickRetry: () -> Unit,
 )
 
@@ -46,6 +49,7 @@ internal fun WorkoutCalendarView(events: WorkoutCalendarEvents, viewModel: Worko
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
             is WorkoutCalendarEffect.NavigateToLog -> events.goToLog(effect.date)
+            is WorkoutCalendarEffect.NavigateToExerciseManage -> events.goToExerciseManage()
         }
     }
 }
@@ -54,6 +58,7 @@ internal fun WorkoutCalendarView(events: WorkoutCalendarEvents, viewModel: Worko
 private fun rememberUiEvents(viewModel: WorkoutCalendarViewModel): WorkoutCalendarUiEvents = remember {
     WorkoutCalendarUiEvents(
         onSelectDate = { viewModel.handleIntent(WorkoutCalendarIntent.ClickDate(it)) },
+        onClickManageExercise = { viewModel.handleIntent(WorkoutCalendarIntent.ClickManageExercise) },
         onChangeMonth = { viewModel.handleIntent(WorkoutCalendarIntent.ChangeMonth(it)) },
         onClickRetry = { viewModel.handleIntent(WorkoutCalendarIntent.ClickRetry) },
     )
@@ -65,6 +70,12 @@ internal fun WorkoutCalendarViewImpl(state: WorkoutCalendarState, uiEvents: Work
         if (state.errorMessage != null) {
             ErrorContent(state.errorMessage, uiEvents.onClickRetry)
             return@Column
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = uiEvents.onClickManageExercise) {
+                BaseText(text = "운동 종목 관리")
+            }
         }
 
         if (state.isLoading) {
@@ -112,6 +123,7 @@ private fun WorkoutCalendarViewImplPreview() {
             uiEvents = WorkoutCalendarUiEvents(
                 onSelectDate = {},
                 onChangeMonth = {},
+                onClickManageExercise = {},
                 onClickRetry = {},
             ),
         )

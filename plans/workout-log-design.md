@@ -178,9 +178,8 @@ data class WorkoutEntryWithSets(
 | `ExerciseDao` | `observeByBodyPart(bodyPart: String): Flow<List<ExerciseEntity>>` | `WHERE bodyPart = :bodyPart AND isDeleted = 0 ORDER BY id ASC` |
 | `ExerciseDao` | `getById(id: Long): ExerciseEntity?` | `WHERE id = :id` |
 | `ExerciseDao` | `insert(entity: ExerciseEntity): Long` | `@Insert` |
-| `ExerciseDao` | `update(entity: ExerciseEntity)` | `@Update` |
+| `ExerciseDao` | `updateFields(id: Long, bodyPart: String, name: String, intensityType: String)` | `UPDATE exercise SET bodyPart = :bodyPart, name = :name, intensityType = :intensityType WHERE id = :id`. 엔티티를 통째로 덮지 않는다 — 호출부가 들고 온 `isDeleted` 기본값이 지워진 종목을 되살린다 |
 | `ExerciseDao` | `markDeleted(id: Long)` | `UPDATE exercise SET isDeleted = 1 WHERE id = :id` |
-| `ExerciseDao` | `insertAll(entities: List<ExerciseEntity>)` | `@Insert`. seed 전용 |
 | `WorkoutEntryDao` | `observeByDate(epochDay: Long): Flow<List<WorkoutEntryWithSets>>` | `@Transaction`, `WHERE dateEpochDay = :epochDay ORDER BY createdAtMillis ASC, id ASC` |
 | `WorkoutEntryDao` | `observeInRange(from: Long, to: Long): Flow<List<DateBodyPart>>` | `SELECT DISTINCT dateEpochDay, bodyPart FROM workout_entry WHERE dateEpochDay BETWEEN :from AND :to`. 캘린더는 세트를 읽지 않는다 |
 | `WorkoutEntryDao` | `getWithSets(id: Long): WorkoutEntryWithSets?` | `@Transaction`, `WHERE id = :id` |
@@ -681,7 +680,7 @@ fun BodyPlanNavigator.navigateToExerciseManage()
 | `core/local/.../dao/WorkoutEntryDao.kt` | 신규 | 기록·세트 DAO. `replaceSets` 트랜잭션 포함 |
 | `core/local/.../BodyPlanDatabase.kt` | 신규 | `@Database(version = 1)`, DAO 접근자 |
 | `core/local/.../DefaultExercises.kt` | 신규 | seed 목록 |
-| `core/local/.../di/LocalModule.kt` | 신규 | Database·DAO 제공, seed `Callback` 설치, 외래 키 활성 확인 |
+| `core/local/.../di/LocalModule.kt` | 신규 | Database·DAO 제공, seed `Callback` 설치, 배포 전 파괴적 마이그레이션 설정 |
 | `core/data/.../mapper/WorkoutMapper.kt` | 신규 | Entity ↔ 도메인 매핑. 세트 정렬 포함 |
 | `core/data/.../repository/ExerciseRepositoryImpl.kt` | 신규 | DAO를 도메인으로 매핑 |
 | `core/data/.../repository/WorkoutLogRepositoryImpl.kt` | 신규 | 같음. 저장 시 기록·세트를 함께 쓴다 |
