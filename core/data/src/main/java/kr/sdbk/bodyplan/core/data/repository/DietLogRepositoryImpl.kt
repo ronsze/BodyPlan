@@ -60,6 +60,11 @@ constructor(
         imageStore.delete(stored.imageFileName)
     }
 
+    override suspend fun exportEntryImage(id: Long) {
+        val stored = requireNotNull(dietEntryDao.getById(id)) { "내보낼 기록이 없습니다: $id" }
+        imageStore.exportToGallery(stored.imageFileName)
+    }
+
     override suspend fun deleteEntry(id: Long) {
         val stored = dietEntryDao.getById(id) ?: return
         dietEntryDao.deleteById(id)

@@ -20,5 +20,8 @@ interface DietLogRepository {
     /** [sourceImageUri]가 null이면 사진을 그대로 두고 [memo]만 고친다. */
     suspend fun updateEntry(entryId: Long, sourceImageUri: String?, memo: String?)
 
+    /** 그 항목의 사진을 기기 갤러리에 내보낸다. 실패하면 던진다. */
+    suspend fun exportEntryImage(id: Long)
+
     suspend fun deleteEntry(id: Long)
 }

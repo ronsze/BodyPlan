@@ -78,6 +78,22 @@ internal class DietLogRepositoryImplTest {
     }
 
     @Test
+    fun `내보내기는 그 항목의 사진을 갤러리로 넘긴다`() = runTest {
+        val id = dao.seed(entity(id = 0L, fileName = "a.jpg", createdAtMillis = 10L))
+
+        repository.exportEntryImage(id)
+
+        assertEquals(listOf("a.jpg"), imageStore.exportedFileNames)
+    }
+
+    @Test
+    fun `없는 항목을 내보내려 하면 던진다`() = runTest {
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { repository.exportEntryImage(999L) }
+        }
+    }
+
+    @Test
     fun `항목을 지우면 사진 파일도 지운다`() = runTest {
         val id = dao.seed(entity(id = 0L, fileName = "a.jpg", createdAtMillis = 10L))
 

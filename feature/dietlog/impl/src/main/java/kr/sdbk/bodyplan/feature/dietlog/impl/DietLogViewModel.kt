@@ -42,6 +42,8 @@ constructor(
 
             is DietLogIntent.ClickDeleteEntry -> deleteEntry(intent.id)
 
+            is DietLogIntent.LongClickEntry -> exportImage(intent.id)
+
             is DietLogIntent.ClickBack -> updateEffect(DietLogEffect.GoBack)
 
             is DietLogIntent.ClickRetry -> observeLog()
@@ -60,6 +62,14 @@ constructor(
         }
     }
 
+    private fun exportImage(id: Long) {
+        viewModelScope.launch {
+            runCatching { dietLogRepository.exportEntryImage(id) }
+                .onSuccess { updateEffect(DietLogEffect.ShowMessage(EXPORT_DONE)) }
+                .onFailure { updateEffect(DietLogEffect.ShowMessage(EXPORT_ERROR)) }
+        }
+    }
+
     private fun deleteEntry(id: Long) {
         viewModelScope.launch {
             runCatching { dietLogRepository.deleteEntry(id) }
@@ -75,3 +85,5 @@ constructor(
 
 private const val LOAD_ERROR = "불러오지 못했습니다"
 private const val DELETE_ERROR = "삭제하지 못했습니다"
+private const val EXPORT_DONE = "사진을 저장했습니다"
+private const val EXPORT_ERROR = "사진을 저장하지 못했습니다"

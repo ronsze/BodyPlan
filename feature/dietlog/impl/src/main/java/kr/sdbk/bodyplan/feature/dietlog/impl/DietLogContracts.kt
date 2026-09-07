@@ -21,6 +21,9 @@ internal sealed interface DietLogIntent : Intent {
 
     data class ClickDeleteEntry(val id: Long) : DietLogIntent
 
+    /** 사진을 길게 눌러 갤러리로 내보낸다. */
+    data class LongClickEntry(val id: Long) : DietLogIntent
+
     data object ClickBack : DietLogIntent
 
     data object ClickRetry : DietLogIntent

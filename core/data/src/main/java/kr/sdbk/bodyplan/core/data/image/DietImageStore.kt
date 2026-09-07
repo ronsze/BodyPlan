@@ -1,6 +1,12 @@
 package kr.sdbk.bodyplan.core.data.image
 
+import android.content.ContentValues
 import android.content.Context
+import android.media.MediaScannerConnection
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import androidx.annotation.RequiresApi
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.UUID
@@ -19,6 +25,9 @@ internal interface DietImageStore {
     fun delete(fileName: String)
 
     fun pathOf(fileName: String): String
+
+    /** 앱 밖의 갤러리로 사진을 복사한다. 실패하면 던진다. */
+    fun exportToGallery(fileName: String)
 }
 
 @Singleton
@@ -51,6 +60,62 @@ constructor(@ApplicationContext private val context: Context) :
     }
 
     override fun pathOf(fileName: String): String = File(directory, fileName).absolutePath
+
+    override fun exportToGallery(fileName: String) {
+        val source = File(directory, fileName)
+        if (!source.exists()) error("사진이 없습니다: $fileName")
+
+        val displayName = "BodyPlan_${System.currentTimeMillis()}.jpg"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            exportWithMediaStore(source, displayName)
+        } else {
+            exportWithPublicDirectory(source, displayName)
+        }
+    }
+
+    /** 안드로이드 10부터는 MediaStore가 권한 없이 쓴다. */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun exportWithMediaStore(source: File, displayName: String) {
+        val resolver = context.contentResolver
+        val pending = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+            put(MediaStore.Images.Media.MIME_TYPE, MIME_TYPE)
+            put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/$ALBUM_NAME")
+            // 다 쓰기 전에는 갤러리에 보이지 않게 한다.
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, pending)
+            ?: error("갤러리에 자리를 만들지 못했습니다")
+
+        try {
+            resolver.openOutputStream(uri)?.use { output -> source.inputStream().use { it.copyTo(output) } }
+                ?: error("갤러리에 쓸 수 없습니다")
+        } catch (throwable: Throwable) {
+            resolver.delete(uri, null, null)
+            throw throwable
+        }
+
+        resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
+    }
+
+    /** 안드로이드 9는 공용 디렉터리에 직접 쓴다. 호출부가 쓰기 권한을 먼저 받아 둔다. */
+    private fun exportWithPublicDirectory(source: File, displayName: String) {
+        val album = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+            ALBUM_NAME,
+        ).apply { mkdirs() }
+        val target = File(album, displayName)
+        try {
+            source.inputStream().use { input -> target.outputStream().use(input::copyTo) }
+        } catch (throwable: Throwable) {
+            target.delete()
+            throw throwable
+        }
+        // 갤러리가 새 파일을 알아채게 한다.
+        MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), arrayOf(MIME_TYPE), null)
+    }
 }
 
 private const val DIRECTORY_NAME = "diet_images"
+private const val ALBUM_NAME = "BodyPlan"
+private const val MIME_TYPE = "image/jpeg"

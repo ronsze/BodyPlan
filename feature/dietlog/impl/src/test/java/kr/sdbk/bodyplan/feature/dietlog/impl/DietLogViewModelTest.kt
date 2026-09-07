@@ -92,6 +92,35 @@ internal class DietLogViewModelTest {
     }
 
     @Test
+    fun `사진을 길게 누르면 내보내고 알린다`() = runTest {
+        val repository = FakeDietLogRepository(listOf(entry(1L)))
+        val viewModel = viewModel(repository = repository)
+        val effects = collectEffects(viewModel)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(DietLogIntent.LongClickEntry(1L))
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L), repository.exportedEntryIds)
+        assertTrue(effects.any { it is DietLogEffect.ShowMessage })
+    }
+
+    @Test
+    fun `내보내기가 실패해도 알린다`() = runTest {
+        val repository = FakeDietLogRepository(listOf(entry(1L)))
+        val viewModel = viewModel(repository = repository)
+        val effects = collectEffects(viewModel)
+        subscribe(viewModel)
+
+        repository.mutateFailure = IllegalStateException("boom")
+        viewModel.handleIntent(DietLogIntent.LongClickEntry(1L))
+        advanceUntilIdle()
+
+        assertTrue(effects.any { it is DietLogEffect.ShowMessage })
+        assertTrue(repository.exportedEntryIds.isEmpty())
+    }
+
+    @Test
     fun `조회가 실패하면 에러가 실리고 재시도가 다시 조회한다`() = runTest {
         val repository = FakeDietLogRepository(listOf(entry(1L)))
         repository.observeFailure = IllegalStateException("boom")

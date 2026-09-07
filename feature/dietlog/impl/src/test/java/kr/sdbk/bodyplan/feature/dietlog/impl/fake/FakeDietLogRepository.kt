@@ -55,6 +55,13 @@ internal class FakeDietLogRepository(
         lastSavedMemo = memo
     }
 
+    val exportedEntryIds: MutableList<Long> = mutableListOf()
+
+    override suspend fun exportEntryImage(id: Long) {
+        mutateFailure?.let { throw it }
+        exportedEntryIds += id
+    }
+
     override suspend fun deleteEntry(id: Long) {
         mutateFailure?.let { throw it }
         entries.value = entries.value.filterNot { it.id == id }
