@@ -1,9 +1,9 @@
 package kr.sdbk.bodyplan.core.data.ai
 
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
+import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
-import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.Gender
 import kr.sdbk.bodyplan.core.domain.model.Goal
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
@@ -31,39 +31,16 @@ internal object AnalysisPrompt {
         appendLine()
         appendLine(profileBlock(request.profile))
         appendLine()
-        appendLine("식단 기록 ${request.entries.size}건입니다. 사진을 함께 봅니다.")
+        appendLine("이 날 식단 기록 ${request.entries.size}건의 사진과 메모입니다.")
         request.entries.forEach { entry ->
-            appendLine("- ${entry.date}: ${entry.memo?.takeIf { it.isNotBlank() } ?: "메모 없음"}")
+            appendLine("- ${entry.memo?.takeIf { it.isNotBlank() } ?: "메모 없음"}")
         }
         appendLine()
         appendLine("아래 네 묶음을 이 제목과 순서로 채우세요.")
         appendLine("- 먹은 음식: 사진과 메모에서 알아낸 음식을 하나씩 적습니다.")
-        appendLine("- 칼로리: 음식별 추정 칼로리와 합계를 적고, 신체 정보와 목적에 맞는 목표 칼로리와 견줍니다.")
+        appendLine("- 칼로리: 음식별 추정 칼로리와 하루 합계를 적고, 신체 정보와 목적에 맞는 목표와 견줍니다.")
         appendLine("- 영양 성분: 탄수화물·단백질·지방의 추정량과 균형을 적습니다.")
         appendLine("- 개선 방향: 목표에 견주어 무엇을 바꿀지 적습니다.")
-    }
-
-    fun dietSummary(request: DietSummaryRequest): String = buildString {
-        appendLine("기간: ${request.periodLabel}")
-        appendLine()
-        appendLine(profileBlock(request.profile))
-        appendLine()
-        appendLine("아래는 이 기간에 날짜별로 이미 분석한 내용 ${request.dailyResults.size}일치입니다.")
-        appendLine("사진은 첨부되지 않습니다. 이 내용만으로 종합하세요.")
-        request.dailyResults.forEach { daily ->
-            appendLine()
-            appendLine("[${daily.date}]")
-            appendLine(daily.content.summary)
-            daily.content.sections.forEach { section ->
-                appendLine("- ${section.title}: ${section.body}")
-            }
-        }
-        appendLine()
-        appendLine("아래 네 묶음을 이 제목과 순서로 채우세요.")
-        appendLine("- 기간 흐름: 이 기간의 식사 습관이 어떻게 흘렀는지 적습니다.")
-        appendLine("- 칼로리 흐름: 하루 평균 추정 칼로리와 오르내림을 목표 칼로리와 견줍니다.")
-        appendLine("- 영양 균형: 기간 전체의 탄수화물·단백질·지방 균형을 적습니다.")
-        appendLine("- 개선 방향: 다음 기간에 무엇을 바꿀지 적습니다.")
     }
 
     fun workout(request: WorkoutAnalysisRequest): String = buildString {
@@ -82,29 +59,60 @@ internal object AnalysisPrompt {
         request.entries.forEach { entry -> appendLine("- ${entry.line}") }
         appendLine()
         appendLine("아래 네 묶음을 이 제목과 순서로 채우세요.")
-        if (request.kind == AnalysisKind.WORKOUT_DAILY) {
-            appendLine("- 수행한 운동: 부위별로 어떤 종목을 몇 세트 했는지 적습니다.")
-            appendLine(
-                "- 볼륨: 합계는 위 값을 그대로 쓰고, 어느 종목에 몰렸는지와 목적에 맞는지를 적습니다. " +
-                    "유산소는 볼륨이 아니라 시간으로 적습니다.",
-            )
-            appendLine(
-                "- 부위 균형: 이 날 자극한 부위와 빠진 부위를 적습니다. " +
-                    "유산소는 부위가 아니므로 빠진 부위로 세지 말고 따로 언급합니다.",
-            )
-            appendLine("- 개선 방향: 목표에 견주어 무엇을 바꿀지 적습니다.")
-        } else {
-            appendLine("- 기간 흐름: 운동한 날과 쉰 날이 어떻게 갈렸는지, 빈도가 적절한지 적습니다.")
-            appendLine(
-                "- 볼륨 흐름: 총 볼륨은 위 값을 그대로 쓰고, 날짜별 오르내림을 목적에 견줍니다. " +
-                    "유산소는 볼륨이 아니라 시간으로 적습니다.",
-            )
-            appendLine(
-                "- 부위 균형: 기간 전체에서 부위별 분할이 치우치지 않았는지 적습니다. " +
-                    "유산소는 부위가 아니므로 빠진 부위로 세지 말고 비중만 따로 봅니다.",
-            )
-            appendLine("- 개선 방향: 다음 기간에 무엇을 바꿀지 적습니다.")
+        appendLine("- 수행한 운동: 부위별로 어떤 종목을 몇 세트 했는지 적습니다.")
+        appendLine(
+            "- 볼륨: 합계는 위 값을 그대로 쓰고, 어느 종목에 몰렸는지와 목적에 맞는지를 적습니다. " +
+                "유산소는 볼륨이 아니라 시간으로 적습니다.",
+        )
+        appendLine(
+            "- 부위 균형: 이 날 자극한 부위와 빠진 부위를 적습니다. " +
+                "유산소는 부위가 아니므로 빠진 부위로 세지 말고 따로 언급합니다.",
+        )
+        appendLine("- 개선 방향: 목표에 견주어 무엇을 바꿀지 적습니다.")
+    }
+
+    /**
+     * 아래 계층의 분석을 모아 위 계층을 만드는 지시문.
+     *
+     * 끼니→하루→주→월이 같은 얼개라 하나로 쓰고 묶음 제목만 종류로 고른다.
+     */
+    fun summary(request: AnalysisSummaryRequest): String = buildString {
+        appendLine("기간: ${request.periodLabel}")
+        appendLine()
+        appendLine(profileBlock(request.profile))
+        appendLine()
+        appendLine("아래는 이 기간에 이미 분석해 둔 ${request.children.size}건입니다.")
+        appendLine("사진이나 기록 원문은 첨부되지 않습니다. 이 내용만으로 종합하세요.")
+        request.children.forEach { child ->
+            appendLine()
+            appendLine("[${child.label}]")
+            appendLine(child.content.summary)
+            child.content.sections.forEach { section ->
+                appendLine("- ${section.title}: ${section.body}")
+            }
         }
+        appendLine()
+        appendLine("아래 네 묶음을 이 제목과 순서로 채우세요.")
+        summarySections(request.kind).forEach { appendLine("- $it") }
+    }
+
+    private fun summarySections(kind: AnalysisKind): List<String> = when (kind) {
+        AnalysisKind.DIET_WEEKLY, AnalysisKind.DIET_MONTHLY -> listOf(
+            "기간 흐름: 이 기간의 식사 습관이 어떻게 흘렀는지 적습니다.",
+            "칼로리 흐름: 하루 평균 추정 칼로리와 오르내림을 목표와 견줍니다.",
+            "영양 균형: 기간 전체의 탄수화물·단백질·지방 균형을 적습니다.",
+            "개선 방향: 다음 기간에 무엇을 바꿀지 적습니다.",
+        )
+
+        AnalysisKind.WORKOUT_WEEKLY, AnalysisKind.WORKOUT_MONTHLY -> listOf(
+            "기간 흐름: 운동한 날과 쉰 날이 어떻게 갈렸는지, 빈도가 적절한지 적습니다.",
+            "볼륨 흐름: 기간의 볼륨 오르내림을 목적에 견줍니다. 유산소는 시간으로 적습니다.",
+            "부위 균형: 기간 전체에서 부위별 분할이 치우치지 않았는지 적습니다. 유산소는 비중만 봅니다.",
+            "개선 방향: 다음 기간에 무엇을 바꿀지 적습니다.",
+        )
+
+        AnalysisKind.DIET_DAILY, AnalysisKind.WORKOUT_DAILY, AnalysisKind.INBODY ->
+            error("종합하는 종류가 아닙니다: $kind")
     }
 
     fun inbody(request: InbodyAnalysisRequest): String = buildString {

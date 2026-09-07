@@ -5,6 +5,7 @@ enum class AnalysisKind {
     DIET_DAILY,
     DIET_WEEKLY,
     DIET_MONTHLY,
+
     WORKOUT_DAILY,
     WORKOUT_WEEKLY,
     WORKOUT_MONTHLY,

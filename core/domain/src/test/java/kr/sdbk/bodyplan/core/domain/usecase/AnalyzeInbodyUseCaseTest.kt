@@ -174,11 +174,11 @@ class AnalyzeInbodyUseCaseTest {
             request: kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest,
         ): AnalysisContent = error("사용하지 않음")
 
-        override suspend fun summarizeDiet(
-            request: kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest,
-        ): AnalysisContent = error("사용하지 않음")
-
         override suspend fun analyzeWorkout(request: WorkoutAnalysisRequest): AnalysisContent = error("사용하지 않음")
+
+        override suspend fun summarize(
+            request: kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest,
+        ): AnalysisContent = error("사용하지 않음")
 
         override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent {
             analyzeInbodyCallCount++

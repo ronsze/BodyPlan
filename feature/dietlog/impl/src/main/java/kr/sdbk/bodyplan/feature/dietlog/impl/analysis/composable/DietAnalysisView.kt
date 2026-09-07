@@ -62,7 +62,7 @@ private fun rememberUiEvents(events: DietAnalysisEvents, viewModel: DietAnalysis
 internal fun DietAnalysisViewImpl(state: DietAnalysisState, uiEvents: DietAnalysisUiEvents) {
     AnalysisScreen(
         state = AnalysisScreenState(
-            title = "식단 분석",
+            title = state.title,
             subtitle = state.periodLabel,
             result = state.result,
             isLoading = state.isLoading,

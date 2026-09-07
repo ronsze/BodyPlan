@@ -2,8 +2,8 @@ package kr.sdbk.bodyplan.core.domain.repository
 
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
+import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
-import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 
@@ -16,14 +16,18 @@ interface AiAnalysisRepository {
      */
     suspend fun verifyCredential(credential: AiCredential)
 
-    /** 하루치 식단을 분석한다. 사진과 메모로 먹은 음식과 칼로리, 영양 성분을 정리한다. */
+    /** 끼니 하나를 분석한다. 사진과 메모로 먹은 음식과 칼로리, 영양 성분을 정리한다. */
     suspend fun analyzeDiet(request: DietAnalysisRequest): AnalysisContent
 
-    /** 날짜별 분석을 모아 기간의 흐름을 종합한다. 사진을 다시 보내지 않는다. */
-    suspend fun summarizeDiet(request: DietSummaryRequest): AnalysisContent
-
-    /** 운동 기록을 분석한다. 날짜별과 기간이 같은 재료를 쓰고 요청의 종류로만 갈린다. */
+    /** 운동 기록 하나를 분석한다. */
     suspend fun analyzeWorkout(request: WorkoutAnalysisRequest): AnalysisContent
+
+    /**
+     * 아래 계층의 분석을 모아 위 계층을 만든다.
+     *
+     * 끼니→하루→주→월이 같은 얼개라 한 함수가 다 맡는다. 식단과 운동도 같다.
+     */
+    suspend fun summarize(request: AnalysisSummaryRequest): AnalysisContent
 
     /** 인바디 사진을 읽어 체성분을 정리하고 식단·운동 개선 방향을 낸다. */
     suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent

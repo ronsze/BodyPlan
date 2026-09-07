@@ -6,28 +6,14 @@ import java.time.LocalDate
 data class DietAnalysisEntry(val date: LocalDate, val memo: String?, val imagePath: String)
 
 /**
- * 식단 분석 한 번에 필요한 것 전부.
+ * 끼니 하나를 분석하는 데 필요한 것 전부.
  *
- * [periodLabel]은 사람이 읽는 기간 표기다. AI가 답에 그대로 쓸 수 있게 넘긴다.
+ * [periodLabel]은 사람이 읽는 표기다. AI가 답에 그대로 쓸 수 있게 넘긴다.
+ * [entries]가 목록인 것은 한 끼니에 사진이 여럿일 수 있어서다.
  */
 data class DietAnalysisRequest(
     val credential: AiCredential,
     val profile: UserProfile,
     val periodLabel: String,
     val entries: List<DietAnalysisEntry>,
-)
-
-/** 종합에 넘길 하루치 분석 하나. 사진은 이미 그 날 분석에서 읽혔으므로 다시 넘기지 않는다. */
-data class DietDailySummary(val date: LocalDate, val content: AnalysisContent)
-
-/**
- * 주간·월간 종합 한 번에 필요한 것 전부.
- *
- * 기간의 사진을 다시 보내면 요청이 커져 느리고 비싸다. 날짜별로 이미 분석한 글을 모아 넘긴다.
- */
-data class DietSummaryRequest(
-    val credential: AiCredential,
-    val profile: UserProfile,
-    val periodLabel: String,
-    val dailyResults: List<DietDailySummary>,
 )

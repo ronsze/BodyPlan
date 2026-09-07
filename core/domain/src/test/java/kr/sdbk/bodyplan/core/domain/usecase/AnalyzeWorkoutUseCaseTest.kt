@@ -1,8 +1,6 @@
 package kr.sdbk.bodyplan.core.domain.usecase
 
-import java.time.Clock
 import java.time.LocalDate
-import java.time.ZoneOffset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -10,9 +8,13 @@ import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
+import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.AnalysisScopeKey
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
+import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
+import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
@@ -37,14 +39,12 @@ class AnalyzeWorkoutUseCaseTest {
         summary = "요약",
         sections = listOf(AnalysisSection(title = "부위별 볼륨", body = "가슴")),
     )
-    private val today = LocalDate.of(2026, 9, 7)
 
     private fun useCaseWith(
         workoutLogRepository: FakeWorkoutLogRepository = FakeWorkoutLogRepository(),
         analysisResultRepository: FakeAnalysisResultRepository = FakeAnalysisResultRepository(),
         aiAnalysisRepository: FakeAiAnalysisRepository = FakeAiAnalysisRepository(),
         credential: AiCredential? = this.credential,
-        today: LocalDate = this.today,
     ): Triple<AnalyzeWorkoutUseCase, FakeAiAnalysisRepository, FakeAnalysisResultRepository> {
         val useCase = AnalyzeWorkoutUseCase(
             workoutLogRepository = workoutLogRepository,
@@ -52,7 +52,7 @@ class AnalyzeWorkoutUseCaseTest {
             aiCredentialRepository = FakeAiCredentialRepository(credential),
             aiAnalysisRepository = aiAnalysisRepository,
             analysisResultRepository = analysisResultRepository,
-            clock = Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC),
+            children = AnalysisChildren(analysisResultRepository),
         )
         return Triple(useCase, aiAnalysisRepository, analysisResultRepository)
     }
@@ -82,7 +82,6 @@ class AnalyzeWorkoutUseCaseTest {
         val workoutLogRepository = FakeWorkoutLogRepository(mapOf(date to listOf(entry())))
         val (useCase, aiAnalysisRepository, analysisResultRepository) = useCaseWith(
             workoutLogRepository = workoutLogRepository,
-            today = date,
         )
 
         val result = useCase(
@@ -103,96 +102,45 @@ class AnalyzeWorkoutUseCaseTest {
     }
 
     @Test
-    fun `주간 분석도 저장된 날짜별 분석에 기대지 않고 기록 원문을 보낸다`() = runTest {
-        val monday = LocalDate.of(2026, 9, 7)
-        val sunday = monday.plusDays(6)
-        val workoutLogRepository = FakeWorkoutLogRepository(mapOf(monday to listOf(entry())))
-        val (useCase, aiAnalysisRepository, _) = useCaseWith(
-            workoutLogRepository = workoutLogRepository,
-            today = sunday,
-        )
+    fun `날짜별 분석의 workoutDayCount는 1이고 restDayCount는 0이다`() = runTest {
+        val date = LocalDate.of(2026, 9, 7)
+        val workoutLogRepository = FakeWorkoutLogRepository(mapOf(date to listOf(entry())))
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(workoutLogRepository = workoutLogRepository)
 
         useCase(
-            kind = AnalysisKind.WORKOUT_WEEKLY,
-            scopeKey = AnalysisScopeKey.weekly(monday),
-            periodLabel = "이번 주",
-            from = monday,
-            to = sunday,
-        )
-
-        // 한 주(7일) 전부를 관찰했다 — 저장된 날짜별 분석이 아니라 기록 원문을 직접 읽었다는 뜻.
-        assertEquals(7, workoutLogRepository.observedDates.size)
-        assertEquals(1, aiAnalysisRepository.analyzeWorkoutCallCount)
-        assertEquals(listOf(monday), aiAnalysisRepository.lastRequest?.entries?.map { it.date })
-    }
-
-    @Test
-    fun `월간 분석도 기록 원문을 보낸다`() = runTest {
-        val from = LocalDate.of(2026, 9, 1)
-        val to = LocalDate.of(2026, 9, 30)
-        val workoutLogRepository = FakeWorkoutLogRepository(mapOf(from to listOf(entry())))
-        val (useCase, aiAnalysisRepository, _) = useCaseWith(
-            workoutLogRepository = workoutLogRepository,
-            today = to,
-        )
-
-        useCase(
-            kind = AnalysisKind.WORKOUT_MONTHLY,
-            scopeKey = AnalysisScopeKey.monthly(from),
-            periodLabel = "9월",
-            from = from,
-            to = to,
-        )
-
-        assertEquals(30, workoutLogRepository.observedDates.size)
-        assertEquals(1, aiAnalysisRepository.analyzeWorkoutCallCount)
-    }
-
-    @Test
-    fun `요청에 담기는 workoutDayCount와 restDayCount는 앱이 센 정확한 값이다`() = runTest {
-        val day1 = LocalDate.of(2026, 9, 1)
-        val day2 = day1.plusDays(1)
-        val day3 = day1.plusDays(2)
-        // day1엔 기록 있음, day2엔 기록 없음(휴식), day3은 오늘 이후(아직 오지 않은 날)
-        val workoutLogRepository = FakeWorkoutLogRepository(mapOf(day1 to listOf(entry())))
-        val (useCase, aiAnalysisRepository, _) = useCaseWith(
-            workoutLogRepository = workoutLogRepository,
-            today = day2,
-        )
-
-        useCase(
-            kind = AnalysisKind.WORKOUT_WEEKLY,
-            scopeKey = AnalysisScopeKey.weekly(day1),
-            periodLabel = "이번 주",
-            from = day1,
-            to = day3,
+            kind = AnalysisKind.WORKOUT_DAILY,
+            scopeKey = AnalysisScopeKey.daily(date),
+            periodLabel = "9월 7일",
+            from = date,
+            to = date,
         )
 
         val request = aiAnalysisRepository.lastRequest!!
         assertEquals(1, request.workoutDayCount)
-        // day3은 아직 오지 않은 날이라 쉰 날로 세지 않는다.
-        assertEquals(1, request.restDayCount)
+        assertEquals(0, request.restDayCount)
     }
 
     @Test
-    fun `아직 오지 않은 날은 쉰 날로 세지 않는다`() = runTest {
-        val day1 = LocalDate.of(2026, 9, 1)
-        val day2 = day1.plusDays(1)
-        val workoutLogRepository = FakeWorkoutLogRepository(mapOf(day1 to listOf(entry())))
+    fun `기록이 없는 날을 분석하면 AI를 부르지 않고 NoRecordToAnalyzeException을 던진다`() = runTest {
+        val date = LocalDate.of(2026, 9, 7)
         val (useCase, aiAnalysisRepository, _) = useCaseWith(
-            workoutLogRepository = workoutLogRepository,
-            today = day1,
+            workoutLogRepository = FakeWorkoutLogRepository(emptyMap()),
         )
 
-        useCase(
-            kind = AnalysisKind.WORKOUT_WEEKLY,
-            scopeKey = AnalysisScopeKey.weekly(day1),
-            periodLabel = "이번 주",
-            from = day1,
-            to = day2,
-        )
+        try {
+            useCase(
+                kind = AnalysisKind.WORKOUT_DAILY,
+                scopeKey = AnalysisScopeKey.daily(date),
+                periodLabel = "9월 7일",
+                from = date,
+                to = date,
+            )
+            fail("NoRecordToAnalyzeException이 나야 한다")
+        } catch (e: NoRecordToAnalyzeException) {
+            // 기대한 결과
+        }
 
-        assertEquals(0, aiAnalysisRepository.lastRequest?.restDayCount)
+        assertEquals(0, aiAnalysisRepository.analyzeWorkoutCallCount)
     }
 
     @Test
@@ -209,15 +157,10 @@ class AnalyzeWorkoutUseCaseTest {
         val angleEntry = entry(
             bodyPart = BodyPart.LEG,
             exerciseName = "레그레이즈",
-            sets = listOf(
-                WorkoutSet(repeatCount = 15, intensity = Intensity.Angle(45)),
-            ),
+            sets = listOf(WorkoutSet(repeatCount = 15, intensity = Intensity.Angle(45))),
         )
         val workoutLogRepository = FakeWorkoutLogRepository(mapOf(date to listOf(weightEntry, angleEntry)))
-        val (useCase, aiAnalysisRepository, _) = useCaseWith(
-            workoutLogRepository = workoutLogRepository,
-            today = date,
-        )
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(workoutLogRepository = workoutLogRepository)
 
         useCase(
             kind = AnalysisKind.WORKOUT_DAILY,
@@ -246,10 +189,7 @@ class AnalyzeWorkoutUseCaseTest {
             ),
         )
         val workoutLogRepository = FakeWorkoutLogRepository(mapOf(date to listOf(cardioEntry)))
-        val (useCase, aiAnalysisRepository, _) = useCaseWith(
-            workoutLogRepository = workoutLogRepository,
-            today = date,
-        )
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(workoutLogRepository = workoutLogRepository)
 
         useCase(
             kind = AnalysisKind.WORKOUT_DAILY,
@@ -286,10 +226,7 @@ class AnalyzeWorkoutUseCaseTest {
         val workoutLogRepository = FakeWorkoutLogRepository(
             mapOf(date to listOf(weightEntry, angleEntry, cardioEntry)),
         )
-        val (useCase, aiAnalysisRepository, _) = useCaseWith(
-            workoutLogRepository = workoutLogRepository,
-            today = date,
-        )
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(workoutLogRepository = workoutLogRepository)
 
         useCase(
             kind = AnalysisKind.WORKOUT_DAILY,
@@ -314,10 +251,7 @@ class AnalyzeWorkoutUseCaseTest {
             sets = listOf(WorkoutSet(repeatCount = 7, intensity = Intensity.Duration(30))),
         )
         val workoutLogRepository = FakeWorkoutLogRepository(mapOf(date to listOf(cardioEntry)))
-        val (useCase, aiAnalysisRepository, _) = useCaseWith(
-            workoutLogRepository = workoutLogRepository,
-            today = date,
-        )
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(workoutLogRepository = workoutLogRepository)
 
         useCase(
             kind = AnalysisKind.WORKOUT_DAILY,
@@ -332,27 +266,136 @@ class AnalyzeWorkoutUseCaseTest {
     }
 
     @Test
-    fun `기록이 없는 기간을 분석하면 AI를 부르지 않고 NoRecordToAnalyzeException을 던진다`() = runTest {
-        val date = LocalDate.of(2026, 9, 7)
+    fun `주간 분석은 저장된 날짜별 분석을 모아 AI를 부르고 기록 원문을 다시 보내지 않는다`() = runTest {
+        val monday = LocalDate.of(2026, 9, 7)
+        val sunday = monday.plusDays(6)
+        val dailyContent = content.copy(summary = "하루 요약")
+        val analysisResultRepository = FakeAnalysisResultRepository(
+            preloaded = mapOf(
+                AnalysisScopeKey.daily(monday) to
+                    AnalysisResult(1L, AnalysisKind.WORKOUT_DAILY, AnalysisScopeKey.daily(monday), dailyContent, 0L),
+            ),
+        )
+        val workoutLogRepository = FakeWorkoutLogRepository()
         val (useCase, aiAnalysisRepository, _) = useCaseWith(
-            workoutLogRepository = FakeWorkoutLogRepository(emptyMap()),
-            today = date,
+            workoutLogRepository = workoutLogRepository,
+            analysisResultRepository = analysisResultRepository,
+        )
+
+        val result = useCase(
+            kind = AnalysisKind.WORKOUT_WEEKLY,
+            scopeKey = AnalysisScopeKey.weekly(monday),
+            periodLabel = "이번 주",
+            from = monday,
+            to = sunday,
+        )
+
+        assertEquals(content, result)
+        assertEquals(1, aiAnalysisRepository.summarizeCallCount)
+        assertEquals(AnalysisKind.WORKOUT_WEEKLY, aiAnalysisRepository.lastSummaryRequest?.kind)
+        assertEquals(
+            listOf(dailyContent),
+            aiAnalysisRepository.lastSummaryRequest?.children?.map { it.content },
+        )
+        assertEquals(0, workoutLogRepository.observedDates.size)
+    }
+
+    @Test
+    fun `주간 분석에 날짜별 분석이 하나도 없으면 NoChildAnalysisException을 던지고 안내 문구에 담긴다`() = runTest {
+        val monday = LocalDate.of(2026, 9, 7)
+        val sunday = monday.plusDays(6)
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(
+            analysisResultRepository = FakeAnalysisResultRepository(preloaded = emptyMap()),
         )
 
         try {
             useCase(
-                kind = AnalysisKind.WORKOUT_DAILY,
-                scopeKey = AnalysisScopeKey.daily(date),
-                periodLabel = "9월 7일",
-                from = date,
-                to = date,
+                kind = AnalysisKind.WORKOUT_WEEKLY,
+                scopeKey = AnalysisScopeKey.weekly(monday),
+                periodLabel = "이번 주",
+                from = monday,
+                to = sunday,
             )
-            fail("NoRecordToAnalyzeException이 나야 한다")
-        } catch (e: NoRecordToAnalyzeException) {
-            // 기대한 결과
+            fail("NoChildAnalysisException이 나야 한다")
+        } catch (e: NoChildAnalysisException) {
+            assertEquals("날짜별", e.childLabel)
+            assertTrue(e.message!!.contains("날짜별"))
         }
 
-        assertEquals(0, aiAnalysisRepository.analyzeWorkoutCallCount)
+        assertEquals(0, aiAnalysisRepository.summarizeCallCount)
+    }
+
+    @Test
+    fun `월 분석은 온전한 주의 주 분석과 잘린 주의 날짜 분석을 섞어 모은다`() = runTest {
+        val anyDateInMonth = LocalDate.of(2026, 9, 15)
+        val leadingDayContent = content.copy(summary = "9월 1일 요약")
+        val weekContent = content.copy(summary = "주간 요약")
+        val trailingDayContent = content.copy(summary = "9월 30일 요약")
+        val analysisResultRepository = FakeAnalysisResultRepository(
+            preloaded = mapOf(
+                AnalysisScopeKey.daily(LocalDate.of(2026, 9, 1)) to AnalysisResult(
+                    1L,
+                    AnalysisKind.WORKOUT_DAILY,
+                    AnalysisScopeKey.daily(LocalDate.of(2026, 9, 1)),
+                    leadingDayContent,
+                    0L,
+                ),
+                AnalysisScopeKey.weekly(LocalDate.of(2026, 9, 7)) to AnalysisResult(
+                    2L,
+                    AnalysisKind.WORKOUT_WEEKLY,
+                    AnalysisScopeKey.weekly(LocalDate.of(2026, 9, 7)),
+                    weekContent,
+                    0L,
+                ),
+                AnalysisScopeKey.daily(LocalDate.of(2026, 9, 30)) to AnalysisResult(
+                    3L,
+                    AnalysisKind.WORKOUT_DAILY,
+                    AnalysisScopeKey.daily(LocalDate.of(2026, 9, 30)),
+                    trailingDayContent,
+                    0L,
+                ),
+            ),
+        )
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(analysisResultRepository = analysisResultRepository)
+
+        useCase(
+            kind = AnalysisKind.WORKOUT_MONTHLY,
+            scopeKey = AnalysisScopeKey.monthly(anyDateInMonth),
+            periodLabel = "9월",
+            from = LocalDate.of(2026, 9, 1),
+            to = LocalDate.of(2026, 9, 30),
+        )
+
+        val request = aiAnalysisRepository.lastSummaryRequest!!
+        assertEquals(AnalysisKind.WORKOUT_MONTHLY, request.kind)
+        assertEquals(
+            setOf(leadingDayContent, weekContent, trailingDayContent),
+            request.children.map { it.content }.toSet(),
+        )
+        assertEquals(3, request.children.size)
+    }
+
+    @Test
+    fun `월 분석에 주간 날짜별 분석이 하나도 없으면 NoChildAnalysisException을 던진다`() = runTest {
+        val anyDateInMonth = LocalDate.of(2026, 9, 15)
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(
+            analysisResultRepository = FakeAnalysisResultRepository(preloaded = emptyMap()),
+        )
+
+        try {
+            useCase(
+                kind = AnalysisKind.WORKOUT_MONTHLY,
+                scopeKey = AnalysisScopeKey.monthly(anyDateInMonth),
+                periodLabel = "9월",
+                from = LocalDate.of(2026, 9, 1),
+                to = LocalDate.of(2026, 9, 30),
+            )
+            fail("NoChildAnalysisException이 나야 한다")
+        } catch (e: NoChildAnalysisException) {
+            assertEquals("주간", e.childLabel)
+        }
+
+        assertEquals(0, aiAnalysisRepository.summarizeCallCount)
     }
 
     @Test
@@ -362,7 +405,6 @@ class AnalyzeWorkoutUseCaseTest {
         val (useCase, aiAnalysisRepository, analysisResultRepository) = useCaseWith(
             workoutLogRepository = workoutLogRepository,
             credential = null,
-            today = date,
         )
 
         try {
@@ -391,7 +433,6 @@ class AnalyzeWorkoutUseCaseTest {
         val (useCase, _, analysisResultRepository) = useCaseWith(
             workoutLogRepository = workoutLogRepository,
             aiAnalysisRepository = aiAnalysisRepository,
-            today = date,
         )
 
         try {
@@ -425,17 +466,10 @@ class AnalyzeWorkoutUseCaseTest {
 
         override suspend fun getEntry(id: Long): WorkoutEntry? = error("사용하지 않음")
 
-        override suspend fun addEntry(
-            date: LocalDate,
-            exercise: kr.sdbk.bodyplan.core.domain.model.Exercise,
-            sets: List<WorkoutSet>,
-        ): Long = error("사용하지 않음")
+        override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long =
+            error("사용하지 않음")
 
-        override suspend fun updateEntry(
-            entryId: Long,
-            exercise: kr.sdbk.bodyplan.core.domain.model.Exercise,
-            sets: List<WorkoutSet>,
-        ) {
+        override suspend fun updateEntry(entryId: Long, exercise: Exercise, sets: List<WorkoutSet>) {
             error("사용하지 않음")
         }
 
@@ -465,19 +499,17 @@ class AnalyzeWorkoutUseCaseTest {
     private inner class FakeAiAnalysisRepository : AiAnalysisRepository {
         var analyzeWorkoutCallCount: Int = 0
             private set
+        var summarizeCallCount: Int = 0
+            private set
         var lastRequest: WorkoutAnalysisRequest? = null
+            private set
+        var lastSummaryRequest: AnalysisSummaryRequest? = null
             private set
         var analyzeWorkoutFailure: Throwable? = null
 
         override suspend fun verifyCredential(credential: AiCredential) = error("사용하지 않음")
 
-        override suspend fun analyzeDiet(
-            request: kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest,
-        ): AnalysisContent = error("사용하지 않음")
-
-        override suspend fun summarizeDiet(
-            request: kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest,
-        ): AnalysisContent = error("사용하지 않음")
+        override suspend fun analyzeDiet(request: DietAnalysisRequest): AnalysisContent = error("사용하지 않음")
 
         override suspend fun analyzeWorkout(request: WorkoutAnalysisRequest): AnalysisContent {
             analyzeWorkoutCallCount++
@@ -486,25 +518,25 @@ class AnalyzeWorkoutUseCaseTest {
             return content
         }
 
+        override suspend fun summarize(request: AnalysisSummaryRequest): AnalysisContent {
+            summarizeCallCount++
+            lastSummaryRequest = request
+            return content
+        }
+
         override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent = error("사용하지 않음")
     }
 
-    private inner class FakeAnalysisResultRepository : AnalysisResultRepository {
+    private inner class FakeAnalysisResultRepository(private val preloaded: Map<String, AnalysisResult> = emptyMap()) :
+        AnalysisResultRepository {
         val saved: MutableMap<Pair<AnalysisKind, String>, AnalysisContent> = mutableMapOf()
 
-        override fun observeLatest(
-            kind: AnalysisKind,
-            scopeKey: String,
-        ): Flow<kr.sdbk.bodyplan.core.domain.model.AnalysisResult?> = error("사용하지 않음")
+        override fun observeLatest(kind: AnalysisKind, scopeKey: String): Flow<AnalysisResult?> = error("사용하지 않음")
 
-        override suspend fun getLatestOf(
-            kind: AnalysisKind,
-            scopeKeys: List<String>,
-        ): Map<String, kr.sdbk.bodyplan.core.domain.model.AnalysisResult> = error("사용하지 않음")
+        override suspend fun getLatestOf(kind: AnalysisKind, scopeKeys: List<String>): Map<String, AnalysisResult> =
+            preloaded.filterKeys { it in scopeKeys }
 
-        override fun observeHistory(
-            kind: AnalysisKind,
-        ): Flow<List<kr.sdbk.bodyplan.core.domain.model.AnalysisResult>> = error("사용하지 않음")
+        override fun observeHistory(kind: AnalysisKind): Flow<List<AnalysisResult>> = error("사용하지 않음")
 
         override suspend fun save(
             kind: AnalysisKind,

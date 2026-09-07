@@ -10,6 +10,8 @@ import kr.sdbk.bodyplan.core.ui.coordinator.State
 
 internal data class DietAnalysisState(
     val periodLabel: String,
+    /** 끼니 분석과 기간 분석의 제목이 다르다. */
+    val title: String = "식단 분석",
     val result: AnalysisResult? = null,
     val hasCredential: Boolean = false,
     val isLoading: Boolean = false,

@@ -10,6 +10,8 @@ import kr.sdbk.bodyplan.core.ui.coordinator.State
 
 internal data class WorkoutAnalysisState(
     val periodLabel: String,
+    /** 기록 분석과 기간 분석의 제목이 다르다. */
+    val title: String = "운동 분석",
     val result: AnalysisResult? = null,
     val hasCredential: Boolean = false,
     val isLoading: Boolean = false,

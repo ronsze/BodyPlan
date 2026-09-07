@@ -44,6 +44,7 @@ import kr.sdbk.bodyplan.core.designsystem.component.BaseImage
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
+import kr.sdbk.bodyplan.core.designsystem.component.HorizontalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer

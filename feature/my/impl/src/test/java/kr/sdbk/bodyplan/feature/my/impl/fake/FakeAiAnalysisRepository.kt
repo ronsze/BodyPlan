@@ -2,8 +2,8 @@ package kr.sdbk.bodyplan.feature.my.impl.fake
 
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
+import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
-import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
@@ -28,9 +28,9 @@ internal class FakeAiAnalysisRepository(
 
     override suspend fun analyzeDiet(request: DietAnalysisRequest): AnalysisContent = error("사용하지 않음")
 
-    override suspend fun summarizeDiet(request: DietSummaryRequest): AnalysisContent = error("사용하지 않음")
-
     override suspend fun analyzeWorkout(request: WorkoutAnalysisRequest): AnalysisContent = error("사용하지 않음")
+
+    override suspend fun summarize(request: AnalysisSummaryRequest): AnalysisContent = error("사용하지 않음")
 
     override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent {
         analyzeInbodyCallCount++

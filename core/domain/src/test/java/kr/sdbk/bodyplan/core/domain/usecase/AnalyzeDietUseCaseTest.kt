@@ -11,10 +11,10 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.AnalysisScopeKey
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
+import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.DietEntry
 import kr.sdbk.bodyplan.core.domain.model.DietLog
-import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
@@ -24,7 +24,6 @@ import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
 import kr.sdbk.bodyplan.core.domain.repository.DietLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -48,6 +47,7 @@ class AnalyzeDietUseCaseTest {
             aiCredentialRepository = FakeAiCredentialRepository(credential),
             aiAnalysisRepository = aiAnalysisRepository,
             analysisResultRepository = analysisResultRepository,
+            children = AnalysisChildren(analysisResultRepository),
         )
         return Triple(useCase, aiAnalysisRepository, analysisResultRepository)
     }
@@ -126,13 +126,14 @@ class AnalyzeDietUseCaseTest {
         )
 
         assertEquals(content, result)
-        assertEquals(1, aiAnalysisRepository.summarizeDietCallCount)
-        assertEquals(listOf(monday), aiAnalysisRepository.lastSummarizeDietRequest?.dailyResults?.map { it.date })
+        assertEquals(1, aiAnalysisRepository.summarizeCallCount)
+        assertEquals(AnalysisKind.DIET_WEEKLY, aiAnalysisRepository.lastSummaryRequest?.kind)
+        assertEquals(listOf(dailyContent), aiAnalysisRepository.lastSummaryRequest?.children?.map { it.content })
         assertEquals(0, dietLogRepository.observeLogCallCount)
     }
 
     @Test
-    fun `기간에 날짜별 분석이 하나도 없으면 AI를 부르지 않고 NoDailyAnalysisException을 던진다`() = runTest {
+    fun `기간에 날짜별 분석이 하나도 없으면 AI를 부르지 않고 NoChildAnalysisException을 던지고 안내 문구에 무엇을 먼저 해야 하는지 담긴다`() = runTest {
         val monday = LocalDate.of(2026, 9, 7)
         val sunday = monday.plusDays(6)
         val (useCase, aiAnalysisRepository, _) = useCaseWith(
@@ -147,12 +148,87 @@ class AnalyzeDietUseCaseTest {
                 from = monday,
                 to = sunday,
             )
-            fail("NoDailyAnalysisException이 나야 한다")
-        } catch (e: NoDailyAnalysisException) {
-            // 기대한 결과
+            fail("NoChildAnalysisException이 나야 한다")
+        } catch (e: NoChildAnalysisException) {
+            assertEquals("날짜별", e.childLabel)
+            assertTrue(e.message!!.contains("날짜별"))
         }
 
-        assertEquals(0, aiAnalysisRepository.summarizeDietCallCount)
+        assertEquals(0, aiAnalysisRepository.summarizeCallCount)
+    }
+
+    @Test
+    fun `월 분석은 온전한 주의 주 분석과 잘린 주의 날짜 분석을 섞어 모은다`() = runTest {
+        // 2026년 9월은 1~6일, 28~30일이 잘린 주고 7~27일이 온전한 세 주다.
+        val anyDateInMonth = LocalDate.of(2026, 9, 15)
+        val leadingDayContent = content.copy(summary = "9월 1일 요약")
+        val weekContent = content.copy(summary = "주간 요약")
+        val trailingDayContent = content.copy(summary = "9월 30일 요약")
+        val analysisResultRepository = FakeAnalysisResultRepository(
+            preloaded = mapOf(
+                AnalysisScopeKey.daily(LocalDate.of(2026, 9, 1)) to AnalysisResult(
+                    1L,
+                    AnalysisKind.DIET_DAILY,
+                    AnalysisScopeKey.daily(LocalDate.of(2026, 9, 1)),
+                    leadingDayContent,
+                    0L,
+                ),
+                AnalysisScopeKey.weekly(LocalDate.of(2026, 9, 7)) to AnalysisResult(
+                    2L,
+                    AnalysisKind.DIET_WEEKLY,
+                    AnalysisScopeKey.weekly(LocalDate.of(2026, 9, 7)),
+                    weekContent,
+                    0L,
+                ),
+                AnalysisScopeKey.daily(LocalDate.of(2026, 9, 30)) to AnalysisResult(
+                    3L,
+                    AnalysisKind.DIET_DAILY,
+                    AnalysisScopeKey.daily(LocalDate.of(2026, 9, 30)),
+                    trailingDayContent,
+                    0L,
+                ),
+            ),
+        )
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(analysisResultRepository = analysisResultRepository)
+
+        useCase(
+            kind = AnalysisKind.DIET_MONTHLY,
+            scopeKey = AnalysisScopeKey.monthly(anyDateInMonth),
+            periodLabel = "9월",
+            from = LocalDate.of(2026, 9, 1),
+            to = LocalDate.of(2026, 9, 30),
+        )
+
+        val request = aiAnalysisRepository.lastSummaryRequest!!
+        assertEquals(AnalysisKind.DIET_MONTHLY, request.kind)
+        assertEquals(
+            setOf(leadingDayContent, weekContent, trailingDayContent),
+            request.children.map { it.content }.toSet(),
+        )
+        assertEquals(3, request.children.size)
+    }
+
+    @Test
+    fun `월 분석에 주간 날짜별 분석이 하나도 없으면 NoChildAnalysisException을 던진다`() = runTest {
+        val anyDateInMonth = LocalDate.of(2026, 9, 15)
+        val (useCase, aiAnalysisRepository, _) = useCaseWith(
+            analysisResultRepository = FakeAnalysisResultRepository(preloaded = emptyMap()),
+        )
+
+        try {
+            useCase(
+                kind = AnalysisKind.DIET_MONTHLY,
+                scopeKey = AnalysisScopeKey.monthly(anyDateInMonth),
+                periodLabel = "9월",
+                from = LocalDate.of(2026, 9, 1),
+                to = LocalDate.of(2026, 9, 30),
+            )
+            fail("NoChildAnalysisException이 나야 한다")
+        } catch (e: NoChildAnalysisException) {
+            assertEquals("주간", e.childLabel)
+        }
+
+        assertEquals(0, aiAnalysisRepository.summarizeCallCount)
     }
 
     @Test
@@ -263,14 +339,14 @@ class AnalyzeDietUseCaseTest {
     private inner class FakeAiAnalysisRepository : AiAnalysisRepository {
         var analyzeDietCallCount: Int = 0
             private set
-        var summarizeDietCallCount: Int = 0
+        var summarizeCallCount: Int = 0
             private set
         var lastAnalyzeDietRequest: DietAnalysisRequest? = null
             private set
-        var lastSummarizeDietRequest: DietSummaryRequest? = null
+        var lastSummaryRequest: AnalysisSummaryRequest? = null
             private set
         var analyzeDietFailure: Throwable? = null
-        var summarizeDietFailure: Throwable? = null
+        var summarizeFailure: Throwable? = null
 
         override suspend fun verifyCredential(credential: AiCredential) = error("사용하지 않음")
 
@@ -281,14 +357,14 @@ class AnalyzeDietUseCaseTest {
             return content
         }
 
-        override suspend fun summarizeDiet(request: DietSummaryRequest): AnalysisContent {
-            summarizeDietCallCount++
-            lastSummarizeDietRequest = request
-            summarizeDietFailure?.let { throw it }
+        override suspend fun analyzeWorkout(request: WorkoutAnalysisRequest): AnalysisContent = error("사용하지 않음")
+
+        override suspend fun summarize(request: AnalysisSummaryRequest): AnalysisContent {
+            summarizeCallCount++
+            lastSummaryRequest = request
+            summarizeFailure?.let { throw it }
             return content
         }
-
-        override suspend fun analyzeWorkout(request: WorkoutAnalysisRequest): AnalysisContent = error("사용하지 않음")
 
         override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent = error("사용하지 않음")
     }

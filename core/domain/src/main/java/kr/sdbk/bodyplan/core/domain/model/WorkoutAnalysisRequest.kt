@@ -14,10 +14,9 @@ data class WorkoutAnalysisEntry(
 )
 
 /**
- * 운동 분석 한 번에 필요한 것 전부.
+ * 하루치 운동을 분석하는 데 필요한 것 전부.
  *
- * 날짜별과 기간이 같은 재료(기록 원문)를 쓰고 [kind]로만 갈린다. 식단처럼 사진이 없어
- * 한 달치를 그대로 보내도 요청이 가볍다.
+ * 주·월은 이 결과를 모아 종합하므로 기록 원문을 다시 보내지 않는다.
  *
  * 볼륨과 날 수를 함께 넘기는 것은 AI가 세지 않게 하기 위해서다. 정확한 산술이라 추정할
  * 이유가 없고, 시키면 틀린 숫자가 결과에 남는다.
@@ -25,7 +24,6 @@ data class WorkoutAnalysisEntry(
 data class WorkoutAnalysisRequest(
     val credential: AiCredential,
     val profile: UserProfile,
-    val kind: AnalysisKind,
     val periodLabel: String,
     val entries: List<WorkoutAnalysisEntry>,
     /** 기간 안에 기록이 있는 날 수. */

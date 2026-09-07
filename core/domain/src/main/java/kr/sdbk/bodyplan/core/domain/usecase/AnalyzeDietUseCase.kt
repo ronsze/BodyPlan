@@ -3,25 +3,26 @@ package kr.sdbk.bodyplan.core.domain.usecase
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
+import kr.sdbk.bodyplan.core.domain.model.AiCredential
+import kr.sdbk.bodyplan.core.domain.model.AnalysisChild
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
-import kr.sdbk.bodyplan.core.domain.model.AnalysisScopeKey
 import kr.sdbk.bodyplan.core.domain.model.AnalysisStage
+import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisEntry
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
-import kr.sdbk.bodyplan.core.domain.model.DietDailySummary
-import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
+import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
 import kr.sdbk.bodyplan.core.domain.repository.DietLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 
-/** 분석할 기록이 하나도 없는 날을 분석하려 한 경우. 부르지 않고 되돌린다. */
+/** 분석할 기록이 하나도 없는 대상을 분석하려 한 경우. 부르지 않고 되돌린다. */
 class NoRecordToAnalyzeException : Exception("분석할 기록이 없습니다")
 
-/** 종합할 날짜별 분석이 기간에 하나도 없는 경우. 날짜별 분석을 먼저 해야 한다. */
-class NoDailyAnalysisException : Exception("종합할 날짜별 분석이 없습니다")
+/** 종합할 아래 계층의 분석이 하나도 없는 경우. 아래부터 먼저 해야 한다. */
+class NoChildAnalysisException(val childLabel: String) : Exception("먼저 $childLabel 분석을 해주세요")
 
 /** 인증 정보 없이 분석을 시도한 경우. 화면이 토큰 등록으로 이끈다. */
 class AiCredentialMissingException : Exception("AI 인증 정보가 없습니다")
@@ -29,9 +30,11 @@ class AiCredentialMissingException : Exception("AI 인증 정보가 없습니다
 /**
  * 식단을 분석하고 결과를 저장한다.
  *
- * 날짜별은 사진과 메모를 보내 먹은 음식·칼로리·영양 성분을 받고, 주간·월간은 사진을 다시
- * 보내지 않고 그 기간의 날짜별 분석을 모아 종합한다. 어느 쪽인지는 [kind]가 정하며 화면은
- * 이 갈림을 모른다.
+ * 하루는 그 날 사진과 메모를 직접 보고, 주는 날짜 분석을, 달은 온전한 주의 주 분석과
+ * 잘린 주의 날짜 분석을 모아 종합한다.
+ *
+ * 아래 계층이 없으면 만들지 않고 되돌린다 — 자동으로 타고 내려가면 버튼 한 번에 호출이
+ * 서른 번 넘게 날 수 있고, 비용이 사용자 몫이다.
  */
 class AnalyzeDietUseCase
 @Inject
@@ -41,6 +44,7 @@ constructor(
     private val aiCredentialRepository: AiCredentialRepository,
     private val aiAnalysisRepository: AiAnalysisRepository,
     private val analysisResultRepository: AnalysisResultRepository,
+    private val children: AnalysisChildren,
 ) {
     suspend operator fun invoke(
         kind: AnalysisKind,
@@ -54,32 +58,9 @@ constructor(
         val credential = aiCredentialRepository.getCredential() ?: throw AiCredentialMissingException()
         val profile = userProfileRepository.getProfile()
 
-        val content = if (kind == AnalysisKind.DIET_DAILY) {
-            val entries = collectEntries(from, to)
-            if (entries.isEmpty()) throw NoRecordToAnalyzeException()
-            // 사진을 읽어 base64로 바꾸는 일은 저장소 안에서 일어나 여기서는 끝을 알 수 없다.
-            // 알 수 없는 단계를 내면 실제로 하는 일과 어긋나므로, 호출 단계 하나로 묶는다.
-            onStage(AnalysisStage.CALLING)
-            aiAnalysisRepository.analyzeDiet(
-                DietAnalysisRequest(
-                    credential = credential,
-                    profile = profile,
-                    periodLabel = periodLabel,
-                    entries = entries,
-                ),
-            )
-        } else {
-            val dailyResults = collectDailyResults(from, to)
-            if (dailyResults.isEmpty()) throw NoDailyAnalysisException()
-            onStage(AnalysisStage.CALLING)
-            aiAnalysisRepository.summarizeDiet(
-                DietSummaryRequest(
-                    credential = credential,
-                    profile = profile,
-                    periodLabel = periodLabel,
-                    dailyResults = dailyResults,
-                ),
-            )
+        val content = when (kind) {
+            AnalysisKind.DIET_DAILY -> analyzeDay(credential, profile, periodLabel, from, onStage)
+            else -> summarize(credential, profile, kind, periodLabel, from, to, onStage)
         }
 
         onStage(AnalysisStage.PARSING)
@@ -87,25 +68,65 @@ constructor(
         return content
     }
 
-    private suspend fun collectEntries(from: LocalDate, to: LocalDate): List<DietAnalysisEntry> =
-        datesOf(from, to).flatMap { date ->
-            dietLogRepository.observeLog(date).first().entries.map { entry ->
-                DietAnalysisEntry(date = date, memo = entry.memo, imagePath = entry.imagePath)
-            }
+    /** 하루는 그 날 사진을 직접 본다. 위 계층이 이 결과를 모아 쓴다. */
+    private suspend fun analyzeDay(
+        credential: AiCredential,
+        profile: UserProfile,
+        periodLabel: String,
+        date: LocalDate,
+        onStage: suspend (AnalysisStage) -> Unit,
+    ): AnalysisContent {
+        val entries = dietLogRepository.observeLog(date).first().entries.map { entry ->
+            DietAnalysisEntry(date = date, memo = entry.memo, imagePath = entry.imagePath)
         }
+        if (entries.isEmpty()) throw NoRecordToAnalyzeException()
 
-    private suspend fun collectDailyResults(from: LocalDate, to: LocalDate): List<DietDailySummary> {
-        val dates = datesOf(from, to)
-        val saved = analysisResultRepository.getLatestOf(
-            kind = AnalysisKind.DIET_DAILY,
-            scopeKeys = dates.map { AnalysisScopeKey.daily(it) },
+        onStage(AnalysisStage.CALLING)
+        return aiAnalysisRepository.analyzeDiet(
+            DietAnalysisRequest(
+                credential = credential,
+                profile = profile,
+                periodLabel = periodLabel,
+                entries = entries,
+            ),
         )
-        return dates.mapNotNull { date ->
-            saved[AnalysisScopeKey.daily(date)]?.let { DietDailySummary(date = date, content = it.content) }
-        }
     }
 
-    private fun datesOf(from: LocalDate, to: LocalDate): List<LocalDate> = generateSequence(from) { it.plusDays(1) }
-        .takeWhile { !it.isAfter(to) }
-        .toList()
+    private suspend fun summarize(
+        credential: AiCredential,
+        profile: UserProfile,
+        kind: AnalysisKind,
+        periodLabel: String,
+        from: LocalDate,
+        to: LocalDate,
+        onStage: suspend (AnalysisStage) -> Unit,
+    ): AnalysisContent {
+        val gathered: List<AnalysisChild>
+        val childLabel: String
+        when (kind) {
+            AnalysisKind.DIET_WEEKLY -> {
+                gathered = children.ofWeek(AnalysisKind.DIET_DAILY, from, to)
+                childLabel = "날짜별"
+            }
+
+            AnalysisKind.DIET_MONTHLY -> {
+                gathered = children.ofMonth(AnalysisKind.DIET_DAILY, AnalysisKind.DIET_WEEKLY, from)
+                childLabel = "주간"
+            }
+
+            else -> error("식단 분석이 아닙니다: $kind")
+        }
+        if (gathered.isEmpty()) throw NoChildAnalysisException(childLabel)
+
+        onStage(AnalysisStage.CALLING)
+        return aiAnalysisRepository.summarize(
+            AnalysisSummaryRequest(
+                credential = credential,
+                profile = profile,
+                kind = kind,
+                periodLabel = periodLabel,
+                children = gathered,
+            ),
+        )
+    }
 }

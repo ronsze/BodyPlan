@@ -17,7 +17,7 @@ import kr.sdbk.bodyplan.core.domain.usecase.AiCredentialMissingException
 import kr.sdbk.bodyplan.core.domain.usecase.AnalyzeDietUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.AnalyzeInbodyUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.AnalyzeWorkoutUseCase
-import kr.sdbk.bodyplan.core.domain.usecase.NoDailyAnalysisException
+import kr.sdbk.bodyplan.core.domain.usecase.NoChildAnalysisException
 import kr.sdbk.bodyplan.core.domain.usecase.NoRecordToAnalyzeException
 
 /**
@@ -109,7 +109,7 @@ constructor(
 
     private fun Throwable.toReason(): String = when (this) {
         is NoRecordToAnalyzeException -> "분석할 기록이 없습니다"
-        is NoDailyAnalysisException -> "먼저 날짜별로 분석해 주세요"
+        is NoChildAnalysisException -> message ?: "먼저 아래 단계를 분석해 주세요"
         is AiCredentialMissingException -> "AI 연결이 필요해요"
         is AiUnauthorizedException -> "키가 올바르지 않습니다"
         is AiRequestFailedException -> reason ?: "분석하지 못했습니다"

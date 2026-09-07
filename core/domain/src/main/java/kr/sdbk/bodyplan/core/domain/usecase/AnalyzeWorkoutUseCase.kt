@@ -1,16 +1,20 @@
 package kr.sdbk.bodyplan.core.domain.usecase
 
-import java.time.Clock
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
+import kr.sdbk.bodyplan.core.domain.model.AiCredential
+import kr.sdbk.bodyplan.core.domain.model.AnalysisChild
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisStage
+import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
+import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisSet
+import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
@@ -18,10 +22,10 @@ import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 
 /**
- * 기간의 운동을 분석하고 결과를 저장한다.
+ * 운동을 분석하고 결과를 저장한다.
  *
- * 날짜별과 주간·월간이 같은 재료를 쓴다 — 운동 기록은 글자뿐이라 한 달치를 그대로 보내도
- * 가볍고, 날짜별 분석을 먼저 하도록 묶으면 쓰지 않을 제약만 는다.
+ * 계층이 식단과 같다. 기록 한 건이 최소 단위이고, 하루는 그 날 기록들의 분석을, 주는 날짜
+ * 분석을, 달은 온전한 주의 주 분석과 잘린 주의 날짜 분석을 모아 종합한다.
  */
 class AnalyzeWorkoutUseCase
 @Inject
@@ -31,8 +35,9 @@ constructor(
     private val aiCredentialRepository: AiCredentialRepository,
     private val aiAnalysisRepository: AiAnalysisRepository,
     private val analysisResultRepository: AnalysisResultRepository,
-    private val clock: Clock,
+    private val children: AnalysisChildren,
 ) {
+
     suspend operator fun invoke(
         kind: AnalysisKind,
         scopeKey: String,
@@ -43,60 +48,99 @@ constructor(
     ): AnalysisContent {
         onStage(AnalysisStage.COLLECTING)
         val credential = aiCredentialRepository.getCredential() ?: throw AiCredentialMissingException()
+        val profile = userProfileRepository.getProfile()
 
-        val dates = datesOf(from, to)
-        val entries = collectEntries(dates)
-        if (entries.isEmpty()) throw NoRecordToAnalyzeException()
+        val content = when (kind) {
+            AnalysisKind.WORKOUT_DAILY -> analyzeDay(credential, profile, periodLabel, from, onStage)
+            else -> summarize(credential, profile, kind, periodLabel, from, to, onStage)
+        }
 
-        // 아직 오지 않은 날은 쉰 날이 아니다. 남은 날을 휴식으로 세면 기간 평가가 어긋난다.
-        val today = LocalDate.now(clock)
-        val passedDates = dates.filter { !it.isAfter(today) }
-        val workoutDates = entries.map { it.date }.toSet()
-
-        // 운동 기록에는 사진이 없어 준비 단계를 건너뛴다.
-        onStage(AnalysisStage.CALLING)
-        val content = aiAnalysisRepository.analyzeWorkout(
-            WorkoutAnalysisRequest(
-                credential = credential,
-                profile = userProfileRepository.getProfile(),
-                kind = kind,
-                periodLabel = periodLabel,
-                entries = entries,
-                workoutDayCount = workoutDates.size,
-                restDayCount = passedDates.count { it !in workoutDates },
-                totalWeightVolume = entries.sumOf { entry -> entry.volumeOf(IntensityType.WEIGHT) },
-                totalBodyweightReps = entries.sumOf { entry -> entry.repsOf(IntensityType.ANGLE) },
-                totalCardioMinutes = entries.sumOf { entry -> entry.minutesOf(IntensityType.DURATION) },
-            ),
-        )
         onStage(AnalysisStage.PARSING)
         analysisResultRepository.save(kind, scopeKey, content)
         return content
     }
 
-    private suspend fun collectEntries(dates: List<LocalDate>): List<WorkoutAnalysisEntry> = dates.flatMap { date ->
-        workoutLogRepository.observeLog(date).first().entries.map { entry ->
-            WorkoutAnalysisEntry(
-                date = date,
-                bodyPart = entry.bodyPart,
-                exerciseName = entry.exerciseName,
-                sets = entry.sets.map { set ->
-                    WorkoutAnalysisSet(
-                        repeatCount = set.repeatCount,
-                        intensityValue = set.intensity.value,
-                        intensityType = entry.intensityType,
-                    )
-                },
-            )
-        }
+    /** 하루는 그 날 기록 원문을 직접 본다. 위 계층이 이 결과를 모아 쓴다. */
+    private suspend fun analyzeDay(
+        credential: AiCredential,
+        profile: UserProfile,
+        periodLabel: String,
+        date: LocalDate,
+        onStage: suspend (AnalysisStage) -> Unit,
+    ): AnalysisContent {
+        val entries = workoutLogRepository.observeLog(date).first().entries.map { it.toAnalysisEntry(date) }
+        if (entries.isEmpty()) throw NoRecordToAnalyzeException()
+
+        onStage(AnalysisStage.CALLING)
+        return aiAnalysisRepository.analyzeWorkout(
+            WorkoutAnalysisRequest(
+                credential = credential,
+                profile = profile,
+                periodLabel = periodLabel,
+                entries = entries,
+                // 하루는 그 날 하나다. 쉰 날은 기간 분석에서만 뜻이 있다.
+                workoutDayCount = 1,
+                restDayCount = 0,
+                totalWeightVolume = entries.sumOf { it.volumeOf(IntensityType.WEIGHT) },
+                totalBodyweightReps = entries.sumOf { it.repsOf(IntensityType.ANGLE) },
+                totalCardioMinutes = entries.sumOf { it.minutesOf(IntensityType.DURATION) },
+            ),
+        )
     }
 
-    private fun datesOf(from: LocalDate, to: LocalDate): List<LocalDate> = generateSequence(from) { it.plusDays(1) }
-        .takeWhile { !it.isAfter(to) }
-        .toList()
+    private suspend fun summarize(
+        credential: AiCredential,
+        profile: UserProfile,
+        kind: AnalysisKind,
+        periodLabel: String,
+        from: LocalDate,
+        to: LocalDate,
+        onStage: suspend (AnalysisStage) -> Unit,
+    ): AnalysisContent {
+        val gathered: List<AnalysisChild>
+        val childLabel: String
+        when (kind) {
+            AnalysisKind.WORKOUT_WEEKLY -> {
+                gathered = children.ofWeek(AnalysisKind.WORKOUT_DAILY, from, to)
+                childLabel = "날짜별"
+            }
+
+            AnalysisKind.WORKOUT_MONTHLY -> {
+                gathered = children.ofMonth(AnalysisKind.WORKOUT_DAILY, AnalysisKind.WORKOUT_WEEKLY, from)
+                childLabel = "주간"
+            }
+
+            else -> error("운동 분석이 아닙니다: $kind")
+        }
+        if (gathered.isEmpty()) throw NoChildAnalysisException(childLabel)
+
+        onStage(AnalysisStage.CALLING)
+        return aiAnalysisRepository.summarize(
+            AnalysisSummaryRequest(
+                credential = credential,
+                profile = profile,
+                kind = kind,
+                periodLabel = periodLabel,
+                children = gathered,
+            ),
+        )
+    }
 }
 
-/** 무게로 재는 종목만 kg 볼륨에 넣는다. 각도 종목은 무게가 없어 섞으면 뜻이 없는 수가 된다. */
+private fun WorkoutEntry.toAnalysisEntry(date: LocalDate) = WorkoutAnalysisEntry(
+    date = date,
+    bodyPart = bodyPart,
+    exerciseName = exerciseName,
+    sets = sets.map { set ->
+        WorkoutAnalysisSet(
+            repeatCount = set.repeatCount,
+            intensityValue = set.intensity.value,
+            intensityType = intensityType,
+        )
+    },
+)
+
+/** 무게로 재는 종목만 kg 볼륨에 넣는다. 각도·시간 종목은 무게가 없어 섞으면 뜻이 없는 수가 된다. */
 private fun WorkoutAnalysisEntry.volumeOf(type: IntensityType): Int =
     sets.filter { it.intensityType == type }.sumOf { it.intensityValue * it.repeatCount }
 

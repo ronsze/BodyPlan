@@ -11,8 +11,8 @@ import kr.sdbk.bodyplan.core.domain.model.AiProvider
 import kr.sdbk.bodyplan.core.domain.model.AiRequestFailedException
 import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
+import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
-import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
@@ -44,10 +44,10 @@ constructor(
         images = imageLoader.load(request.entries.map { it.imagePath }),
     )
 
-    // 종합은 이미 분석된 글만 보낸다. 기간의 사진을 다시 실으면 요청이 커져 느리고 비싸다.
-    override suspend fun summarizeDiet(request: DietSummaryRequest): AnalysisContent = complete(
+    // 종합은 이미 분석된 글만 보낸다. 사진이나 기록 원문을 다시 실으면 한 달치가 요청 하나에 실린다.
+    override suspend fun summarize(request: AnalysisSummaryRequest): AnalysisContent = complete(
         credential = request.credential,
-        userPrompt = AnalysisPrompt.dietSummary(request),
+        userPrompt = AnalysisPrompt.summary(request),
         images = emptyList(),
     )
 

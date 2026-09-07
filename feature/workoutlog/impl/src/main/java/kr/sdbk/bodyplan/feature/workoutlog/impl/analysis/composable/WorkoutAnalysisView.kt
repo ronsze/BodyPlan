@@ -64,7 +64,7 @@ private fun rememberUiEvents(
 internal fun WorkoutAnalysisViewImpl(state: WorkoutAnalysisState, uiEvents: WorkoutAnalysisUiEvents) {
     AnalysisScreen(
         state = AnalysisScreenState(
-            title = "운동 분석",
+            title = state.title,
             subtitle = state.periodLabel,
             result = state.result,
             isLoading = state.isLoading,
