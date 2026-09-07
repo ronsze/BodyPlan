@@ -408,7 +408,16 @@ internal data class SetInput(
 | `isSaving` | `Boolean` | `false` |
 | `errorMessage` | `String?` | `null` |
 
-파생 값은 State 필드로 두지 않고 `ViewImpl`이 계산한다. `canSave = selectedExercise != null && sets.isNotEmpty() && !isSaving`, `canAddSet = selectedExercise != null && sets.size < WorkoutOptions.MAX_SET_COUNT`, `canRemoveSet = sets.size > 1`.
+파생 값은 State의 계산 프로퍼티로 둔다. 생성자 필드가 아니라 getter이므로 상태 비교에 영향을 주지 않고, `ViewImpl`과 ViewModel이 같은 판정을 각자 쓰지 않게 된다.
+
+| 프로퍼티 | 정의 |
+|---|---|
+| `canSave` | `selectedExercise != null && sets.isNotEmpty() && !isSaving` |
+| `canAddSet` | `selectedExercise != null && sets.size < WorkoutOptions.MAX_SET_COUNT` |
+| `canRemoveSet` | `sets.size > 1` |
+| `selectableExercises` | `selectedExercise`가 `exercises`에 없으면 앞에 끼운 목록, 아니면 `exercises` 그대로 |
+
+`selectableExercises`가 필요한 이유는 지워진 종목의 기록을 수정할 때다. 그 종목은 `observeExercises`가 내지 않으므로, 그대로 그리면 세트는 보이는데 고른 종목만 사라져 보인다.
 
 `Intent`:
 
@@ -738,8 +747,9 @@ fun BodyPlanNavigator.navigateToExerciseManage()
 - 쓰는 것: 단위 1의 `WorkoutLogRepository`, `ExerciseRepository`, `IsEditableDateUseCase`, `WorkoutOptions`, `BodyPart`, `IntensityType`, `Intensity`, `Exercise`, `WorkoutSet`, `WorkoutEntry`
 - 만드는 것: `:feature:workoutlog:api`·`:impl` 모듈, NavKey 4종과 navigate 확장 4종, `SetInput`, `WorkoutLogContracts`·`ViewModel`·`View`, `WorkoutEntryEditContracts`·`ViewModel`·`View`, `WorkoutLogNavGraph`, `BodyPartUi`의 `label`·`color`·`BodyPartTabRow`, `OptionChipRow`, `Color.kt`의 부위 6색
 - 이 단위가 NavKey 4종을 전부 만든다. 단위 3·4가 나머지 둘을 쓴다
-- 검증: `./gradlew :app:assembleDebug` + `WorkoutLogViewImplPreview`·`WorkoutEntryEditViewImplPreview` 렌더
+- 검증: `./gradlew :app:assembleDebug :feature:workoutlog:impl:testDebugUnitTest` + `WorkoutLogViewImplPreview`·`WorkoutEntryEditViewImplPreview` 렌더
 - 리뷰·테스트: 두 ViewModel이 대상이다
+- ViewModel 테스트는 `Dispatchers.setMain`에 즉시 실행 디스패처를 넣고, `uiState`와 `effect` 수집기를 그 디스패처에서 돌린다. 큐에 쌓는 디스패처로 수집기를 돌리면 Effect가 한 번의 진행으로 도달하지 않아 검증 시점이 어긋난다
 
 **단위 3 — 캘린더 화면**
 

@@ -10,4 +10,6 @@ android {
 dependencies {
     api(project(":core:ui:coordinator"))
     api(project(":core:designsystem"))
+    // 이 모듈의 컴포넌트가 도메인 모델을 파라미터로 받는다.
+    api(project(":core:domain"))
 }

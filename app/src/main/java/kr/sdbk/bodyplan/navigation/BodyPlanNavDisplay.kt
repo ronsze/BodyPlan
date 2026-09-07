@@ -9,6 +9,7 @@ import androidx.navigation3.ui.NavDisplay
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.home.api.HomeNavKey
 import kr.sdbk.bodyplan.feature.home.impl.homeNavGraph
+import kr.sdbk.bodyplan.feature.workoutlog.impl.workoutLogNavGraph
 
 @Composable
 fun BodyPlanNavDisplay(modifier: Modifier = Modifier) {
@@ -22,6 +23,7 @@ fun BodyPlanNavDisplay(modifier: Modifier = Modifier) {
         entryProvider =
             entryProvider {
                 homeNavGraph(navigator)
+                workoutLogNavGraph(navigator)
             },
     )
 }
