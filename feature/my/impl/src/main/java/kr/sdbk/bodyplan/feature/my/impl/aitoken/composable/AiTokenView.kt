@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -29,11 +31,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BaseTextField
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanIcon
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanIcons
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
 import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
-import kr.sdbk.bodyplan.core.designsystem.component.PillChip
 import kr.sdbk.bodyplan.core.designsystem.component.PrimaryButton
+import kr.sdbk.bodyplan.core.designsystem.component.SectionRow
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
+import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.Border
@@ -44,28 +49,22 @@ import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
+import kr.sdbk.bodyplan.core.ui.components.AiProviderMark
+import kr.sdbk.bodyplan.core.ui.components.label
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.AiTokenEffect
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.AiTokenIntent
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.AiTokenState
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.AiTokenViewModel
 
-/** 제공자 이름. 마이 화면도 같은 표기를 쓴다. */
-internal val AiProvider.label: String
-    get() = when (this) {
-        AiProvider.CLAUDE -> "클로드"
-        AiProvider.GPT -> "GPT"
-        AiProvider.GEMINI -> "제미나이"
-    }
-
 internal data class AiTokenEvents(val goBack: () -> Unit)
 
 internal data class AiTokenUiEvents(
     val onBackPressed: () -> Unit,
-    val onSelectProvider: (AiProvider) -> Unit,
+    val onClickProvider: (AiProvider) -> Unit,
     val onChangeInput: (String) -> Unit,
-    val onClickSave: () -> Unit,
-    val onClickVerify: () -> Unit,
+    val onClickConnect: () -> Unit,
+    val onClickCancelConnect: () -> Unit,
     val onClickDisconnect: () -> Unit,
 )
 
@@ -94,10 +93,10 @@ internal fun AiTokenView(events: AiTokenEvents, viewModel: AiTokenViewModel) {
 private fun rememberUiEvents(events: AiTokenEvents, viewModel: AiTokenViewModel): AiTokenUiEvents = remember {
     AiTokenUiEvents(
         onBackPressed = events.goBack,
-        onSelectProvider = { viewModel.handleIntent(AiTokenIntent.SelectProvider(it)) },
+        onClickProvider = { viewModel.handleIntent(AiTokenIntent.ClickProvider(it)) },
         onChangeInput = { viewModel.handleIntent(AiTokenIntent.ChangeInput(it)) },
-        onClickSave = { viewModel.handleIntent(AiTokenIntent.ClickSave) },
-        onClickVerify = { viewModel.handleIntent(AiTokenIntent.ClickVerify) },
+        onClickConnect = { viewModel.handleIntent(AiTokenIntent.ClickConnect) },
+        onClickCancelConnect = { viewModel.handleIntent(AiTokenIntent.ClickCancelConnect) },
         onClickDisconnect = { viewModel.handleIntent(AiTokenIntent.ClickDisconnect) },
     )
 }
@@ -109,174 +108,179 @@ internal fun AiTokenViewImpl(state: AiTokenState, uiEvents: AiTokenUiEvents) {
             .fillMaxSize()
             .background(Background),
     ) {
-        BodyPlanTopBar(title = "AI 토큰", onBack = uiEvents.onBackPressed)
-
-        if (state.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            return@Column
-        }
+        BodyPlanTopBar(title = "AI 연동", onBack = uiEvents.onBackPressed)
 
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            BodyPlanCard {
-                BaseText(
-                    text = NOTICE,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary,
-                )
-            }
-
-            ProviderPicker(state.selectedProvider, uiEvents.onSelectProvider)
-            TokenInput(state, uiEvents)
-
-            if (state.saved != null) {
-                ConnectedCard(state, uiEvents)
+            when {
+                state.isLoading && state.connected == null -> LoadingContent()
+                state.connected != null -> ConnectedContent(state, uiEvents)
+                state.connectingProvider != null -> ConnectingContent(state, uiEvents)
+                else -> ProviderPicker(uiEvents.onClickProvider)
             }
         }
     }
 }
 
 @Composable
-private fun ProviderPicker(selected: AiProvider, onSelect: (AiProvider) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BaseText(
-            text = "제공자",
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            ),
-            color = TextPrimary,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AiProvider.entries.forEach { provider ->
-                PillChip(
-                    text = provider.label,
-                    selected = provider == selected,
-                    onClick = { onSelect(provider) },
-                )
-            }
-        }
+private fun ProviderPicker(onClickProvider: (AiProvider) -> Unit) {
+    BaseText(
+        text = "분석에 쓸 AI를 하나 골라 연동하세요.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = TextSecondary,
+    )
+    AiProvider.entries.forEach { provider ->
+        ProviderButton(provider = provider, onClick = { onClickProvider(provider) })
     }
+    BaseText(
+        text = "키는 이 기기에만 저장되고, 사진과 기록이 분석을 위해 외부로 전송됩니다.",
+        style = MaterialTheme.typography.bodySmall,
+        color = TextTertiary,
+    )
+}
+
+/** 설정 줄과 같은 얼개다 — 아이콘·이름·화살표 한 줄이 곧 그 제공자로 연동하기다. */
+@Composable
+private fun ProviderButton(provider: AiProvider, onClick: () -> Unit) {
+    SectionRow(
+        title = "${provider.label}로 연동하기",
+        onClick = onClick,
+        leading = { AiProviderMark(provider) },
+    )
 }
 
 @Composable
-private fun TokenInput(state: AiTokenState, uiEvents: AiTokenUiEvents) {
-    val shape = RoundedCornerShape(12.dp)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BaseText(
-            text = "API 키",
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            ),
-            color = TextPrimary,
-        )
+private fun ConnectingContent(state: AiTokenState, uiEvents: AiTokenUiEvents) {
+    val provider = state.connectingProvider ?: return
+    BodyPlanCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            AiProviderMark(provider)
+            BaseText(
+                text = "${provider.label} 키 넣기",
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+            )
+        }
+        VerticalSpacer(space = 16.dp)
         BaseTextField(
             value = state.input,
             onValueChange = uiEvents.onChangeInput,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(shape)
-                .background(Surface)
-                .border(BorderStroke(1.dp, Border), shape)
-                .padding(16.dp),
+                .clip(RoundedCornerShape(FIELD_CORNER))
+                .background(Background)
+                .border(BorderStroke(1.dp, Border), RoundedCornerShape(FIELD_CORNER))
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             placeholder = "API 키를 붙여 넣으세요",
             textStyle = MaterialTheme.typography.bodyMedium,
             singleLine = true,
         )
-        if (state.errorMessage != null) {
-            BaseText(
-                text = state.errorMessage,
-                style = MaterialTheme.typography.labelMedium,
-                color = Danger,
-            )
-        }
-        PrimaryButton(text = "저장", onClick = uiEvents.onClickSave, enabled = state.canSave)
+        VerticalSpacer(space = 8.dp)
+        BaseText(
+            text = "연동할 때 한 번 검증합니다.",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextTertiary,
+        )
     }
+
+    state.errorMessage?.let { message ->
+        BaseText(text = message, style = MaterialTheme.typography.bodyMedium, color = Danger)
+    }
+
+    PrimaryButton(
+        text = if (state.isConnecting) "확인 중" else "연동",
+        onClick = uiEvents.onClickConnect,
+        enabled = state.canConnect,
+    )
+    OutlinedActionButton(text = "취소", onClick = uiEvents.onClickCancelConnect)
 }
 
 @Composable
-private fun ConnectedCard(state: AiTokenState, uiEvents: AiTokenUiEvents) {
+private fun ConnectedContent(state: AiTokenState, uiEvents: AiTokenUiEvents) {
+    val credential = state.connected ?: return
     BodyPlanCard {
-        BaseText(
-            text = "${state.saved?.provider?.label} 연결됨",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            ),
-            color = TextPrimary,
-        )
-        VerticalSpacer(space = 4.dp)
-        BaseText(
-            text = state.savedTokenMask.orEmpty(),
-            style = MaterialTheme.typography.labelMedium,
-            color = TextTertiary,
-        )
-        VerticalSpacer(space = 16.dp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedActionButton(
-                text = if (state.isVerifying) "확인 중" else "연결 확인",
-                onClick = uiEvents.onClickVerify,
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedActionButton(
-                text = "연결 해제",
-                onClick = uiEvents.onClickDisconnect,
-                modifier = Modifier.weight(1f),
-            )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            AiProviderMark(credential.provider, size = 36.dp)
+            Column {
+                BaseText(
+                    text = "${credential.provider.label} 연결됨",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TextPrimary,
+                )
+                VerticalSpacer(space = 4.dp)
+                BaseText(
+                    text = state.connectedTokenMask.orEmpty(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextTertiary,
+                )
+            }
         }
+    }
+    BaseText(
+        text = "다른 AI로 바꾸려면 먼저 연결을 해제하세요.",
+        style = MaterialTheme.typography.bodySmall,
+        color = TextTertiary,
+    )
+    OutlinedActionButton(text = "연결 해제", onClick = uiEvents.onClickDisconnect)
+}
+
+@Composable
+private fun LoadingContent() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 40.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator()
     }
 }
 
-private const val NOTICE =
-    "분석 기능은 고른 제공자의 키로 AI를 부릅니다. " +
-        "키는 이 기기에만 저장되고, 사진과 기록이 분석을 위해 외부로 전송됩니다."
+private val FIELD_CORNER = 12.dp
 
 private val previewUiEvents = AiTokenUiEvents(
     onBackPressed = {},
-    onSelectProvider = {},
+    onClickProvider = {},
     onChangeInput = {},
-    onClickSave = {},
-    onClickVerify = {},
+    onClickConnect = {},
+    onClickCancelConnect = {},
     onClickDisconnect = {},
 )
 
-@Preview(showBackground = true, heightDp = 780)
+@Preview(showBackground = true, heightDp = 700)
 @Composable
-private fun AiTokenViewImplEmptyPreview() {
+private fun AiTokenViewImplPickerPreview() {
     BodyPlanTheme {
         AiTokenViewImpl(state = AiTokenState(), uiEvents = previewUiEvents)
     }
 }
 
-@Preview(showBackground = true, heightDp = 780)
+@Preview(showBackground = true, heightDp = 700)
 @Composable
-private fun AiTokenViewImplConnectedPreview() {
+private fun AiTokenViewImplConnectingPreview() {
     BodyPlanTheme {
         AiTokenViewImpl(
             state = AiTokenState(
-                selectedProvider = AiProvider.CLAUDE,
-                saved = AiCredential(AiProvider.CLAUDE, "sk-ant-1234567890abcdef"),
+                connectingProvider = AiProvider.CLAUDE,
+                input = "sk-ant-1234",
+                errorMessage = "키가 올바르지 않습니다",
             ),
             uiEvents = previewUiEvents,
         )
     }
 }
 
-@Preview(showBackground = true, heightDp = 780)
+@Preview(showBackground = true, heightDp = 700)
 @Composable
-private fun AiTokenViewImplErrorPreview() {
+private fun AiTokenViewImplConnectedPreview() {
     BodyPlanTheme {
         AiTokenViewImpl(
-            state = AiTokenState(
-                selectedProvider = AiProvider.GEMINI,
-                input = "wrong-key",
-                errorMessage = "키가 올바르지 않습니다",
-            ),
+            state = AiTokenState(connected = AiCredential(AiProvider.GEMINI, "AIza12345678abcd")),
             uiEvents = previewUiEvents,
         )
     }

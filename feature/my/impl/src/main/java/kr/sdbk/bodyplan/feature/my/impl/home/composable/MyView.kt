@@ -19,8 +19,9 @@ import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
 import kr.sdbk.bodyplan.core.domain.model.Goal
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
+import kr.sdbk.bodyplan.core.ui.components.AiProviderMark
+import kr.sdbk.bodyplan.core.ui.components.label
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
-import kr.sdbk.bodyplan.feature.my.impl.aitoken.composable.label
 import kr.sdbk.bodyplan.feature.my.impl.home.MyEffect
 import kr.sdbk.bodyplan.feature.my.impl.home.MyIntent
 import kr.sdbk.bodyplan.feature.my.impl.home.MyState
@@ -77,9 +78,12 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
         ) {
             ProfileSummaryCard(profile = state.profile, onClick = uiEvents.onClickProfile)
             SectionRow(
-                title = "AI 토큰",
+                title = "AI 연동",
                 onClick = uiEvents.onClickAiToken,
                 description = state.connectedProvider?.let { "${it.label} 연결됨" } ?: "연결되지 않음",
+                leading = state.connectedProvider?.let { provider ->
+                    { AiProviderMark(provider, size = 24.dp) }
+                },
             )
             SectionRow(
                 title = "인바디 분석",

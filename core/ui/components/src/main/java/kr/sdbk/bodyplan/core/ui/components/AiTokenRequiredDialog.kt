@@ -35,7 +35,7 @@ fun AiTokenRequiredDialog(onConfirm: () -> Unit, onDismiss: () -> Unit, modifier
             )
             VerticalSpacer(space = 8.dp)
             BaseText(
-                text = "분석하려면 먼저 AI 토큰을 등록해야 합니다.",
+                text = "분석하려면 먼저 AI를 연동해야 합니다.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
             )
@@ -48,7 +48,7 @@ fun AiTokenRequiredDialog(onConfirm: () -> Unit, onDismiss: () -> Unit, modifier
                     OutlinedActionButton(text = "닫기", onClick = onDismiss)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    PrimaryButton(text = "등록하러 가기", onClick = onConfirm)
+                    PrimaryButton(text = "연동하러 가기", onClick = onConfirm)
                 }
             }
         }

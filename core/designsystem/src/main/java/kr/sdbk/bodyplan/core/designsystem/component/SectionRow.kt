@@ -16,12 +16,23 @@ import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 
 /** 설정 목록의 줄 하나. 제목과 지금 상태를 보여주고 눌러 들어간다. */
 @Composable
-fun SectionRow(title: String, onClick: () -> Unit, modifier: Modifier = Modifier, description: String? = null) {
+fun SectionRow(
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    description: String? = null,
+    /** 제목 왼쪽에 붙는 표시. 없으면 자리도 잡지 않는다. */
+    leading: (@Composable () -> Unit)? = null,
+) {
     BodyPlanCard(
         modifier = modifier.clickable(onClick = onClick),
         contentPadding = 18.dp,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            leading?.invoke()
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -57,8 +68,8 @@ fun SectionRow(title: String, onClick: () -> Unit, modifier: Modifier = Modifier
 private fun SectionRowPreview() {
     BodyPlanTheme {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SectionRow(title = "AI 토큰", onClick = {}, description = "클로드 연결됨")
-            SectionRow(title = "AI 토큰", onClick = {}, description = "연결되지 않음")
+            SectionRow(title = "AI 연동", onClick = {}, description = "클로드 연결됨")
+            SectionRow(title = "AI 연동", onClick = {}, description = "연결되지 않음")
         }
     }
 }

@@ -10,11 +10,15 @@ internal class FakeAiCredentialRepository(initial: AiCredential? = null) : AiCre
 
     var saveFailure: Throwable? = null
 
+    var saveCallCount: Int = 0
+        private set
+
     override fun observeCredential(): Flow<AiCredential?> = credential
 
     override suspend fun getCredential(): AiCredential? = credential.value
 
     override suspend fun save(credential: AiCredential) {
+        saveCallCount++
         saveFailure?.let { throw it }
         this.credential.value = credential
     }

@@ -31,159 +31,205 @@ internal class AiTokenViewModelTest {
     ) = AiTokenViewModel(credentials, analysis)
 
     @Test
-    fun `저장된 것이 없으면 클로드가 골라져 있고 저장할 수 없다`() = runTest {
+    fun `저장된 키가 없으면 고르는 중이다`() = runTest {
         val viewModel = viewModel()
 
         subscribe(viewModel)
 
-        assertEquals(AiProvider.CLAUDE, viewModel.uiState.value.selectedProvider)
-        assertNull(viewModel.uiState.value.saved)
-        assertFalse(viewModel.uiState.value.canSave)
+        assertNull(viewModel.uiState.value.connected)
+        assertNull(viewModel.uiState.value.connectingProvider)
     }
 
     @Test
-    fun `이미 연결된 제공자가 골라진 채로 열린다`() = runTest {
-        val repository = FakeAiCredentialRepository(AiCredential(AiProvider.GPT, "sk-1234567890"))
+    fun `저장된 키가 있으면 들어오자마자 채워진다`() = runTest {
+        val saved = AiCredential(AiProvider.GPT, "sk-1234567890")
+        val repository = FakeAiCredentialRepository(saved)
         val viewModel = viewModel(credentials = repository)
 
         subscribe(viewModel)
 
-        assertEquals(AiProvider.GPT, viewModel.uiState.value.selectedProvider)
+        assertEquals(saved, viewModel.uiState.value.connected)
     }
 
     @Test
-    fun `키를 넣으면 저장할 수 있다`() = runTest {
+    fun `제공자를 누르면 그 제공자로 키 넣는 중이 되고 입력이 비워진다`() = runTest {
         val viewModel = viewModel()
         subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ChangeInput("남아있던값"))
 
-        viewModel.handleIntent(AiTokenIntent.ChangeInput("sk-1234"))
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.GEMINI))
 
-        assertTrue(viewModel.uiState.value.canSave)
-    }
-
-    @Test
-    fun `저장하면 고른 제공자와 함께 남고 입력칸이 비워진다`() = runTest {
-        val repository = FakeAiCredentialRepository()
-        val viewModel = viewModel(credentials = repository)
-        subscribe(viewModel)
-
-        viewModel.handleIntent(AiTokenIntent.SelectProvider(AiProvider.GEMINI))
-        viewModel.handleIntent(AiTokenIntent.ChangeInput("  key-1234  "))
-        viewModel.handleIntent(AiTokenIntent.ClickSave)
-        advanceUntilIdle()
-
-        assertEquals(AiCredential(AiProvider.GEMINI, "key-1234"), repository.getCredential())
+        assertEquals(AiProvider.GEMINI, viewModel.uiState.value.connectingProvider)
         assertEquals("", viewModel.uiState.value.input)
     }
 
     @Test
-    fun `저장된 키는 앞뒤만 보인다`() = runTest {
-        val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "sk-ant-abcdefgh"))
-        val viewModel = viewModel(credentials = repository)
-
-        subscribe(viewModel)
-
-        val mask = viewModel.uiState.value.savedTokenMask
-        assertNotNull(mask)
-        assertTrue(mask!!.startsWith("sk-a"))
-        assertTrue(mask.endsWith("efgh"))
-        assertFalse(mask.contains("ant"))
-    }
-
-    @Test
-    fun `연결을 해제하면 저장된 것이 사라진다`() = runTest {
-        val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "sk-1234567890"))
+    fun `검증을 통과해야 저장한다`() = runTest {
+        val repository = FakeAiCredentialRepository()
         val viewModel = viewModel(credentials = repository)
         subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.GEMINI))
+        viewModel.handleIntent(AiTokenIntent.ChangeInput("  key-1234  "))
 
-        viewModel.handleIntent(AiTokenIntent.ClickDisconnect)
+        viewModel.handleIntent(AiTokenIntent.ClickConnect)
         advanceUntilIdle()
 
-        assertNull(repository.getCredential())
-        assertNull(viewModel.uiState.value.saved)
+        assertEquals(listOf(AiCredential(AiProvider.GEMINI, "key-1234")), analysisRepository.verified)
+        assertEquals(AiCredential(AiProvider.GEMINI, "key-1234"), repository.getCredential())
     }
 
     @Test
-    fun `저장된 것이 없으면 확인도 해제도 할 수 없다`() = runTest {
+    fun `검증이 실패하면 저장 요청이 가지 않는다`() = runTest {
+        analysisRepository.verifyFailure = AiUnauthorizedException()
+        val repository = FakeAiCredentialRepository()
+        val viewModel = viewModel(credentials = repository)
+        subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.CLAUDE))
+        viewModel.handleIntent(AiTokenIntent.ChangeInput("sk-bad-key"))
+
+        viewModel.handleIntent(AiTokenIntent.ClickConnect)
+        advanceUntilIdle()
+
+        assertEquals(0, repository.saveCallCount)
+    }
+
+    @Test
+    fun `검증 실패 시 넣은 키는 그대로 남고 오류가 채워진다`() = runTest {
+        analysisRepository.verifyFailure = AiUnauthorizedException()
         val viewModel = viewModel()
         subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.CLAUDE))
+        viewModel.handleIntent(AiTokenIntent.ChangeInput("sk-bad-key"))
 
-        assertFalse(viewModel.uiState.value.canVerify)
-        assertFalse(viewModel.uiState.value.canDisconnect)
-
-        viewModel.handleIntent(AiTokenIntent.ClickVerify)
+        viewModel.handleIntent(AiTokenIntent.ClickConnect)
         advanceUntilIdle()
 
-        assertTrue(analysisRepository.verified.isEmpty())
-    }
-
-    @Test
-    fun `연결 확인은 저장된 한 벌로 한다`() = runTest {
-        val saved = AiCredential(AiProvider.CLAUDE, "sk-saved-1234")
-        val repository = FakeAiCredentialRepository(saved)
-        val viewModel = viewModel(credentials = repository)
-        subscribe(viewModel)
-
-        viewModel.handleIntent(AiTokenIntent.ChangeInput("sk-typing-9999"))
-        viewModel.handleIntent(AiTokenIntent.ClickVerify)
-        advanceUntilIdle()
-
-        assertEquals(listOf(saved), analysisRepository.verified)
-        assertFalse(viewModel.uiState.value.isVerifying)
+        assertEquals("sk-bad-key", viewModel.uiState.value.input)
+        assertNotNull(viewModel.uiState.value.errorMessage)
     }
 
     @Test
     fun `키가 거절되면 키가 틀렸다고 알린다`() = runTest {
-        val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "sk-1234567890"))
         analysisRepository.verifyFailure = AiUnauthorizedException()
-        val viewModel = viewModel(credentials = repository)
+        val viewModel = viewModel()
         subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.CLAUDE))
+        viewModel.handleIntent(AiTokenIntent.ChangeInput("sk-bad-key"))
 
-        viewModel.handleIntent(AiTokenIntent.ClickVerify)
+        viewModel.handleIntent(AiTokenIntent.ClickConnect)
         advanceUntilIdle()
 
         assertEquals("키가 올바르지 않습니다", viewModel.uiState.value.errorMessage)
-        assertFalse(viewModel.uiState.value.isVerifying)
     }
 
     @Test
-    fun `부르지 못하면 연결 실패로 알린다`() = runTest {
-        val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "sk-1234567890"))
-        analysisRepository.verifyFailure = AiRequestFailedException(null)
-        val viewModel = viewModel(credentials = repository)
-        subscribe(viewModel)
-
-        viewModel.handleIntent(AiTokenIntent.ClickVerify)
-        advanceUntilIdle()
-
-        assertEquals("연결하지 못했습니다", viewModel.uiState.value.errorMessage)
-    }
-
-    @Test
-    fun `부르지 못한 사유가 있으면 기본 문구 뒤에 붙는다`() = runTest {
-        val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "sk-1234567890"))
+    fun `사유가 있는 요청 실패는 사유를 붙여 알린다`() = runTest {
         analysisRepository.verifyFailure = AiRequestFailedException(null, "요청 형식이 잘못됐습니다")
-        val viewModel = viewModel(credentials = repository)
+        val viewModel = viewModel()
         subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.CLAUDE))
+        viewModel.handleIntent(AiTokenIntent.ChangeInput("sk-1234567890"))
 
-        viewModel.handleIntent(AiTokenIntent.ClickVerify)
+        viewModel.handleIntent(AiTokenIntent.ClickConnect)
         advanceUntilIdle()
 
         assertEquals("연결하지 못했습니다: 요청 형식이 잘못됐습니다", viewModel.uiState.value.errorMessage)
     }
 
     @Test
-    fun `제공자를 바꾸면 앞선 실패 문구가 사라진다`() = runTest {
-        val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "sk-1234567890"))
-        analysisRepository.verifyFailure = AiUnauthorizedException()
-        val viewModel = viewModel(credentials = repository)
+    fun `사유 없는 요청 실패는 기본 문구로 알린다`() = runTest {
+        analysisRepository.verifyFailure = AiRequestFailedException(null)
+        val viewModel = viewModel()
         subscribe(viewModel)
-        viewModel.handleIntent(AiTokenIntent.ClickVerify)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.CLAUDE))
+        viewModel.handleIntent(AiTokenIntent.ChangeInput("sk-1234567890"))
+
+        viewModel.handleIntent(AiTokenIntent.ClickConnect)
         advanceUntilIdle()
 
-        viewModel.handleIntent(AiTokenIntent.SelectProvider(AiProvider.GPT))
+        assertEquals("연결하지 못했습니다", viewModel.uiState.value.errorMessage)
+    }
 
+    @Test
+    fun `연동에 성공하면 입력과 연결 중 상태가 비워지고 메시지가 난다`() = runTest {
+        val viewModel = viewModel()
+        val effects = mutableListOf<AiTokenEffect>()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            viewModel.effect.collect { effects += it }
+        }
+        subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.CLAUDE))
+        viewModel.handleIntent(AiTokenIntent.ChangeInput("sk-1234567890"))
+
+        viewModel.handleIntent(AiTokenIntent.ClickConnect)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.connectingProvider)
+        assertEquals("", viewModel.uiState.value.input)
+        assertTrue(effects.any { it is AiTokenEffect.ShowMessage && it.message == "연결했습니다" })
+    }
+
+    @Test
+    fun `입력이 비어 있으면 연결할 수 없고 시도해도 아무 일도 없다`() = runTest {
+        val repository = FakeAiCredentialRepository()
+        val viewModel = viewModel(credentials = repository)
+        subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.CLAUDE))
+
+        assertFalse(viewModel.uiState.value.canConnect)
+
+        viewModel.handleIntent(AiTokenIntent.ClickConnect)
+        advanceUntilIdle()
+
+        assertTrue(analysisRepository.verified.isEmpty())
+        assertEquals(0, repository.saveCallCount)
+    }
+
+    @Test
+    fun `연결 취소는 연결 중 상태와 입력, 오류를 되돌린다`() = runTest {
+        analysisRepository.verifyFailure = AiUnauthorizedException()
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.CLAUDE))
+        viewModel.handleIntent(AiTokenIntent.ChangeInput("sk-bad-key"))
+        viewModel.handleIntent(AiTokenIntent.ClickConnect)
+        advanceUntilIdle()
+
+        viewModel.handleIntent(AiTokenIntent.ClickCancelConnect)
+
+        assertNull(viewModel.uiState.value.connectingProvider)
+        assertEquals("", viewModel.uiState.value.input)
         assertNull(viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `연결을 해제하면 저장소가 비워지고 해제 메시지가 난다`() = runTest {
+        val saved = AiCredential(AiProvider.CLAUDE, "sk-1234567890")
+        val repository = FakeAiCredentialRepository(saved)
+        val viewModel = viewModel(credentials = repository)
+        val effects = mutableListOf<AiTokenEffect>()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            viewModel.effect.collect { effects += it }
+        }
+        subscribe(viewModel)
+
+        viewModel.handleIntent(AiTokenIntent.ClickDisconnect)
+        advanceUntilIdle()
+
+        assertNull(repository.getCredential())
+        assertTrue(effects.any { it is AiTokenEffect.ShowMessage && it.message == "연결을 해제했습니다" })
+    }
+
+    @Test
+    fun `저장된 키는 전체를 드러내지 않는다`() = runTest {
+        val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "sk-ant-abcdefgh"))
+        val viewModel = viewModel(credentials = repository)
+
+        subscribe(viewModel)
+
+        val mask = viewModel.uiState.value.connectedTokenMask
+        assertNotNull(mask)
+        assertFalse(mask!!.contains("sk-ant-abcdefgh"))
     }
 
     @Test
