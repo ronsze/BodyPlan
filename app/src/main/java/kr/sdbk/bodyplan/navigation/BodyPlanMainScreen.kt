@@ -61,7 +61,11 @@ import kr.sdbk.bodyplan.feature.workoutlog.impl.workoutLogNavGraph
  * feature는 서로의 `api`만 알고 화면은 각자의 navGraph가 등록한다.
  */
 @Composable
-fun BodyPlanMainScreen(modifier: Modifier = Modifier, viewModel: MainShellViewModel = hiltViewModel()) {
+fun BodyPlanMainScreen(
+    modifier: Modifier = Modifier,
+    startNavKey: NavKey? = null,
+    viewModel: MainShellViewModel = hiltViewModel(),
+) {
     val backStack = rememberNavBackStack(MainTab.entries.first().navKey)
     val navigator = remember(backStack) { BodyPlanNavigator(backStack) }
     val currentTab = MainTab.entries.firstOrNull { it.navKey == backStack.lastOrNull() }
@@ -81,7 +85,16 @@ fun BodyPlanMainScreen(modifier: Modifier = Modifier, viewModel: MainShellViewMo
             true -> if (backStack.lastOrNull() == OnboardingNavKey) {
                 backStack.clear()
                 backStack.add(MainTab.entries.first().navKey)
+                // 온보딩을 지나며 알림 목적지를 잃지 않게 여기서도 얹는다.
+                startNavKey?.let(backStack::add)
             }
+        }
+    }
+
+    // 알림으로 들어온 목적지는 한 번만 얹는다. 뒤로 나가면 탭이 남는다.
+    LaunchedEffect(startNavKey) {
+        if (startNavKey != null && onboardingCompleted == true && backStack.lastOrNull() != startNavKey) {
+            backStack.add(startNavKey)
         }
     }
 

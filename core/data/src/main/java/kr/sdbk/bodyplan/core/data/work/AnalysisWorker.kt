@@ -35,20 +35,27 @@ constructor(
     private val analyzeDiet: AnalyzeDietUseCase,
     private val analyzeWorkout: AnalyzeWorkoutUseCase,
     private val analyzeInbody: AnalyzeInbodyUseCase,
+    private val notifier: AnalysisNotifier,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val kind = inputData.getString(AnalysisWork.KEY_KIND)
             ?.let { name -> AnalysisKind.entries.firstOrNull { it.name == name } }
             ?: return Result.failure(workDataOf(AnalysisWork.KEY_REASON to UNKNOWN_KIND))
 
+        val periodLabel = inputData.getString(AnalysisWork.KEY_PERIOD_LABEL).orEmpty()
+        val fromEpochDay = inputData.getLong(AnalysisWork.KEY_FROM, AnalysisWork.NO_DATE)
+
         return try {
             analyze(kind)
+            notifier.notifySucceeded(kind, periodLabel, fromEpochDay)
             Result.success()
         } catch (cancellation: CancellationException) {
-            // 취소는 실패가 아니다. WorkManager가 취소로 다루게 그대로 던진다.
+            // 취소는 실패가 아니다. 알리지 않고 WorkManager가 취소로 다루게 그대로 던진다.
             throw cancellation
         } catch (failure: Throwable) {
-            Result.failure(workDataOf(AnalysisWork.KEY_REASON to failure.toReason()))
+            val reason = failure.toReason()
+            notifier.notifyFailed(kind, reason, fromEpochDay)
+            Result.failure(workDataOf(AnalysisWork.KEY_REASON to reason))
         }
     }
 

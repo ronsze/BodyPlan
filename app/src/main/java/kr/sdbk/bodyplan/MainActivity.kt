@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.navigation.BodyPlanMainScreen
+import kr.sdbk.bodyplan.navigation.analysisNavKey
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -17,7 +18,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BodyPlanTheme {
-                BodyPlanMainScreen(modifier = Modifier.fillMaxSize())
+                BodyPlanMainScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    // 알림을 눌러 들어왔으면 그 분석 화면까지 연다.
+                    startNavKey = intent?.analysisNavKey(),
+                )
             }
         }
     }
