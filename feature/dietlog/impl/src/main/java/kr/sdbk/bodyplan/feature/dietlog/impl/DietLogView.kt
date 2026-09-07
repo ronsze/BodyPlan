@@ -31,12 +31,11 @@ internal fun DietLogView(events: DietLogEvents, viewModel: DietLogViewModel) {
 }
 
 @Composable
-private fun rememberUiEvents(events: DietLogEvents, viewModel: DietLogViewModel): DietLogUiEvents =
-    remember {
-        DietLogUiEvents(
-            onBackPressed = events.goBack,
-        )
-    }
+private fun rememberUiEvents(events: DietLogEvents, viewModel: DietLogViewModel): DietLogUiEvents = remember {
+    DietLogUiEvents(
+        onBackPressed = events.goBack,
+    )
+}
 
 @Composable
 internal fun DietLogViewImpl(state: DietLogState, uiEvents: DietLogUiEvents) {

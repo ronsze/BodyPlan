@@ -12,6 +12,7 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import kr.sdbk.bodyplan.core.local.BodyPlanDatabase
 import kr.sdbk.bodyplan.core.local.DefaultExercises
+import kr.sdbk.bodyplan.core.local.dao.DietEntryDao
 import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
 
@@ -33,6 +34,9 @@ object LocalModule {
 
     @Provides
     fun provideWorkoutEntryDao(database: BodyPlanDatabase): WorkoutEntryDao = database.workoutEntryDao()
+
+    @Provides
+    fun provideDietEntryDao(database: BodyPlanDatabase): DietEntryDao = database.dietEntryDao()
 }
 
 /**
