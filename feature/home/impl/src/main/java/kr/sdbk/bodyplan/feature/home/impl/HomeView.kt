@@ -17,9 +17,17 @@ import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 
-internal data class HomeEvents(val goBack: () -> Unit, val goToWorkoutCalendar: () -> Unit)
+internal data class HomeEvents(
+    val goBack: () -> Unit,
+    val goToWorkoutCalendar: () -> Unit,
+    val goToDietCalendar: () -> Unit,
+)
 
-internal data class HomeUiEvents(val onBackPressed: () -> Unit, val onClickWorkoutLog: () -> Unit)
+internal data class HomeUiEvents(
+    val onBackPressed: () -> Unit,
+    val onClickWorkoutLog: () -> Unit,
+    val onClickDietLog: () -> Unit,
+)
 
 @Composable
 internal fun HomeView(events: HomeEvents, viewModel: HomeViewModel) {
@@ -43,6 +51,7 @@ private fun rememberUiEvents(events: HomeEvents, viewModel: HomeViewModel): Home
     HomeUiEvents(
         onBackPressed = events.goBack,
         onClickWorkoutLog = events.goToWorkoutCalendar,
+        onClickDietLog = events.goToDietCalendar,
     )
 }
 
@@ -54,6 +63,10 @@ internal fun HomeViewImpl(state: HomeState, uiEvents: HomeUiEvents) {
         Button(onClick = uiEvents.onClickWorkoutLog) {
             BaseText(text = "운동 일지")
         }
+        VerticalSpacer(space = 8.dp)
+        Button(onClick = uiEvents.onClickDietLog) {
+            BaseText(text = "식단 일지")
+        }
     }
 }
 
@@ -63,7 +76,11 @@ private fun HomeViewImplPreview() {
     BodyPlanTheme {
         HomeViewImpl(
             state = HomeState(),
-            uiEvents = HomeUiEvents(onBackPressed = {}, onClickWorkoutLog = {}),
+            uiEvents = HomeUiEvents(
+                onBackPressed = {},
+                onClickWorkoutLog = {},
+                onClickDietLog = {},
+            ),
         )
     }
 }

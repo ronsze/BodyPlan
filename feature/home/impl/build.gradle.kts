@@ -8,4 +8,5 @@ android {
 
 dependencies {
     implementation(projects.feature.workoutlog.api)
+    implementation(projects.feature.dietlog.api)
 }

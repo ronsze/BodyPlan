@@ -4,11 +4,18 @@ import androidx.compose.runtime.remember
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kr.sdbk.bodyplan.core.navigation.BodyPlanEntryProviderScope
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
+import kr.sdbk.bodyplan.feature.dietlog.api.DietCalendarNavKey
 import kr.sdbk.bodyplan.feature.dietlog.api.DietEntryEditNavKey
 import kr.sdbk.bodyplan.feature.dietlog.api.DietLogNavKey
 import kr.sdbk.bodyplan.feature.dietlog.api.navigateToDietEntryEdit
+import kr.sdbk.bodyplan.feature.dietlog.api.navigateToDietLog
 
 fun BodyPlanEntryProviderScope.dietLogNavGraph(navigator: BodyPlanNavigator) {
+    entry<DietCalendarNavKey> {
+        val events = remember { DietCalendarEvents(goToLog = navigator::navigateToDietLog) }
+        DietCalendarView(events = events, viewModel = hiltViewModel())
+    }
+
     entry<DietLogNavKey> { navKey ->
         val events = remember {
             DietLogEvents(
