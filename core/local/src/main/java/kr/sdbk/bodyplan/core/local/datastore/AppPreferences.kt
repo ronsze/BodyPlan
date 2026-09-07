@@ -3,6 +3,7 @@ package kr.sdbk.bodyplan.core.local.datastore
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -29,6 +30,8 @@ constructor(context: Context) {
 
     val aiToken: Flow<String?> = store.data.map { it[AI_TOKEN] }
 
+    val onboardingCompleted: Flow<Boolean> = store.data.map { it[ONBOARDING_COMPLETED] ?: false }
+
     suspend fun getAiProvider(): String? = aiProvider.first()
 
     suspend fun getAiToken(): String? = aiToken.first()
@@ -38,6 +41,10 @@ constructor(context: Context) {
             it[AI_PROVIDER] = provider
             it[AI_TOKEN] = token
         }
+    }
+
+    suspend fun markOnboardingCompleted() {
+        store.edit { it[ONBOARDING_COMPLETED] = true }
     }
 
     suspend fun clearAiCredential() {
@@ -50,3 +57,4 @@ constructor(context: Context) {
 
 private val AI_PROVIDER = stringPreferencesKey("ai_provider")
 private val AI_TOKEN = stringPreferencesKey("ai_token")
+private val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")

@@ -17,6 +17,8 @@ import kr.sdbk.bodyplan.core.designsystem.component.SectionRow
 import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
+import kr.sdbk.bodyplan.core.domain.model.Goal
+import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.composable.label
 import kr.sdbk.bodyplan.feature.my.impl.home.MyEffect
@@ -24,9 +26,9 @@ import kr.sdbk.bodyplan.feature.my.impl.home.MyIntent
 import kr.sdbk.bodyplan.feature.my.impl.home.MyState
 import kr.sdbk.bodyplan.feature.my.impl.home.MyViewModel
 
-internal data class MyEvents(val goToAiToken: () -> Unit)
+internal data class MyEvents(val goToAiToken: () -> Unit, val goToProfile: () -> Unit)
 
-internal data class MyUiEvents(val onClickAiToken: () -> Unit)
+internal data class MyUiEvents(val onClickAiToken: () -> Unit, val onClickProfile: () -> Unit)
 
 @Composable
 internal fun MyView(events: MyEvents, viewModel: MyViewModel) {
@@ -41,6 +43,7 @@ internal fun MyView(events: MyEvents, viewModel: MyViewModel) {
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
             is MyEffect.NavigateToAiToken -> events.goToAiToken()
+            is MyEffect.NavigateToProfile -> events.goToProfile()
         }
     }
 }
@@ -49,6 +52,7 @@ internal fun MyView(events: MyEvents, viewModel: MyViewModel) {
 private fun rememberUiEvents(viewModel: MyViewModel): MyUiEvents = remember {
     MyUiEvents(
         onClickAiToken = { viewModel.handleIntent(MyIntent.ClickAiToken) },
+        onClickProfile = { viewModel.handleIntent(MyIntent.ClickProfile) },
     )
 }
 
@@ -65,6 +69,7 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            ProfileSummaryCard(profile = state.profile, onClick = uiEvents.onClickProfile)
             SectionRow(
                 title = "AI 토큰",
                 onClick = uiEvents.onClickAiToken,
@@ -74,13 +79,19 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
     }
 }
 
-private val previewUiEvents = MyUiEvents(onClickAiToken = {})
+private val previewUiEvents = MyUiEvents(onClickAiToken = {}, onClickProfile = {})
 
 @Preview(showBackground = true, heightDp = 780)
 @Composable
 private fun MyViewImplPreview() {
     BodyPlanTheme {
-        MyViewImpl(state = MyState(connectedProvider = AiProvider.CLAUDE), uiEvents = previewUiEvents)
+        MyViewImpl(
+            state = MyState(
+                connectedProvider = AiProvider.CLAUDE,
+                profile = UserProfile(ageYears = 30, heightCm = 175, goals = setOf(Goal.DIET)),
+            ),
+            uiEvents = previewUiEvents,
+        )
     }
 }
 

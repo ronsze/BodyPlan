@@ -20,12 +20,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -45,6 +49,7 @@ import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.dietlog.api.DietCalendarNavKey
 import kr.sdbk.bodyplan.feature.dietlog.impl.dietLogNavGraph
 import kr.sdbk.bodyplan.feature.my.api.MyNavKey
+import kr.sdbk.bodyplan.feature.my.api.OnboardingNavKey
 import kr.sdbk.bodyplan.feature.my.impl.myNavGraph
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutCalendarNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.impl.workoutLogNavGraph
@@ -56,10 +61,29 @@ import kr.sdbk.bodyplan.feature.workoutlog.impl.workoutLogNavGraph
  * feature는 서로의 `api`만 알고 화면은 각자의 navGraph가 등록한다.
  */
 @Composable
-fun BodyPlanMainScreen(modifier: Modifier = Modifier) {
+fun BodyPlanMainScreen(modifier: Modifier = Modifier, viewModel: MainShellViewModel = hiltViewModel()) {
     val backStack = rememberNavBackStack(MainTab.entries.first().navKey)
     val navigator = remember(backStack) { BodyPlanNavigator(backStack) }
     val currentTab = MainTab.entries.firstOrNull { it.navKey == backStack.lastOrNull() }
+    val onboardingCompleted by viewModel.onboardingCompleted.collectAsStateWithLifecycle()
+
+    // 온보딩을 지나가지 않았으면 그것만 띄우고, 지나가면 첫 탭으로 옮긴다.
+    // 완료 표시를 켜는 것은 온보딩 화면이고, 어디로 갈지는 여기서만 안다.
+    LaunchedEffect(onboardingCompleted) {
+        when (onboardingCompleted) {
+            null -> Unit
+
+            false -> if (backStack.lastOrNull() != OnboardingNavKey) {
+                backStack.clear()
+                backStack.add(OnboardingNavKey)
+            }
+
+            true -> if (backStack.lastOrNull() == OnboardingNavKey) {
+                backStack.clear()
+                backStack.add(MainTab.entries.first().navKey)
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

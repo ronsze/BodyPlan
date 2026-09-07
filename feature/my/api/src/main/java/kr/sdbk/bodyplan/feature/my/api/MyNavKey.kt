@@ -10,6 +10,16 @@ data object MyNavKey : BodyPlanNavKey()
 @Serializable
 data object AiTokenNavKey : BodyPlanNavKey()
 
+@Serializable
+data object OnboardingNavKey : BodyPlanNavKey()
+
+@Serializable
+data object ProfileNavKey : BodyPlanNavKey()
+
 fun BodyPlanNavigator.navigateToMy() = navigate(MyNavKey)
 
 fun BodyPlanNavigator.navigateToAiToken() = navigate(AiTokenNavKey)
+
+fun BodyPlanNavigator.navigateToOnboarding() = navigate(OnboardingNavKey)
+
+fun BodyPlanNavigator.navigateToProfile() = navigate(ProfileNavKey)

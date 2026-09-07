@@ -7,6 +7,7 @@ import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
 import kr.sdbk.bodyplan.feature.my.impl.MainDispatcherRule
 import kr.sdbk.bodyplan.feature.my.impl.fake.FakeAiCredentialRepository
+import kr.sdbk.bodyplan.feature.my.impl.fake.FakeUserProfileRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -19,7 +20,7 @@ internal class MyViewModelTest {
 
     @Test
     fun `연결된 제공자가 없으면 비어 있다`() = runTest {
-        val viewModel = MyViewModel(FakeAiCredentialRepository())
+        val viewModel = MyViewModel(FakeAiCredentialRepository(), FakeUserProfileRepository())
 
         subscribe(viewModel)
 
@@ -29,7 +30,7 @@ internal class MyViewModelTest {
     @Test
     fun `연결된 제공자가 실린다`() = runTest {
         val repository = FakeAiCredentialRepository(AiCredential(AiProvider.GEMINI, "key"))
-        val viewModel = MyViewModel(repository)
+        val viewModel = MyViewModel(repository, FakeUserProfileRepository())
 
         subscribe(viewModel)
 
@@ -39,7 +40,7 @@ internal class MyViewModelTest {
     @Test
     fun `연결을 해제하면 표시가 즉시 사라진다`() = runTest {
         val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "key"))
-        val viewModel = MyViewModel(repository)
+        val viewModel = MyViewModel(repository, FakeUserProfileRepository())
         subscribe(viewModel)
 
         repository.clear()
@@ -50,7 +51,7 @@ internal class MyViewModelTest {
 
     @Test
     fun `토큰 줄을 누르면 토큰 화면으로 이동한다`() = runTest {
-        val viewModel = MyViewModel(FakeAiCredentialRepository())
+        val viewModel = MyViewModel(FakeAiCredentialRepository(), FakeUserProfileRepository())
         val effects = mutableListOf<MyEffect>()
         backgroundScope.launch(mainDispatcherRule.dispatcher) {
             viewModel.effect.collect { effects += it }

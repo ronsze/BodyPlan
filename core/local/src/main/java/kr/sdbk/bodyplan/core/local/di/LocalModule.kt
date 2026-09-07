@@ -14,9 +14,11 @@ import kr.sdbk.bodyplan.core.local.BodyPlanDatabase
 import kr.sdbk.bodyplan.core.local.DefaultExercises
 import kr.sdbk.bodyplan.core.local.dao.DietEntryDao
 import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
+import kr.sdbk.bodyplan.core.local.dao.UserProfileDao
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
 import kr.sdbk.bodyplan.core.local.datastore.AppPreferences
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_1_2
+import kr.sdbk.bodyplan.core.local.migration.MIGRATION_2_3
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -27,7 +29,7 @@ object LocalModule {
         Room.databaseBuilder(context, BodyPlanDatabase::class.java, DATABASE_NAME)
             .addCallback(SeedExercisesCallback)
             // 스키마가 바뀌어도 이미 쌓인 기록을 지우지 않는다. 버전을 올릴 때마다 마이그레이션을 더한다.
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
 
     @Provides
@@ -38,6 +40,9 @@ object LocalModule {
 
     @Provides
     fun provideDietEntryDao(database: BodyPlanDatabase): DietEntryDao = database.dietEntryDao()
+
+    @Provides
+    fun provideUserProfileDao(database: BodyPlanDatabase): UserProfileDao = database.userProfileDao()
 
     @Provides
     @Singleton
