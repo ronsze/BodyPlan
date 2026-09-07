@@ -359,7 +359,9 @@ class GetMonthlyDayStatusUseCase @Inject constructor(
 | `isLoading` | `Boolean` | `false` |
 | `errorMessage` | `String?` | `null` |
 
-`Intent`: `ClickPreviousMonth` / `ClickNextMonth` / `ClickDate(date: LocalDate)` / `ClickManageExercise` / `ClickRetry`
+`Intent`: `ChangeMonth(yearMonth: YearMonth)` / `ClickDate(date: LocalDate)` / `ClickManageExercise` / `ClickRetry`
+
+앞뒤 이동을 따로 두지 않고 옮겨 간 달을 그대로 받는다. `BodyPlanCalendar`의 `onChangeMonth`가 결과 월을 주므로, 나눠 두면 화면이 이동 방향을 되짚어야 한다.
 
 `Effect`: `NavigateToLog(date: LocalDate)` / `NavigateToExerciseManage`
 
@@ -755,6 +757,7 @@ fun BodyPlanNavigator.navigateToExerciseManage()
 
 - 쓰는 것: 단위 1의 `GetMonthlyDayStatusUseCase`와 `DayStatus`, 단위 2의 `WorkoutCalendarNavKey`·`WorkoutLogNavKey`·`ExerciseManageNavKey`와 `BodyPartUi`
 - 만드는 것: `BodyPlanCalendar`, `DayStatusIndicator`, `WorkoutCalendarContracts`·`ViewModel`·`View`, `HomeView`의 진입 버튼
+- 종목 관리 진입점(`ClickManageExercise`·`NavigateToExerciseManage`와 상단 버튼)은 단위 4로 미룬다. 화면이 없는 목적지로 가는 버튼을 중간 커밋에 남기지 않기 위한 것이다
 - 검증: `./gradlew :app:assembleDebug` + `WorkoutCalendarViewImplPreview`·`HomeViewImplPreview` 렌더
 - 리뷰·테스트: `WorkoutCalendarViewModel`이 대상이다. `BodyPlanCalendar`는 Compose UI라 Preview 확인으로 대체한다
 - 이 단위가 끝나면 식단 일지 세션에 `BodyPlanCalendar`가 올라갔음을 알린다

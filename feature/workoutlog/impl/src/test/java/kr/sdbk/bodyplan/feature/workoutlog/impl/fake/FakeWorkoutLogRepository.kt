@@ -11,7 +11,10 @@ import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 
-internal class FakeWorkoutLogRepository(initial: List<WorkoutEntry> = emptyList()) : WorkoutLogRepository {
+internal class FakeWorkoutLogRepository(
+    initial: List<WorkoutEntry> = emptyList(),
+    private val bodyPartsByDate: Map<LocalDate, Set<BodyPart>> = emptyMap(),
+) : WorkoutLogRepository {
     private val entries = MutableStateFlow(initial)
 
     var observeFailure: Throwable? = null
@@ -32,7 +35,10 @@ internal class FakeWorkoutLogRepository(initial: List<WorkoutEntry> = emptyList(
     }
 
     override fun observeBodyPartsInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, Set<BodyPart>>> =
-        throw UnsupportedOperationException("단위 3에서 쓴다")
+        entries.map {
+            observeFailure?.let { failure -> throw failure }
+            bodyPartsByDate.filterKeys { date -> !date.isBefore(from) && !date.isAfter(to) }
+        }
 
     override suspend fun getEntry(id: Long): WorkoutEntry? = entries.value.firstOrNull { it.id == id }
 
