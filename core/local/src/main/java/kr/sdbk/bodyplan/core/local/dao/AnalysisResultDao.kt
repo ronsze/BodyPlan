@@ -20,6 +20,9 @@ interface AnalysisResultDao {
     )
     suspend fun getByScopeKeys(kind: String, scopeKeys: List<String>): List<AnalysisResultEntity>
 
+    @Query("SELECT * FROM analysis_result WHERE kind = :kind ORDER BY createdAtMillis DESC, id DESC")
+    fun observeByKind(kind: String): Flow<List<AnalysisResultEntity>>
+
     @Insert
     suspend fun insert(entity: AnalysisResultEntity): Long
 }

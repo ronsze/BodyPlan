@@ -7,18 +7,16 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.annotation.RequiresApi
-import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.UUID
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
- * 식단 사진을 앱 내부 저장소에 보관한다.
+ * 사진을 앱 내부 저장소에 보관한다.
  *
+ * 식단과 인바디가 하는 일이 같고 디렉터리만 달라 한 클래스를 한정자로 나눠 쓴다.
  * 인터페이스로 두는 것은 Repository 테스트가 파일 시스템을 타지 않게 하기 위해서다.
  */
-internal interface DietImageStore {
+internal interface LocalImageStore {
     /** [sourceUri]의 내용을 내부 저장소로 복사하고 파일명을 낸다. 실패하면 던진다. */
     fun save(sourceUri: String): String
 
@@ -30,14 +28,14 @@ internal interface DietImageStore {
     fun exportToGallery(fileName: String)
 }
 
-@Singleton
-internal class DietImageStoreImpl
-@Inject
-constructor(@ApplicationContext private val context: Context) :
-    DietImageStore {
+/**
+ * [directoryName]은 기능마다 다르다. **한번 정한 이름은 바꾸지 않는다** —
+ * 바꾸면 이미 저장된 사진을 찾지 못한다.
+ */
+internal class LocalImageStoreImpl(private val context: Context, private val directoryName: String) : LocalImageStore {
     // cacheDir는 시스템이 지울 수 있어 사진이 사라진다.
     private val directory: File
-        get() = File(context.filesDir, DIRECTORY_NAME).apply { mkdirs() }
+        get() = File(context.filesDir, directoryName).apply { mkdirs() }
 
     override fun save(sourceUri: String): String {
         val fileName = "${UUID.randomUUID()}.jpg"
@@ -116,6 +114,8 @@ constructor(@ApplicationContext private val context: Context) :
     }
 }
 
-private const val DIRECTORY_NAME = "diet_images"
+/** 식단 사진 디렉터리. 이 이름을 바꾸면 저장된 사진이 전부 사라진다. */
+internal const val DIET_IMAGE_DIRECTORY = "diet_images"
+internal const val INBODY_IMAGE_DIRECTORY = "inbody_images"
 private const val ALBUM_NAME = "BodyPlan"
 private const val MIME_TYPE = "image/jpeg"

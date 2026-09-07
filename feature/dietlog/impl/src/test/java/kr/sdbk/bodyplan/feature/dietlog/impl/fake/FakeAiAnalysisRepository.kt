@@ -5,6 +5,7 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 
@@ -35,4 +36,6 @@ internal class FakeAiAnalysisRepository(
     }
 
     override suspend fun analyzeWorkout(request: WorkoutAnalysisRequest): AnalysisContent = error("사용하지 않음")
+
+    override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent = error("사용하지 않음")
 }

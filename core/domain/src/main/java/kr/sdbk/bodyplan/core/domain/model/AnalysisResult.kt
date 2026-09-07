@@ -38,7 +38,9 @@ data class AnalysisContent(val summary: String, val sections: List<AnalysisSecti
  * 저장된 분석 결과.
  *
  * [scopeKey]는 같은 대상의 결과를 다시 찾는 열쇠다. 날짜별은 epochDay, 주간은 그 주 첫날의
- * epochDay, 월간은 `yyyy-MM`이다.
+ * epochDay, 월간은 `yyyy-MM`이다. 인바디는 매번 새 결과를 쌓으므로 빈 문자열이다.
+ *
+ * [imagePath]는 인바디가 분석한 사진이다. 다른 분석은 `null`이다.
  */
 data class AnalysisResult(
     val id: Long,
@@ -46,4 +48,5 @@ data class AnalysisResult(
     val scopeKey: String,
     val content: AnalysisContent,
     val createdAtMillis: Long,
+    val imagePath: String? = null,
 )

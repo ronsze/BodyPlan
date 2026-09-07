@@ -26,7 +26,10 @@ internal class FakeAnalysisResultRepository(initial: Map<Pair<AnalysisKind, Stri
             .filterKeys { (resultKind, scopeKey) -> resultKind == kind && scopeKey in scopeKeys }
             .mapKeys { (key, _) -> key.second }
 
-    override suspend fun save(kind: AnalysisKind, scopeKey: String, content: AnalysisContent) {
+    override fun observeHistory(kind: AnalysisKind): Flow<List<AnalysisResult>> =
+        results.map { all -> all.filterKeys { it.first == kind }.values.sortedByDescending { it.id } }
+
+    override suspend fun save(kind: AnalysisKind, scopeKey: String, content: AnalysisContent, imageFileName: String?) {
         saveCount++
         lastSavedContent = content
         val result = AnalysisResult(

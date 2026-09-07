@@ -62,3 +62,10 @@ internal val MIGRATION_3_4 = object : Migration(3, 4) {
         )
     }
 }
+
+/** 인바디 결과가 분석한 사진을 가리킨다. 다른 분석은 비어 있다. */
+internal val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `analysis_result` ADD COLUMN `imageFileName` TEXT")
+    }
+}

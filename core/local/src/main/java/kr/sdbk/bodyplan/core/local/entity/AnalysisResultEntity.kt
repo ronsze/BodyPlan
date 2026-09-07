@@ -23,5 +23,7 @@ data class AnalysisResultEntity(
     val scopeKey: String,
     val summary: String,
     val sections: String,
+    /** 인바디가 분석한 사진의 파일명. 다른 분석은 null이다. */
+    val imageFileName: String? = null,
     val createdAtMillis: Long,
 )

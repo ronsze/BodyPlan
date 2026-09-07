@@ -32,6 +32,7 @@ constructor(
         when (intent) {
             is MyIntent.ClickAiToken -> updateEffect(MyEffect.NavigateToAiToken)
             is MyIntent.ClickProfile -> updateEffect(MyEffect.NavigateToProfile)
+            is MyIntent.ClickInbody -> updateEffect(MyEffect.NavigateToInbody)
         }
     }
 }

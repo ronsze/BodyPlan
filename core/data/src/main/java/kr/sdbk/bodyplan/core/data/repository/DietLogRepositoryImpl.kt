@@ -5,7 +5,8 @@ import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kr.sdbk.bodyplan.core.data.image.DietImageStore
+import kr.sdbk.bodyplan.core.data.image.DietImages
+import kr.sdbk.bodyplan.core.data.image.LocalImageStore
 import kr.sdbk.bodyplan.core.data.mapper.toDomain
 import kr.sdbk.bodyplan.core.data.mapper.toImagePathsByDate
 import kr.sdbk.bodyplan.core.domain.model.DietEntry
@@ -18,7 +19,7 @@ internal class DietLogRepositoryImpl
 @Inject
 constructor(
     private val dietEntryDao: DietEntryDao,
-    private val imageStore: DietImageStore,
+    @DietImages private val imageStore: LocalImageStore,
     private val clock: Clock,
 ) : DietLogRepository {
     override fun observeLog(date: LocalDate): Flow<DietLog> = dietEntryDao.observeByDate(date.toEpochDay())

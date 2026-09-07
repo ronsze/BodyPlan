@@ -13,6 +13,7 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisScopeKey
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
@@ -386,6 +387,8 @@ class AnalyzeWorkoutUseCaseTest {
             analyzeWorkoutFailure?.let { throw it }
             return content
         }
+
+        override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent = error("사용하지 않음")
     }
 
     private inner class FakeAnalysisResultRepository : AnalysisResultRepository {
@@ -401,7 +404,16 @@ class AnalyzeWorkoutUseCaseTest {
             scopeKeys: List<String>,
         ): Map<String, kr.sdbk.bodyplan.core.domain.model.AnalysisResult> = error("사용하지 않음")
 
-        override suspend fun save(kind: AnalysisKind, scopeKey: String, content: AnalysisContent) {
+        override fun observeHistory(
+            kind: AnalysisKind,
+        ): Flow<List<kr.sdbk.bodyplan.core.domain.model.AnalysisResult>> = error("사용하지 않음")
+
+        override suspend fun save(
+            kind: AnalysisKind,
+            scopeKey: String,
+            content: AnalysisContent,
+            imageFileName: String?,
+        ) {
             saved[kind to scopeKey] = content
         }
     }

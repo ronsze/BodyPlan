@@ -12,5 +12,9 @@ interface AnalysisResultRepository {
     /** 열쇠마다 마지막 결과 하나씩. 결과가 없는 열쇠는 담기지 않는다. */
     suspend fun getLatestOf(kind: AnalysisKind, scopeKeys: List<String>): Map<String, AnalysisResult>
 
-    suspend fun save(kind: AnalysisKind, scopeKey: String, content: AnalysisContent)
+    /** 그 종류의 결과를 최신순으로. 인바디 이력이 쓴다. */
+    fun observeHistory(kind: AnalysisKind): Flow<List<AnalysisResult>>
+
+    /** [imageFileName]은 인바디가 분석한 사진이다. 사진이 없는 분석은 넘기지 않는다. */
+    suspend fun save(kind: AnalysisKind, scopeKey: String, content: AnalysisContent, imageFileName: String? = null)
 }

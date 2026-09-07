@@ -12,6 +12,7 @@ import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.network.AiClient
@@ -53,6 +54,12 @@ constructor(
         credential = request.credential,
         userPrompt = AnalysisPrompt.workout(request),
         images = emptyList(),
+    )
+
+    override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent = complete(
+        credential = request.credential,
+        userPrompt = AnalysisPrompt.inbody(request),
+        images = imageLoader.load(listOf(request.imagePath)),
     )
 
     private suspend fun complete(

@@ -16,10 +16,14 @@ internal sealed interface MyIntent : Intent {
     data object ClickAiToken : MyIntent
 
     data object ClickProfile : MyIntent
+
+    data object ClickInbody : MyIntent
 }
 
 internal sealed interface MyEffect : Effect {
     data object NavigateToAiToken : MyEffect
 
     data object NavigateToProfile : MyEffect
+
+    data object NavigateToInbody : MyEffect
 }

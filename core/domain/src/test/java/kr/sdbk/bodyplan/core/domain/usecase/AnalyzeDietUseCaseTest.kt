@@ -15,6 +15,7 @@ import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.DietEntry
 import kr.sdbk.bodyplan.core.domain.model.DietLog
 import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
@@ -288,6 +289,8 @@ class AnalyzeDietUseCaseTest {
         }
 
         override suspend fun analyzeWorkout(request: WorkoutAnalysisRequest): AnalysisContent = error("사용하지 않음")
+
+        override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent = error("사용하지 않음")
     }
 
     private inner class FakeAnalysisResultRepository(private val preloaded: Map<String, AnalysisResult> = emptyMap()) :
@@ -296,10 +299,17 @@ class AnalyzeDietUseCaseTest {
 
         override fun observeLatest(kind: AnalysisKind, scopeKey: String): Flow<AnalysisResult?> = error("사용하지 않음")
 
+        override fun observeHistory(kind: AnalysisKind): Flow<List<AnalysisResult>> = error("사용하지 않음")
+
         override suspend fun getLatestOf(kind: AnalysisKind, scopeKeys: List<String>): Map<String, AnalysisResult> =
             preloaded.filterKeys { it in scopeKeys }
 
-        override suspend fun save(kind: AnalysisKind, scopeKey: String, content: AnalysisContent) {
+        override suspend fun save(
+            kind: AnalysisKind,
+            scopeKey: String,
+            content: AnalysisContent,
+            imageFileName: String?,
+        ) {
             saved[kind to scopeKey] = content
         }
     }

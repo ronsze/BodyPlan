@@ -13,7 +13,7 @@ import kr.sdbk.bodyplan.core.local.entity.AnalysisResultEntity
 private data class StoredSection(val title: String, val body: String)
 
 /** 저장된 종류 이름이 낯설면 지금은 없는 값이므로 결과를 없는 것으로 본다. */
-internal fun AnalysisResultEntity.toDomain(json: Json): AnalysisResult? {
+internal fun AnalysisResultEntity.toDomain(json: Json, pathOf: (String) -> String): AnalysisResult? {
     val parsedKind = AnalysisKind.entries.firstOrNull { it.name == kind } ?: return null
     return AnalysisResult(
         id = id,
@@ -21,6 +21,7 @@ internal fun AnalysisResultEntity.toDomain(json: Json): AnalysisResult? {
         scopeKey = scopeKey,
         content = AnalysisContent(summary = summary, sections = decodeSections(json, sections)),
         createdAtMillis = createdAtMillis,
+        imagePath = imageFileName?.let(pathOf),
     )
 }
 

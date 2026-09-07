@@ -6,6 +6,7 @@ import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.Gender
 import kr.sdbk.bodyplan.core.domain.model.Goal
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisEntry
@@ -92,6 +93,18 @@ internal object AnalysisPrompt {
             appendLine("- 부위 균형: 기간 전체에서 부위별 분할이 치우치지 않았는지 적습니다.")
             appendLine("- 개선 방향: 다음 기간에 무엇을 바꿀지 적습니다.")
         }
+    }
+
+    fun inbody(request: InbodyAnalysisRequest): String = buildString {
+        appendLine(profileBlock(request.profile))
+        appendLine()
+        appendLine("첨부한 인바디 측정 결과지 사진을 읽고 아래 네 묶음을 이 제목과 순서로 채우세요.")
+        appendLine("- 측정값: 사진에서 읽어 낸 항목과 값을 그대로 옮깁니다. 읽지 못한 항목은 그렇다고 적습니다.")
+        appendLine("- 체성분 평가: 골격근량·체지방률을 중심으로 지금 상태를 신체 정보와 목적에 견줍니다.")
+        appendLine("- 식단 개선: 무엇을 어떻게 먹을지 적습니다.")
+        appendLine("- 운동 개선: 어떤 운동을 어떤 강도로 할지 적습니다.")
+        appendLine()
+        appendLine("사진이 인바디 결과지가 아니면 그 사실만 요약에 적고 묶음은 비우세요.")
     }
 
     private fun profileBlock(profile: UserProfile): String {

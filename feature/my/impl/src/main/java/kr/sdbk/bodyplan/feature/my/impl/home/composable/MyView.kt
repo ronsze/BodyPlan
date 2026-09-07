@@ -26,9 +26,13 @@ import kr.sdbk.bodyplan.feature.my.impl.home.MyIntent
 import kr.sdbk.bodyplan.feature.my.impl.home.MyState
 import kr.sdbk.bodyplan.feature.my.impl.home.MyViewModel
 
-internal data class MyEvents(val goToAiToken: () -> Unit, val goToProfile: () -> Unit)
+internal data class MyEvents(val goToAiToken: () -> Unit, val goToProfile: () -> Unit, val goToInbody: () -> Unit)
 
-internal data class MyUiEvents(val onClickAiToken: () -> Unit, val onClickProfile: () -> Unit)
+internal data class MyUiEvents(
+    val onClickAiToken: () -> Unit,
+    val onClickProfile: () -> Unit,
+    val onClickInbody: () -> Unit,
+)
 
 @Composable
 internal fun MyView(events: MyEvents, viewModel: MyViewModel) {
@@ -44,6 +48,7 @@ internal fun MyView(events: MyEvents, viewModel: MyViewModel) {
         when (effect) {
             is MyEffect.NavigateToAiToken -> events.goToAiToken()
             is MyEffect.NavigateToProfile -> events.goToProfile()
+            is MyEffect.NavigateToInbody -> events.goToInbody()
         }
     }
 }
@@ -53,6 +58,7 @@ private fun rememberUiEvents(viewModel: MyViewModel): MyUiEvents = remember {
     MyUiEvents(
         onClickAiToken = { viewModel.handleIntent(MyIntent.ClickAiToken) },
         onClickProfile = { viewModel.handleIntent(MyIntent.ClickProfile) },
+        onClickInbody = { viewModel.handleIntent(MyIntent.ClickInbody) },
     )
 }
 
@@ -75,11 +81,16 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
                 onClick = uiEvents.onClickAiToken,
                 description = state.connectedProvider?.let { "${it.label} 연결됨" } ?: "연결되지 않음",
             )
+            SectionRow(
+                title = "인바디 분석",
+                onClick = uiEvents.onClickInbody,
+                description = "사진으로 체성분을 분석해요",
+            )
         }
     }
 }
 
-private val previewUiEvents = MyUiEvents(onClickAiToken = {}, onClickProfile = {})
+private val previewUiEvents = MyUiEvents(onClickAiToken = {}, onClickProfile = {}, onClickInbody = {})
 
 @Preview(showBackground = true, heightDp = 780)
 @Composable

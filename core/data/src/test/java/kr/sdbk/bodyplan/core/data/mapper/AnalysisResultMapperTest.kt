@@ -22,14 +22,14 @@ class AnalysisResultMapperTest {
             AnalysisSection("칼로리", "약 1,450kcal"),
         )
 
-        val restored = entityWith(encodeSections(json, sections)).toDomain(json)
+        val restored = entityWith(encodeSections(json, sections)).toDomain(json) { "/files/inbody_images/$it" }
 
         assertEquals(sections, restored?.content?.sections)
     }
 
     @Test
     fun `저장된 글이 깨졌으면 묶음만 비우고 요약은 남긴다`() {
-        val restored = entityWith("깨진 글").toDomain(json)
+        val restored = entityWith("깨진 글").toDomain(json) { "/files/inbody_images/$it" }
 
         assertEquals(emptyList<AnalysisSection>(), restored?.content?.sections)
         assertEquals("요약", restored?.content?.summary)
@@ -37,7 +37,7 @@ class AnalysisResultMapperTest {
 
     @Test
     fun `모르는 종류는 없는 결과로 본다`() {
-        assertNull(entityWith("[]").copy(kind = "SOMETHING_ELSE").toDomain(json))
+        assertNull(entityWith("[]").copy(kind = "SOMETHING_ELSE").toDomain(json) { "/files/inbody_images/$it" })
     }
 
     private fun entityWith(sections: String) = AnalysisResultEntity(

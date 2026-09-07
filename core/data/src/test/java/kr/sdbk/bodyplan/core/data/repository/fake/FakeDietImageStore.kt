@@ -1,9 +1,9 @@
 package kr.sdbk.bodyplan.core.data.repository.fake
 
-import kr.sdbk.bodyplan.core.data.image.DietImageStore
+import kr.sdbk.bodyplan.core.data.image.LocalImageStore
 
-/** 파일 시스템을 타지 않는 [DietImageStore]. 무엇이 저장되고 지워졌는지만 기록한다. */
-internal class FakeDietImageStore : DietImageStore {
+/** 파일 시스템을 타지 않는 [LocalImageStore]. 무엇이 저장되고 지워졌는지만 기록한다. */
+internal class FakeDietImageStore : LocalImageStore {
     var saveFailure: Throwable? = null
     var exportFailure: Throwable? = null
 

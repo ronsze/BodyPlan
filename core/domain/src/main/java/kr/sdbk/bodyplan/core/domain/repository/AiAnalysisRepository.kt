@@ -4,6 +4,7 @@ import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.DietSummaryRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 
 /** AI를 불러 기록을 분석한다. 실패는 삼키지 않고 호출부로 던진다. */
@@ -23,4 +24,7 @@ interface AiAnalysisRepository {
 
     /** 운동 기록을 분석한다. 날짜별과 기간이 같은 재료를 쓰고 요청의 종류로만 갈린다. */
     suspend fun analyzeWorkout(request: WorkoutAnalysisRequest): AnalysisContent
+
+    /** 인바디 사진을 읽어 체성분을 정리하고 식단·운동 개선 방향을 낸다. */
+    suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent
 }
