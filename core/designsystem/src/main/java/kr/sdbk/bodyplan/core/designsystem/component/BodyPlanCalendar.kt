@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 import java.time.YearMonth
@@ -37,6 +38,8 @@ import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
  *
  * 셀 안에 무엇을 표시할지는 [dayContent]로 호출부가 정한다 — 기능마다 그리는 것이 달라
  * 이 컴포넌트는 날짜 배치와 이동만 맡는다. [selectedDate]는 강조 원으로 그린다.
+ *
+ * [cellHeight]도 호출부가 정한다. 점 몇 개를 찍는 화면과 사진을 보여주는 화면은 필요한 높이가 다르다.
  */
 @Composable
 fun BodyPlanCalendar(
@@ -45,6 +48,7 @@ fun BodyPlanCalendar(
     onSelectDate: (LocalDate) -> Unit,
     onChangeMonth: (YearMonth) -> Unit,
     modifier: Modifier = Modifier,
+    cellHeight: Dp = DEFAULT_CELL_HEIGHT,
     dayContent: @Composable (LocalDate) -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -55,6 +59,7 @@ fun BodyPlanCalendar(
                 yearMonth = yearMonth,
                 selectedDate = selectedDate,
                 onSelectDate = onSelectDate,
+                cellHeight = cellHeight,
                 dayContent = dayContent,
             )
         }
@@ -126,6 +131,7 @@ private fun MonthGrid(
     yearMonth: YearMonth,
     selectedDate: LocalDate?,
     onSelectDate: (LocalDate) -> Unit,
+    cellHeight: Dp,
     dayContent: @Composable (LocalDate) -> Unit,
 ) {
     val firstDay = yearMonth.atDay(1)
@@ -149,13 +155,14 @@ private fun MonthGrid(
                             date = firstDay.withDayOfMonth(dayNumber),
                             selectedDate = selectedDate,
                             onSelectDate = onSelectDate,
+                            cellHeight = cellHeight,
                             dayContent = dayContent,
                         )
                     } else {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(CELL_HEIGHT),
+                                .height(cellHeight),
                         )
                     }
                 }
@@ -169,6 +176,7 @@ private fun RowScope.DayCell(
     date: LocalDate,
     selectedDate: LocalDate?,
     onSelectDate: (LocalDate) -> Unit,
+    cellHeight: Dp,
     dayContent: @Composable (LocalDate) -> Unit,
 ) {
     val isSelected = date == selectedDate
@@ -176,7 +184,7 @@ private fun RowScope.DayCell(
     Column(
         modifier = Modifier
             .weight(1f)
-            .height(CELL_HEIGHT)
+            .height(cellHeight)
             .clickable { onSelectDate(date) },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -202,7 +210,7 @@ private fun RowScope.DayCell(
 private val WEEKDAY_LABELS = listOf("일", "월", "화", "수", "목", "금", "토")
 private const val DAYS_IN_WEEK = 7
 private const val WEEK_ROWS = 6
-private val CELL_HEIGHT = 56.dp
+private val DEFAULT_CELL_HEIGHT = 56.dp
 private val MONTH_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy년 M월")
 
 @Preview(showBackground = true, backgroundColor = 0xFFF2F4F6)

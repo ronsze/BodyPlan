@@ -101,6 +101,7 @@ internal fun DietCalendarViewImpl(state: DietCalendarState, uiEvents: DietCalend
                 selectedDate = state.today,
                 onSelectDate = uiEvents.onSelectDate,
                 onChangeMonth = uiEvents.onChangeMonth,
+                cellHeight = CELL_HEIGHT,
                 dayContent = { date -> DayThumbnail(imagePath = state.imagesByDate[date]) },
             )
             MonthSummaryBanner(recordedDays = state.imagesByDate.size)
@@ -118,7 +119,7 @@ private fun DayThumbnail(imagePath: String?) {
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(4.dp)),
+                .clip(RoundedCornerShape(8.dp)),
             placeholder = ColorPainter(Color.LightGray),
         )
     }
@@ -156,7 +157,9 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
     }
 }
 
-private val THUMBNAIL_SIZE = 14.dp
+// 사진이 무엇인지 알아볼 수 있어야 달력에 두는 뜻이 산다. 그만큼 셀도 높인다.
+private val THUMBNAIL_SIZE = 36.dp
+private val CELL_HEIGHT = 76.dp
 
 private val previewUiEvents = DietCalendarUiEvents(
     onSelectDate = {},
