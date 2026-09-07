@@ -429,9 +429,9 @@ interface AiAnalysisRepository {
 |---|---|---|---|
 | 클로드 | `POST https://api.anthropic.com/v1/messages` | `x-api-key` 헤더와 `anthropic-version: 2023-06-01` | `claude-sonnet-5` |
 | GPT | `POST https://api.openai.com/v1/chat/completions` | `Authorization: Bearer` | `gpt-4o` |
-| 제미나이 | `POST https://generativelanguage.googleapis.com/v1beta/models/<model>:generateContent` | 쿼리 `key` | `gemini-2.0-flash` |
+| 제미나이 | `POST https://generativelanguage.googleapis.com/v1beta/models/<model>:generateContent` | 쿼리 `key` | `gemini-3.6-flash` |
 
-**모델 이름은 한 파일에 상수로 모은다.** 제공자가 모델을 갈아치우면 이름만 고치면 되게 한다. 클로드 외의 두 이름은 이 프로젝트가 확인한 값이 아니라 흔히 쓰이는 값을 적은 것이다.
+**모델 이름은 한 파일에 상수로 모은다.** 제공자가 모델을 갈아치우면 이름만 고치면 되게 한다. 제미나이 이름은 2.0-flash가 내려가면서 제공자가 응답으로 알려 준 값으로 고쳤다. 클로드와 GPT의 이름은 아직 실제 호출로 확인되지 않았다.
 
 연결 확인은 짧은 메시지를 보내고 응답 내용을 쓰지 않는다. 출력 길이를 최소로 두어 비용을 아낀다.
 
