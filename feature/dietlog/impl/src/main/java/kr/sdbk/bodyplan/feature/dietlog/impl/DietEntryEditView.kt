@@ -15,19 +15,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -199,6 +208,24 @@ private fun ImageSlot(previewImage: String?) {
 @Composable
 private fun MemoField(memo: String, onChangeMemo: (String) -> Unit) {
     val shape = RoundedCornerShape(12.dp)
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    var isFocused by remember { mutableStateOf(false) }
+    var fieldHeight by remember { mutableIntStateOf(0) }
+
+    // 줄이 늘어나면 입력칸이 아래로 자라고 커서도 그만큼 내려간다.
+    // 자란 아래 끝을 화면 안으로 끌어와 커서를 눈으로 따라갈 수 있게 한다.
+    LaunchedEffect(fieldHeight, isFocused) {
+        if (!isFocused || fieldHeight == 0) return@LaunchedEffect
+        bringIntoViewRequester.bringIntoView(
+            Rect(
+                left = 0f,
+                top = (fieldHeight - CURSOR_LINE_MARGIN).toFloat(),
+                right = 0f,
+                bottom = fieldHeight.toFloat(),
+            ),
+        )
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BaseText(
             text = "식단 메모",
@@ -212,6 +239,9 @@ private fun MemoField(memo: String, onChangeMemo: (String) -> Unit) {
             onValueChange = onChangeMemo,
             modifier = Modifier
                 .fillMaxWidth()
+                .bringIntoViewRequester(bringIntoViewRequester)
+                .onFocusChanged { isFocused = it.isFocused }
+                .onSizeChanged { fieldHeight = it.height }
                 .clip(shape)
                 .background(Surface)
                 .border(
@@ -245,6 +275,9 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
         }
     }
 }
+
+/** 커서가 있는 마지막 줄만 끌어온다. 입력칸 전체를 끌어오면 화면이 위로 되밀린다. */
+private const val CURSOR_LINE_MARGIN = 48
 
 private val previewUiEvents = DietEntryEditUiEvents(
     onBackPressed = {},
