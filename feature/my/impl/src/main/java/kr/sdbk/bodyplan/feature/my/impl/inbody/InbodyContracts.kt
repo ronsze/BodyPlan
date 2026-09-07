@@ -1,6 +1,9 @@
 package kr.sdbk.bodyplan.feature.my.impl.inbody
 
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
+import kr.sdbk.bodyplan.core.domain.model.AnalysisRun
+import kr.sdbk.bodyplan.core.ui.components.failureReason
+import kr.sdbk.bodyplan.core.ui.components.isRunning
 import kr.sdbk.bodyplan.core.ui.coordinator.Effect
 import kr.sdbk.bodyplan.core.ui.coordinator.Intent
 import kr.sdbk.bodyplan.core.ui.coordinator.State
@@ -13,12 +16,18 @@ internal data class InbodyState(
     val selectedResultId: Long? = null,
     val hasCredential: Boolean = false,
     val isLoading: Boolean = false,
-    val isAnalyzing: Boolean = false,
+    /** 화면 밖에서 도는 분석. 화면이 들고 있지 않아 나갔다 들어와도 그대로다. */
+    val run: AnalysisRun? = null,
     val isTokenDialogVisible: Boolean = false,
     val errorMessage: String? = null,
 ) : State {
+    val isAnalyzing: Boolean get() = run.isRunning
+
     /** 사진을 고르지 않으면 부를 것이 없다. */
     val canAnalyze: Boolean get() = pickedImageUri != null && !isAnalyzing
+
+    /** 화면이 바로 정한 문구가 먼저고, 없으면 돌던 작업이 남긴 사유다. */
+    val message: String? get() = errorMessage ?: run.failureReason
 
     /**
      * 지금 보고 있는 결과. 고른 것이 없으면 가장 최근 것이다.

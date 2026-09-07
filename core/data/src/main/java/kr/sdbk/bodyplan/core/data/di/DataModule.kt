@@ -1,6 +1,7 @@
 package kr.sdbk.bodyplan.core.data.di
 
 import android.content.Context
+import androidx.work.WorkManager
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -24,9 +25,11 @@ import kr.sdbk.bodyplan.core.data.repository.InbodyImageRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.OnboardingRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.UserProfileRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.WorkoutLogRepositoryImpl
+import kr.sdbk.bodyplan.core.data.work.AnalysisRunnerImpl
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
+import kr.sdbk.bodyplan.core.domain.repository.AnalysisRunner
 import kr.sdbk.bodyplan.core.domain.repository.DietLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.ExerciseRepository
 import kr.sdbk.bodyplan.core.domain.repository.InbodyImageRepository
@@ -73,11 +76,19 @@ internal abstract class DataModule {
     @Singleton
     abstract fun bindInbodyImageRepository(impl: InbodyImageRepositoryImpl): InbodyImageRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindAnalysisRunner(impl: AnalysisRunnerImpl): AnalysisRunner
+
     companion object {
         /** 날짜 판정 UseCase가 오늘을 읽는 창구. 테스트가 고정 시각을 넣을 수 있게 주입한다. */
         @Provides
         @Singleton
         fun provideClock(): Clock = Clock.systemDefaultZone()
+
+        @Provides
+        @Singleton
+        fun provideWorkManager(@ApplicationContext context: Context): WorkManager = WorkManager.getInstance(context)
 
         @Provides
         @Singleton

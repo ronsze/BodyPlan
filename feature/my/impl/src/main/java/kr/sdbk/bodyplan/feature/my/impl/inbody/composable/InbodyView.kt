@@ -42,6 +42,7 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
 import kr.sdbk.bodyplan.core.ui.components.AnalysisScreen
 import kr.sdbk.bodyplan.core.ui.components.AnalysisScreenActions
 import kr.sdbk.bodyplan.core.ui.components.AnalysisScreenState
+import kr.sdbk.bodyplan.core.ui.components.label
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.my.impl.inbody.InbodyEffect
 import kr.sdbk.bodyplan.feature.my.impl.inbody.InbodyIntent
@@ -105,7 +106,8 @@ internal fun InbodyViewImpl(state: InbodyState, uiEvents: InbodyUiEvents) {
             isAnalyzing = state.isAnalyzing,
             canAnalyze = state.canAnalyze,
             isTokenDialogVisible = state.isTokenDialogVisible,
-            errorMessage = state.errorMessage,
+            errorMessage = state.message,
+            stageMessage = state.run?.stage?.label,
             emptyMessage = "사진을 올리고 분석해 보세요",
         ),
         actions = AnalysisScreenActions(

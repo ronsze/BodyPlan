@@ -2,30 +2,26 @@ package kr.sdbk.bodyplan.feature.dietlog.impl.analysis
 
 import java.time.LocalDate
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
-import kr.sdbk.bodyplan.core.domain.model.AiRequestFailedException
-import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
-import kr.sdbk.bodyplan.core.domain.model.AnalysisScopeKey
+import kr.sdbk.bodyplan.core.domain.model.AnalysisRun
+import kr.sdbk.bodyplan.core.domain.model.AnalysisRunState
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
-import kr.sdbk.bodyplan.core.domain.model.DietEntry
-import kr.sdbk.bodyplan.core.domain.usecase.AnalyzeDietUseCase
+import kr.sdbk.bodyplan.core.ui.components.analysisPeriodInfo
 import kr.sdbk.bodyplan.feature.dietlog.api.DietAnalysisNavKey
 import kr.sdbk.bodyplan.feature.dietlog.api.DietAnalysisPeriod
 import kr.sdbk.bodyplan.feature.dietlog.impl.MainDispatcherRule
-import kr.sdbk.bodyplan.feature.dietlog.impl.fake.FakeAiAnalysisRepository
 import kr.sdbk.bodyplan.feature.dietlog.impl.fake.FakeAiCredentialRepository
 import kr.sdbk.bodyplan.feature.dietlog.impl.fake.FakeAnalysisResultRepository
-import kr.sdbk.bodyplan.feature.dietlog.impl.fake.FakeDietLogRepository
-import kr.sdbk.bodyplan.feature.dietlog.impl.fake.FakeUserProfileRepository
+import kr.sdbk.bodyplan.feature.dietlog.impl.fake.FakeAnalysisRunner
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -40,131 +36,43 @@ internal class DietAnalysisViewModelTest {
         summary = "요약",
         sections = listOf(AnalysisSection(title = "먹은 음식", body = "밥")),
     )
+    private val period = DietAnalysisPeriod.DAILY
+    private val periodInfo = analysisPeriodInfo(AnalysisKind.DIET_DAILY, date)
 
     private fun viewModel(
-        dietLogRepository: FakeDietLogRepository = FakeDietLogRepository(
-            listOf(DietEntry(id = 1L, imagePath = "/a.jpg", memo = null)),
-        ),
         analysisResultRepository: FakeAnalysisResultRepository = FakeAnalysisResultRepository(),
-        aiAnalysisRepository: FakeAiAnalysisRepository = FakeAiAnalysisRepository(content = content),
+        analysisRunner: FakeAnalysisRunner = FakeAnalysisRunner(),
         aiCredentialRepository: FakeAiCredentialRepository = FakeAiCredentialRepository(credential),
-        period: DietAnalysisPeriod = DietAnalysisPeriod.DAILY,
-    ): DietAnalysisViewModel {
-        val analyzeDiet = AnalyzeDietUseCase(
-            dietLogRepository = dietLogRepository,
-            userProfileRepository = FakeUserProfileRepository(),
-            aiCredentialRepository = aiCredentialRepository,
-            aiAnalysisRepository = aiAnalysisRepository,
-            analysisResultRepository = analysisResultRepository,
-        )
-        return DietAnalysisViewModel(
-            analyzeDiet = analyzeDiet,
-            analysisResultRepository = analysisResultRepository,
-            aiCredentialRepository = aiCredentialRepository,
-            navKey = DietAnalysisNavKey(period, date.toEpochDay()),
-        )
-    }
+    ): DietAnalysisViewModel = DietAnalysisViewModel(
+        analysisRunner = analysisRunner,
+        analysisResultRepository = analysisResultRepository,
+        aiCredentialRepository = aiCredentialRepository,
+        navKey = DietAnalysisNavKey(period, date.toEpochDay()),
+    )
 
     @Test
-    fun `저장된 결과가 있으면 화면을 다시 열 때 그대로 보이고 호출하지 않는다`() = runTest {
-        val savedContent = content.copy(summary = "이미 저장된 요약")
-        val scopeKey = AnalysisScopeKey.daily(date)
-        val analysisResultRepository = FakeAnalysisResultRepository(
-            initial = mapOf(
-                (AnalysisKind.DIET_DAILY to scopeKey) to
-                    AnalysisResult(1L, AnalysisKind.DIET_DAILY, scopeKey, savedContent, 0L),
-            ),
-        )
-        val aiAnalysisRepository = FakeAiAnalysisRepository(content = content)
-        val viewModel = viewModel(
-            analysisResultRepository = analysisResultRepository,
-            aiAnalysisRepository = aiAnalysisRepository,
-        )
-
-        subscribe(viewModel)
-
-        assertEquals(savedContent, viewModel.uiState.value.result?.content)
-        assertEquals(0, aiAnalysisRepository.analyzeDietCallCount)
-    }
-
-    @Test
-    fun `새로 분석하기를 누르면 다시 호출해 결과를 저장한다`() = runTest {
-        val analysisResultRepository = FakeAnalysisResultRepository()
-        val aiAnalysisRepository = FakeAiAnalysisRepository(content = content)
-        val viewModel = viewModel(
-            analysisResultRepository = analysisResultRepository,
-            aiAnalysisRepository = aiAnalysisRepository,
-        )
+    fun `새로 분석하기를 누르면 AnalysisRunner에 그 화면의 요청을 넘긴다`() = runTest {
+        val analysisRunner = FakeAnalysisRunner()
+        val viewModel = viewModel(analysisRunner = analysisRunner)
         subscribe(viewModel)
 
         viewModel.handleIntent(DietAnalysisIntent.ClickAnalyze)
         advanceUntilIdle()
 
-        assertEquals(1, aiAnalysisRepository.analyzeDietCallCount)
-        assertEquals(1, analysisResultRepository.saveCount)
-        assertEquals(content, viewModel.uiState.value.result?.content)
-        assertFalse(viewModel.uiState.value.isAnalyzing)
+        val request = analysisRunner.startCalls.single()
+        assertEquals(AnalysisKind.DIET_DAILY, request.kind)
+        assertEquals(periodInfo.scopeKey, request.scopeKey)
+        assertEquals(periodInfo.label, request.periodLabel)
+        assertEquals(periodInfo.from, request.from)
+        assertEquals(periodInfo.to, request.to)
     }
 
     @Test
-    fun `호출이 실패하면 이전 결과가 남고 errorMessage가 채워진다`() = runTest {
-        val previousContent = content.copy(summary = "이전 결과")
-        val scopeKey = AnalysisScopeKey.daily(date)
-        val analysisResultRepository = FakeAnalysisResultRepository(
-            initial = mapOf(
-                (AnalysisKind.DIET_DAILY to scopeKey) to
-                    AnalysisResult(1L, AnalysisKind.DIET_DAILY, scopeKey, previousContent, 0L),
-            ),
-        )
-        val aiAnalysisRepository = FakeAiAnalysisRepository(content = content)
-        aiAnalysisRepository.failure = IllegalStateException("boom")
+    fun `토큰이 없으면 start를 부르지 않고 isTokenDialogVisible이 켜진다`() = runTest {
+        val analysisRunner = FakeAnalysisRunner()
         val viewModel = viewModel(
-            analysisResultRepository = analysisResultRepository,
-            aiAnalysisRepository = aiAnalysisRepository,
-        )
-        subscribe(viewModel)
-
-        viewModel.handleIntent(DietAnalysisIntent.ClickAnalyze)
-        advanceUntilIdle()
-
-        assertNotNull(viewModel.uiState.value.errorMessage)
-        assertEquals(previousContent, viewModel.uiState.value.result?.content)
-        assertEquals(0, analysisResultRepository.saveCount)
-    }
-
-    @Test
-    fun `부르지 못한 사유가 있으면 기본 문구 뒤에 붙는다`() = runTest {
-        val aiAnalysisRepository = FakeAiAnalysisRepository(content = content)
-        aiAnalysisRepository.failure = AiRequestFailedException(null, "요청 형식이 잘못됐습니다")
-        val viewModel = viewModel(aiAnalysisRepository = aiAnalysisRepository)
-        subscribe(viewModel)
-
-        viewModel.handleIntent(DietAnalysisIntent.ClickAnalyze)
-        advanceUntilIdle()
-
-        assertEquals("분석하지 못했습니다: 요청 형식이 잘못됐습니다", viewModel.uiState.value.errorMessage)
-    }
-
-    @Test
-    fun `키가 거절되면 키가 틀렸다고 알린다`() = runTest {
-        val aiAnalysisRepository = FakeAiAnalysisRepository(content = content)
-        aiAnalysisRepository.failure = AiUnauthorizedException()
-        val viewModel = viewModel(aiAnalysisRepository = aiAnalysisRepository)
-        subscribe(viewModel)
-
-        viewModel.handleIntent(DietAnalysisIntent.ClickAnalyze)
-        advanceUntilIdle()
-
-        assertEquals("키가 올바르지 않습니다", viewModel.uiState.value.errorMessage)
-    }
-
-    @Test
-    fun `토큰이 없으면 호출하지 않고 isTokenDialogVisible이 켜진다`() = runTest {
-        val aiCredentialRepository = FakeAiCredentialRepository(null)
-        val aiAnalysisRepository = FakeAiAnalysisRepository(content = content)
-        val viewModel = viewModel(
-            aiCredentialRepository = aiCredentialRepository,
-            aiAnalysisRepository = aiAnalysisRepository,
+            analysisRunner = analysisRunner,
+            aiCredentialRepository = FakeAiCredentialRepository(null),
         )
         subscribe(viewModel)
 
@@ -172,7 +80,78 @@ internal class DietAnalysisViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.isTokenDialogVisible)
-        assertEquals(0, aiAnalysisRepository.analyzeDietCallCount)
+        assertTrue(analysisRunner.startCalls.isEmpty())
+    }
+
+    @Test
+    fun `observe가 RUNNING을 내려주면 isAnalyzing이 참이고 canAnalyze가 거짓이다`() = runTest {
+        val analysisRunner = FakeAnalysisRunner()
+        val viewModel = viewModel(analysisRunner = analysisRunner)
+        subscribe(viewModel)
+
+        analysisRunner.flowFor(AnalysisKind.DIET_DAILY, periodInfo.scopeKey).value =
+            AnalysisRun(
+                kind = AnalysisKind.DIET_DAILY,
+                scopeKey = periodInfo.scopeKey,
+                state = AnalysisRunState.RUNNING,
+            )
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isAnalyzing)
+        assertFalse(viewModel.uiState.value.canAnalyze)
+    }
+
+    @Test
+    fun `observe가 FAILED와 사유를 내려주면 message가 그 사유다`() = runTest {
+        val analysisRunner = FakeAnalysisRunner()
+        val viewModel = viewModel(analysisRunner = analysisRunner)
+        subscribe(viewModel)
+
+        analysisRunner.flowFor(AnalysisKind.DIET_DAILY, periodInfo.scopeKey).value = AnalysisRun(
+            kind = AnalysisKind.DIET_DAILY,
+            scopeKey = periodInfo.scopeKey,
+            state = AnalysisRunState.FAILED,
+            failureReason = "요청 형식이 잘못됐습니다",
+        )
+        advanceUntilIdle()
+
+        assertEquals("요청 형식이 잘못됐습니다", viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun `화면을 나갔다 들어와도(ViewModel을 새로 만들어도) 이미 도는 흐름이면 바로 분석 중이다`() = runTest {
+        val analysisRunner = FakeAnalysisRunner()
+        analysisRunner.flowFor(AnalysisKind.DIET_DAILY, periodInfo.scopeKey).value =
+            AnalysisRun(
+                kind = AnalysisKind.DIET_DAILY,
+                scopeKey = periodInfo.scopeKey,
+                state = AnalysisRunState.RUNNING,
+            )
+        val viewModel = viewModel(analysisRunner = analysisRunner)
+
+        subscribe(viewModel)
+
+        assertTrue(viewModel.uiState.value.isAnalyzing)
+    }
+
+    @Test
+    fun `저장된 결과가 있으면 화면을 다시 열 때 그대로 보이고 start를 부르지 않는다`() = runTest {
+        val analysisRunner = FakeAnalysisRunner()
+        val analysisResultRepository = FakeAnalysisResultRepository(
+            initial = mapOf(
+                (AnalysisKind.DIET_DAILY to periodInfo.scopeKey) to
+                    AnalysisResult(1L, AnalysisKind.DIET_DAILY, periodInfo.scopeKey, content, 0L),
+            ),
+        )
+        val viewModel = viewModel(
+            analysisResultRepository = analysisResultRepository,
+            analysisRunner = analysisRunner,
+        )
+
+        subscribe(viewModel)
+
+        assertEquals(content, viewModel.uiState.value.result?.content)
+        assertTrue(analysisRunner.startCalls.isEmpty())
     }
 
     @Test
@@ -190,14 +169,12 @@ internal class DietAnalysisViewModelTest {
         assertTrue(effects.any { it is DietAnalysisEffect.NavigateToAiToken })
     }
 
-    private fun kotlinx.coroutines.test.TestScope.subscribe(viewModel: DietAnalysisViewModel) {
+    private fun TestScope.subscribe(viewModel: DietAnalysisViewModel) {
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         advanceUntilIdle()
     }
 
-    private fun kotlinx.coroutines.test.TestScope.collectEffects(
-        viewModel: DietAnalysisViewModel,
-    ): List<DietAnalysisEffect> {
+    private fun TestScope.collectEffects(viewModel: DietAnalysisViewModel): List<DietAnalysisEffect> {
         val effects = mutableListOf<DietAnalysisEffect>()
         backgroundScope.launch(mainDispatcherRule.dispatcher) {
             viewModel.effect.collect { effects += it }

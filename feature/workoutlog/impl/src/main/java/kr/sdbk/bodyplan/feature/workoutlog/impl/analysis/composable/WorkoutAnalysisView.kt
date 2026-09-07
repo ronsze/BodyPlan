@@ -13,6 +13,7 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
 import kr.sdbk.bodyplan.core.ui.components.AnalysisScreen
 import kr.sdbk.bodyplan.core.ui.components.AnalysisScreenActions
 import kr.sdbk.bodyplan.core.ui.components.AnalysisScreenState
+import kr.sdbk.bodyplan.core.ui.components.label
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.analysis.WorkoutAnalysisEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.analysis.WorkoutAnalysisIntent
@@ -70,7 +71,8 @@ internal fun WorkoutAnalysisViewImpl(state: WorkoutAnalysisState, uiEvents: Work
             isAnalyzing = state.isAnalyzing,
             canAnalyze = state.canAnalyze,
             isTokenDialogVisible = state.isTokenDialogVisible,
-            errorMessage = state.errorMessage,
+            errorMessage = state.message,
+            stageMessage = state.run?.stage?.label,
         ),
         actions = AnalysisScreenActions(
             onBack = uiEvents.onBackPressed,

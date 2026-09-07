@@ -5,6 +5,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
+import kr.sdbk.bodyplan.core.domain.model.AnalysisStage
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
@@ -27,11 +28,14 @@ constructor(
     private val analysisResultRepository: AnalysisResultRepository,
     private val inbodyImageRepository: InbodyImageRepository,
 ) {
-    suspend operator fun invoke(sourceUri: String): AnalysisContent {
+    suspend operator fun invoke(sourceUri: String, onStage: suspend (AnalysisStage) -> Unit = {}): AnalysisContent {
+        onStage(AnalysisStage.COLLECTING)
         val credential = aiCredentialRepository.getCredential() ?: throw AiCredentialMissingException()
         val profile = userProfileRepository.getProfile()
 
+        onStage(AnalysisStage.PREPARING_IMAGES)
         val fileName = inbodyImageRepository.save(sourceUri)
+        onStage(AnalysisStage.CALLING)
         val content = try {
             aiAnalysisRepository.analyzeInbody(
                 InbodyAnalysisRequest(
@@ -47,6 +51,7 @@ constructor(
             throw throwable
         }
 
+        onStage(AnalysisStage.PARSING)
         // 인바디는 매번 새 결과를 쌓는다. 같은 대상이라는 개념이 없어 열쇠가 비어 있다.
         analysisResultRepository.save(
             kind = AnalysisKind.INBODY,

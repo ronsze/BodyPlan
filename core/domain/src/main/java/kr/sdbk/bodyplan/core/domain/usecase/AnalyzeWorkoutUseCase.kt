@@ -6,6 +6,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
+import kr.sdbk.bodyplan.core.domain.model.AnalysisStage
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
@@ -38,7 +39,9 @@ constructor(
         periodLabel: String,
         from: LocalDate,
         to: LocalDate,
+        onStage: suspend (AnalysisStage) -> Unit = {},
     ): AnalysisContent {
+        onStage(AnalysisStage.COLLECTING)
         val credential = aiCredentialRepository.getCredential() ?: throw AiCredentialMissingException()
 
         val dates = datesOf(from, to)
@@ -50,6 +53,8 @@ constructor(
         val passedDates = dates.filter { !it.isAfter(today) }
         val workoutDates = entries.map { it.date }.toSet()
 
+        // 운동 기록에는 사진이 없어 준비 단계를 건너뛴다.
+        onStage(AnalysisStage.CALLING)
         val content = aiAnalysisRepository.analyzeWorkout(
             WorkoutAnalysisRequest(
                 credential = credential,
@@ -64,6 +69,7 @@ constructor(
                 totalCardioMinutes = entries.sumOf { entry -> entry.minutesOf(IntensityType.DURATION) },
             ),
         )
+        onStage(AnalysisStage.PARSING)
         analysisResultRepository.save(kind, scopeKey, content)
         return content
     }

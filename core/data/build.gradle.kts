@@ -15,5 +15,9 @@ dependencies {
     implementation(project(":core:network"))
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
+    // 분석을 화면 밖에서 돌린다. 워커가 Hilt 주입을 받으려면 androidx.hilt가 함께 필요하다.
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
     testImplementation(libs.kotlinx.coroutines.test)
 }

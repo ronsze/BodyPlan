@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
 import kr.sdbk.bodyplan.core.designsystem.component.PrimaryButton
+import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.Danger
@@ -42,6 +43,8 @@ data class AnalysisScreenState(
     val isTokenDialogVisible: Boolean = false,
     val errorMessage: String? = null,
     val emptyMessage: String = "아직 분석하지 않았어요",
+    /** 도는 동안 지금 무엇을 하고 있는지. 돌고 있지 않으면 `null`. */
+    val stageMessage: String? = null,
 )
 
 data class AnalysisScreenActions(
@@ -123,6 +126,15 @@ fun AnalysisScreen(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
         ) {
+            // 답을 다 받은 뒤 한 번에 읽으므로 진행률은 없다. 대신 지금 하는 일을 적는다.
+            state.stageMessage?.let { message ->
+                BaseText(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextTertiary,
+                )
+                VerticalSpacer(space = 8.dp)
+            }
             PrimaryButton(
                 text = analyzeButtonText(state),
                 onClick = actions.onClickAnalyze,

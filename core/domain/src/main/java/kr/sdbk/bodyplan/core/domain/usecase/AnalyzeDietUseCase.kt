@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.first
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisScopeKey
+import kr.sdbk.bodyplan.core.domain.model.AnalysisStage
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisEntry
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.DietDailySummary
@@ -47,13 +48,18 @@ constructor(
         periodLabel: String,
         from: LocalDate,
         to: LocalDate,
+        onStage: suspend (AnalysisStage) -> Unit = {},
     ): AnalysisContent {
+        onStage(AnalysisStage.COLLECTING)
         val credential = aiCredentialRepository.getCredential() ?: throw AiCredentialMissingException()
         val profile = userProfileRepository.getProfile()
 
         val content = if (kind == AnalysisKind.DIET_DAILY) {
             val entries = collectEntries(from, to)
             if (entries.isEmpty()) throw NoRecordToAnalyzeException()
+            // 사진을 읽어 base64로 바꾸는 일은 저장소 안에서 일어나 여기서는 끝을 알 수 없다.
+            // 알 수 없는 단계를 내면 실제로 하는 일과 어긋나므로, 호출 단계 하나로 묶는다.
+            onStage(AnalysisStage.CALLING)
             aiAnalysisRepository.analyzeDiet(
                 DietAnalysisRequest(
                     credential = credential,
@@ -65,6 +71,7 @@ constructor(
         } else {
             val dailyResults = collectDailyResults(from, to)
             if (dailyResults.isEmpty()) throw NoDailyAnalysisException()
+            onStage(AnalysisStage.CALLING)
             aiAnalysisRepository.summarizeDiet(
                 DietSummaryRequest(
                     credential = credential,
@@ -75,6 +82,7 @@ constructor(
             )
         }
 
+        onStage(AnalysisStage.PARSING)
         analysisResultRepository.save(kind, scopeKey, content)
         return content
     }
