@@ -2,6 +2,7 @@ package kr.sdbk.bodyplan.core.data.repository
 
 import java.io.IOException
 import javax.inject.Inject
+import kr.sdbk.bodyplan.core.data.ai.AiErrorReason
 import kr.sdbk.bodyplan.core.data.ai.AnalysisContentParser
 import kr.sdbk.bodyplan.core.data.ai.AnalysisImageLoader
 import kr.sdbk.bodyplan.core.data.ai.AnalysisPrompt
@@ -30,10 +31,11 @@ constructor(
     @GeminiApi private val gemini: AiClient,
     private val imageLoader: AnalysisImageLoader,
     private val contentParser: AnalysisContentParser,
+    private val errorReason: AiErrorReason,
 ) : AiAnalysisRepository {
     override suspend fun verifyCredential(credential: AiCredential) {
         runCatching { clientFor(credential.provider).verify(credential.token) }
-            .onFailure { throw it.toDomainFailure() }
+            .onFailure { throw it.toDomainFailure(credential.token) }
     }
 
     override suspend fun analyzeDiet(request: DietAnalysisRequest): AnalysisContent = complete(
@@ -74,7 +76,7 @@ constructor(
                 userPrompt = userPrompt,
                 images = images,
             )
-        }.getOrElse { throw it.toDomainFailure() }
+        }.getOrElse { throw it.toDomainFailure(credential.token) }
         // 빈 답을 결과로 저장하면 멀쩡한 이전 결과가 화면에서 밀려난다. 부르지 못한 것으로 본다.
         if (raw.isBlank()) throw AiRequestFailedException(null)
         return contentParser.parse(raw)
@@ -86,14 +88,27 @@ constructor(
         AiProvider.GEMINI -> gemini
     }
 
-    /** 화면이 키가 틀린 것과 부르지 못한 것을 다른 문구로 알리도록 여기서 가른다. */
-    private fun Throwable.toDomainFailure(): Throwable = when {
+    /**
+     * 화면이 키가 틀린 것과 부르지 못한 것을 다른 문구로 알리도록 여기서 가른다.
+     *
+     * 400을 인증 실패로 보지 않는다. 400은 요청이 잘못됐을 때 오는 코드라, 함께 묶으면
+     * 멀쩡한 키를 쓰는 사용자가 키를 의심하며 계속 다시 넣게 된다.
+     */
+    private fun Throwable.toDomainFailure(token: String): Throwable = when {
         this is AiHttpException && code in UNAUTHORIZED_CODES -> AiUnauthorizedException()
-        this is AiHttpException -> AiRequestFailedException(this)
+
+        // 제미나이는 잘못된 키에 400을 준다. 코드만으로는 요청 오류와 구분되지 않아 본문을 본다.
+        this is AiHttpException && code == BAD_REQUEST && errorReason.isInvalidKey(body) ->
+            AiUnauthorizedException()
+
+        this is AiHttpException ->
+            AiRequestFailedException(this, errorReason.of(body)?.let { errorReason.withoutSecrets(it, token) })
+
         this is IOException -> AiRequestFailedException(this)
+
         else -> this
     }
 }
 
-// 제미나이는 키가 틀려도 400을 주는 경우가 있어 함께 본다.
-private val UNAUTHORIZED_CODES = setOf(400, 401, 403)
+private val UNAUTHORIZED_CODES = setOf(401, 403)
+private const val BAD_REQUEST = 400

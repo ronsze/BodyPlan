@@ -6,6 +6,8 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
+import kr.sdbk.bodyplan.core.domain.model.AiRequestFailedException
+import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
@@ -188,6 +190,34 @@ internal class InbodyViewModelTest {
 
         assertEquals(sourceUri, viewModel.uiState.value.pickedImageUri)
         assertNotNull(viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `부르지 못한 사유가 있으면 기본 문구 뒤에 붙는다`() = runTest {
+        val aiAnalysisRepository = FakeAiAnalysisRepository()
+        aiAnalysisRepository.analyzeInbodyFailure = AiRequestFailedException(null, "요청 형식이 잘못됐습니다")
+        val viewModel = viewModel(aiAnalysisRepository = aiAnalysisRepository)
+        subscribe(viewModel)
+        viewModel.handleIntent(InbodyIntent.PickImage(sourceUri))
+
+        viewModel.handleIntent(InbodyIntent.ClickAnalyze)
+        advanceUntilIdle()
+
+        assertEquals("분석하지 못했습니다: 요청 형식이 잘못됐습니다", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `키가 거절되면 키가 틀렸다고 알린다`() = runTest {
+        val aiAnalysisRepository = FakeAiAnalysisRepository()
+        aiAnalysisRepository.analyzeInbodyFailure = AiUnauthorizedException()
+        val viewModel = viewModel(aiAnalysisRepository = aiAnalysisRepository)
+        subscribe(viewModel)
+        viewModel.handleIntent(InbodyIntent.PickImage(sourceUri))
+
+        viewModel.handleIntent(InbodyIntent.ClickAnalyze)
+        advanceUntilIdle()
+
+        assertEquals("키가 올바르지 않습니다", viewModel.uiState.value.errorMessage)
     }
 
     private fun TestScope.subscribe(viewModel: InbodyViewModel) {

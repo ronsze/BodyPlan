@@ -160,6 +160,19 @@ internal class AiTokenViewModelTest {
     }
 
     @Test
+    fun `부르지 못한 사유가 있으면 기본 문구 뒤에 붙는다`() = runTest {
+        val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "sk-1234567890"))
+        analysisRepository.verifyFailure = AiRequestFailedException(null, "요청 형식이 잘못됐습니다")
+        val viewModel = viewModel(credentials = repository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(AiTokenIntent.ClickVerify)
+        advanceUntilIdle()
+
+        assertEquals("연결하지 못했습니다: 요청 형식이 잘못됐습니다", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
     fun `제공자를 바꾸면 앞선 실패 문구가 사라진다`() = runTest {
         val repository = FakeAiCredentialRepository(AiCredential(AiProvider.CLAUDE, "sk-1234567890"))
         analysisRepository.verifyFailure = AiUnauthorizedException()

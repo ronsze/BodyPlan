@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kr.sdbk.bodyplan.core.domain.model.AiRequestFailedException
 import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
@@ -109,6 +110,7 @@ constructor(
         is NoDailyAnalysisException -> NO_DAILY_ANALYSIS
         is AiCredentialMissingException -> NO_CREDENTIAL
         is AiUnauthorizedException -> INVALID_KEY
+        is AiRequestFailedException -> reason?.let { "$FAILED: $it" } ?: FAILED
         else -> FAILED
     }
 

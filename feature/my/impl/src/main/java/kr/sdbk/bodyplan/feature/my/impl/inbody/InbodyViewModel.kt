@@ -6,6 +6,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kr.sdbk.bodyplan.core.domain.model.AiRequestFailedException
 import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
@@ -102,6 +103,7 @@ constructor(
     private fun Throwable.toMessage(): String = when (this) {
         is AiCredentialMissingException -> NO_CREDENTIAL
         is AiUnauthorizedException -> INVALID_KEY
+        is AiRequestFailedException -> reason?.let { "$FAILED: $it" } ?: FAILED
         else -> FAILED
     }
 }

@@ -5,6 +5,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
+import kr.sdbk.bodyplan.core.domain.model.AiRequestFailedException
 import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
@@ -76,7 +77,14 @@ constructor(
                     updateEffect(AiTokenEffect.ShowMessage(VERIFIED))
                 }
                 .onFailure { failure ->
-                    val message = if (failure is AiUnauthorizedException) INVALID_KEY else CALL_FAILED
+                    val message = when {
+                        failure is AiUnauthorizedException -> INVALID_KEY
+
+                        failure is AiRequestFailedException && failure.reason != null ->
+                            "$CALL_FAILED: ${failure.reason}"
+
+                        else -> CALL_FAILED
+                    }
                     updateState { it.copy(isVerifying = false, errorMessage = message) }
                 }
         }
