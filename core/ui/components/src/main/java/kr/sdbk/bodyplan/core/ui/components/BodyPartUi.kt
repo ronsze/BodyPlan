@@ -3,12 +3,13 @@ package kr.sdbk.bodyplan.core.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
+import kr.sdbk.bodyplan.core.designsystem.component.PillChip
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.PartBack
 import kr.sdbk.bodyplan.core.designsystem.theme.PartBiceps
@@ -25,6 +27,7 @@ import kr.sdbk.bodyplan.core.designsystem.theme.PartChest
 import kr.sdbk.bodyplan.core.designsystem.theme.PartLeg
 import kr.sdbk.bodyplan.core.designsystem.theme.PartShoulder
 import kr.sdbk.bodyplan.core.designsystem.theme.PartTriceps
+import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.DayStatus
 
@@ -49,23 +52,29 @@ val BodyPart.color: Color
     }
 
 /**
- * 캘린더 셀 안의 표시. 상태별 분기를 셀 호출부가 아니라 여기가 갖는다 —
- * 기능마다 자기 표시 컴포넌트를 셀 슬롯에 꽂는 구조라, 분기가 밖으로 나가면 기능마다 복제된다.
+ * 캘린더 셀의 날짜 아래에 붙는 표시. 높이를 고정해 표시가 있든 없든 칸이 흔들리지 않는다.
+ *
+ * 상태별 분기를 셀 호출부가 아니라 여기가 갖는다 — 기능마다 자기 표시를 셀 슬롯에 꽂는
+ * 구조라, 분기가 밖으로 나가면 기능마다 복제된다.
  */
 @Composable
 fun DayStatusIndicator(status: DayStatus, modifier: Modifier = Modifier) {
-    when (status) {
-        is DayStatus.Recorded -> BodyPartDots(bodyParts = status.bodyParts, modifier = modifier)
+    Box(
+        modifier = modifier.height(INDICATOR_HEIGHT),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        when (status) {
+            is DayStatus.Recorded -> BodyPartDots(bodyParts = status.bodyParts)
 
-        is DayStatus.Rest ->
-            BaseText(
-                text = "휴식",
-                modifier = modifier,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
+            is DayStatus.Rest ->
+                BaseText(
+                    text = "휴식",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextTertiary,
+                )
 
-        is DayStatus.Pending, is DayStatus.Upcoming -> Unit
+            is DayStatus.Pending, is DayStatus.Upcoming -> Unit
+        }
     }
 }
 
@@ -74,13 +83,13 @@ fun DayStatusIndicator(status: DayStatus, modifier: Modifier = Modifier) {
 private fun BodyPartDots(bodyParts: Set<BodyPart>, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BodyPart.entries.filter { it in bodyParts }.forEach { bodyPart ->
             Box(
                 modifier = Modifier
-                    .size(6.dp)
+                    .size(5.dp)
                     .clip(CircleShape)
                     .background(bodyPart.color),
             )
@@ -93,17 +102,20 @@ private fun BodyPartDots(bodyParts: Set<BodyPart>, modifier: Modifier = Modifier
 fun BodyPartTabRow(selected: BodyPart?, onSelect: (BodyPart) -> Unit, modifier: Modifier = Modifier) {
     LazyRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
         items(items = BodyPart.entries, key = { it.name }) { bodyPart ->
-            FilterChip(
+            PillChip(
+                text = bodyPart.label,
                 selected = bodyPart == selected,
                 onClick = { onSelect(bodyPart) },
-                label = { BaseText(text = bodyPart.label) },
             )
         }
     }
 }
+
+private val INDICATOR_HEIGHT = 14.dp
 
 @Preview(showBackground = true)
 @Composable
@@ -117,7 +129,7 @@ private fun BodyPartTabRowPreview() {
 @Composable
 private fun DayStatusIndicatorPreview() {
     BodyPlanTheme {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             DayStatusIndicator(DayStatus.Recorded(setOf(BodyPart.CHEST, BodyPart.TRICEPS)))
             DayStatusIndicator(DayStatus.Rest)
             DayStatusIndicator(DayStatus.Pending)

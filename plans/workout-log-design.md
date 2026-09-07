@@ -780,3 +780,15 @@ fun BodyPlanNavigator.navigateToExerciseManage()
 | `app/.../navigation/BodyPlanNavDisplay.kt` | 홈 화면 진입. 시작 NavKey는 `HomeNavKey` 그대로다 |
 | `feature/home/impl`의 `HomeView`·`HomeNavGraph` | 홈 화면. `HomeViewImplPreview`가 계속 렌더되는지 |
 | `core:local`에 `BodyPlanDatabase` 신설 | 식단 일지 세션이 이 클래스에 Entity를 얹는다. `entities` 배열 변경 시 양쪽이 조율한다 |
+
+## 디자인 개편 (2026-09-08)
+
+Figma 시안(`PNZPVQJJPxUjxc9cwtnJ2u`)을 기준으로 화면 전체를 다시 칠했다. 이 문서의
+`화면 구성`과 `카피 원문`은 개편 이전 기준이며, 시안과 어긋나는 부분은 시안이 이긴다.
+
+시안과 다르게 남긴 것이 둘 있다.
+
+- 캘린더 셀의 부위 점과 휴식 표시. 시안은 셀에 날짜만 두지만, 어떤 부위를 했는지와 휴식을
+  캘린더에서 보는 것이 처음 요청이었다. 표시는 남기고 크기와 색만 새 토큰에 맞췄다.
+- 깊은 화면의 하단 탭. 시안의 식단 기록 화면에는 탭이 남아 있고 운동 기록 화면에는 없다.
+  둘이 어긋나 운동 쪽을 따랐다 — 작성 중에 다른 일지로 빠져나가지 않게 한다.

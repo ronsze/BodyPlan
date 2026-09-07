@@ -1,20 +1,21 @@
 package kr.sdbk.bodyplan.feature.workoutlog.impl
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -26,16 +27,24 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kr.sdbk.bodyplan.core.designsystem.component.Badge
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
+import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
+import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
+import kr.sdbk.bodyplan.core.designsystem.theme.Border
+import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
+import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
+import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
-import kr.sdbk.bodyplan.core.ui.components.color
 import kr.sdbk.bodyplan.core.ui.components.label
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 
@@ -85,19 +94,17 @@ private fun rememberUiEvents(events: WorkoutLogEvents, viewModel: WorkoutLogView
 
 @Composable
 internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = uiEvents.onBackPressed) { BaseText(text = "뒤로") }
-            BaseText(
-                text = state.date.format(DATE_FORMAT),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            WeightSpacer()
-            if (state.isEditable) {
-                TextButton(onClick = uiEvents.onClickAddEntry) { BaseText(text = "운동 추가") }
-            }
-        }
-        VerticalSpacer(space = 8.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background),
+    ) {
+        BodyPlanTopBar(
+            title = state.date.format(DATE_FORMAT),
+            onBack = uiEvents.onBackPressed,
+            actionText = if (state.isEditable) "운동 추가" else null,
+            onClickAction = uiEvents.onClickAddEntry,
+        )
 
         when {
             state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
@@ -110,7 +117,10 @@ internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEv
 
 @Composable
 private fun EntryList(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         items(items = state.entries, key = { it.id }) { entry ->
             EntryCard(
                 entry = entry,
@@ -124,44 +134,60 @@ private fun EntryList(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
 
 @Composable
 private fun EntryCard(entry: WorkoutEntry, isEditable: Boolean, onClick: () -> Unit, onClickDelete: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (isEditable) Modifier.clickable(onClick = onClick) else Modifier),
+    BodyPlanCard(
+        modifier = if (isEditable) Modifier.clickable(onClick = onClick) else Modifier,
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BaseText(
+                text = entry.exerciseName,
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+            )
+            Badge(text = entry.bodyPart.label, modifier = Modifier.padding(start = 8.dp))
+            WeightSpacer()
+            if (isEditable) {
                 BaseText(
-                    text = entry.exerciseName,
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                WeightSpacer()
-                BaseText(
-                    text = entry.bodyPart.label,
-                    color = entry.bodyPart.color,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                if (isEditable) {
-                    TextButton(onClick = onClickDelete) { BaseText(text = "삭제") }
-                }
-            }
-            VerticalSpacer(space = 4.dp)
-            entry.sets.forEachIndexed { index, set ->
-                BaseText(
-                    text = setLine(index + 1, set),
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "삭제",
+                    modifier = Modifier.clickable(onClick = onClickDelete),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextTertiary,
                 )
             }
+        }
+        VerticalSpacer(space = 14.dp)
+        HorizontalDivider(color = Border)
+        VerticalSpacer(space = 14.dp)
+        entry.sets.forEachIndexed { index, set ->
+            if (index > 0) VerticalSpacer(space = 8.dp)
+            SetRow(setNumber = index + 1, set = set)
         }
     }
 }
 
-private fun setLine(setNumber: Int, set: WorkoutSet): String {
+@Composable
+private fun SetRow(setNumber: Int, set: WorkoutSet) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        BaseText(
+            text = "${setNumber}세트",
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextSecondary,
+        )
+        BaseText(
+            text = intensityText(set),
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            ),
+            color = TextPrimary,
+        )
+    }
+}
+
+private fun intensityText(set: WorkoutSet): String {
     val unit = when (set.intensity) {
         is Intensity.Weight -> "kg"
         is Intensity.Angle -> "도"
     }
-    return "${setNumber}세트  ${set.intensity.value}$unit x ${set.repeatCount}회"
+    return "${set.intensity.value}$unit × ${set.repeatCount}회"
 }
 
 @Composable
@@ -174,23 +200,61 @@ private fun LoadingContent() {
 @Composable
 private fun EmptyContent() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        BaseText(text = "기록이 없습니다")
+        BaseText(
+            text = "기록이 없습니다",
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextTertiary,
+        )
     }
 }
 
 @Composable
 private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            BaseText(text = message)
-            TextButton(onClick = onClickRetry) { BaseText(text = "다시 시도") }
+        Column(
+            modifier = Modifier.padding(horizontal = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            BaseText(text = message, color = TextSecondary)
+            OutlinedActionButton(text = "다시 시도", onClick = onClickRetry)
         }
     }
 }
 
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일")
 
-@Preview(showBackground = true)
+private val previewEntries = listOf(
+    WorkoutEntry(
+        id = 1L,
+        exerciseId = 1L,
+        exerciseName = "인클라인 벤치프레스 머신",
+        bodyPart = BodyPart.CHEST,
+        intensityType = IntensityType.WEIGHT,
+        sets = listOf(
+            WorkoutSet(repeatCount = 4, intensity = Intensity.Weight(10)),
+            WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(15)),
+        ),
+    ),
+    WorkoutEntry(
+        id = 2L,
+        exerciseId = 2L,
+        exerciseName = "사이드 레터럴 레이즈 머신",
+        bodyPart = BodyPart.SHOULDER,
+        intensityType = IntensityType.WEIGHT,
+        sets = listOf(WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(5))),
+    ),
+)
+
+private val previewUiEvents = WorkoutLogUiEvents(
+    onBackPressed = {},
+    onClickAddEntry = {},
+    onClickEntry = {},
+    onClickDeleteEntry = {},
+    onClickRetry = {},
+)
+
+@Preview(showBackground = true, heightDp = 780)
 @Composable
 private fun WorkoutLogViewImplPreview() {
     BodyPlanTheme {
@@ -198,27 +262,35 @@ private fun WorkoutLogViewImplPreview() {
             state = WorkoutLogState(
                 date = LocalDate.of(2026, 9, 7),
                 isEditable = true,
-                entries = listOf(
-                    WorkoutEntry(
-                        id = 1L,
-                        exerciseId = 1L,
-                        exerciseName = "플랫 벤치프레스 머신",
-                        bodyPart = BodyPart.CHEST,
-                        intensityType = IntensityType.WEIGHT,
-                        sets = listOf(
-                            WorkoutSet(repeatCount = 12, intensity = Intensity.Weight(40)),
-                            WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(45)),
-                        ),
-                    ),
-                ),
+                entries = previewEntries,
             ),
-            uiEvents = WorkoutLogUiEvents(
-                onBackPressed = {},
-                onClickAddEntry = {},
-                onClickEntry = {},
-                onClickDeleteEntry = {},
-                onClickRetry = {},
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun WorkoutLogViewImplReadOnlyPreview() {
+    BodyPlanTheme {
+        WorkoutLogViewImpl(
+            state = WorkoutLogState(
+                date = LocalDate.of(2026, 8, 30),
+                isEditable = false,
+                entries = previewEntries,
             ),
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun WorkoutLogViewImplEmptyPreview() {
+    BodyPlanTheme {
+        WorkoutLogViewImpl(
+            state = WorkoutLogState(date = LocalDate.of(2026, 9, 7), isEditable = true),
+            uiEvents = previewUiEvents,
         )
     }
 }

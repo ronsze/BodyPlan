@@ -456,3 +456,15 @@ ViewModel 테스트는 `Dispatchers.setMain`에 즉시 실행 디스패처를 �
 | `core/data/.../di/DataModule.kt` | 운동 일지의 Repository 바인딩 |
 | `DietLogNavKey`를 `data object`에서 `data class`로 | `dietLogNavGraph`와 `BodyPlanNavDisplay`. 인자 없는 `navigateToDietLog()` 호출부가 남아 있는지 확인한다 |
 | `feature/home/impl`의 `HomeView`·`HomeNavGraph` | 홈 화면. 운동 일지 버튼이 그대로 있는지, `HomeViewImplPreview`가 렌더되는지 |
+
+## 디자인 개편 (2026-09-08)
+
+Figma 시안(`PNZPVQJJPxUjxc9cwtnJ2u`)을 기준으로 화면 전체를 다시 칠했다. 이 문서의
+`화면 구성`과 `카피 원문`은 개편 이전 기준이며, 시안과 어긋나는 부분은 시안이 이긴다.
+
+시안과 다르게 남긴 것이 둘 있다.
+
+- 캘린더 셀의 부위 점과 휴식 표시. 시안은 셀에 날짜만 두지만, 어떤 부위를 했는지와 휴식을
+  캘린더에서 보는 것이 처음 요청이었다. 표시는 남기고 크기와 색만 새 토큰에 맞췄다.
+- 깊은 화면의 하단 탭. 시안의 식단 기록 화면에는 탭이 남아 있고 운동 기록 화면에는 없다.
+  둘이 어긋나 운동 쪽을 따랐다 — 작성 중에 다른 일지로 빠져나가지 않게 한다.

@@ -6,27 +6,31 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Card
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.platform.LocalContext
@@ -38,9 +42,17 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kr.sdbk.bodyplan.core.designsystem.component.BaseImage
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
+import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
+import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
+import kr.sdbk.bodyplan.core.designsystem.theme.Border
+import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
+import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
+import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.DietEntry
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 
@@ -116,19 +128,17 @@ private fun rememberUiEvents(events: DietLogEvents, viewModel: DietLogViewModel)
 
 @Composable
 internal fun DietLogViewImpl(state: DietLogState, uiEvents: DietLogUiEvents) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = uiEvents.onBackPressed) { BaseText(text = "뒤로") }
-            BaseText(
-                text = state.date.format(DATE_FORMAT),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            WeightSpacer()
-            if (state.isEditable) {
-                TextButton(onClick = uiEvents.onClickAddEntry) { BaseText(text = "식단 추가") }
-            }
-        }
-        VerticalSpacer(space = 8.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background),
+    ) {
+        BodyPlanTopBar(
+            title = state.date.format(DATE_FORMAT),
+            onBack = uiEvents.onBackPressed,
+            actionText = if (state.isEditable) "식단 추가" else null,
+            onClickAction = uiEvents.onClickAddEntry,
+        )
 
         when {
             state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
@@ -141,7 +151,10 @@ internal fun DietLogViewImpl(state: DietLogState, uiEvents: DietLogUiEvents) {
 
 @Composable
 private fun EntryList(state: DietLogState, uiEvents: DietLogUiEvents) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         itemsIndexed(items = state.entries, key = { _, entry -> entry.id }) { index, entry ->
             EntryCard(
                 title = mealTitle(index + 1),
@@ -155,8 +168,8 @@ private fun EntryList(state: DietLogState, uiEvents: DietLogUiEvents) {
     }
 }
 
-@Composable
 @OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun EntryCard(
     title: String,
     entry: DietEntry,
@@ -165,35 +178,50 @@ private fun EntryCard(
     onLongClick: () -> Unit,
     onClickDelete: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column {
+    BodyPlanCard(contentPadding = 16.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BaseText(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+            )
+            WeightSpacer()
+            if (isEditable) {
+                BaseText(
+                    text = "삭제",
+                    modifier = Modifier.clickable(onClick = onClickDelete),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextTertiary,
+                )
+            }
+        }
+        VerticalSpacer(space = 16.dp)
+        HorizontalDivider(color = Border)
+        VerticalSpacer(space = 16.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             BaseImage(
                 file = File(entry.imagePath),
                 contentDescription = title,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    // 길게 누르면 갤러리로 내보낸다. 조회만 되는 날짜에서도 저장은 할 수 있다.
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    // 사진을 길게 누르면 갤러리로 내보낸다. 조회만 되는 날짜에서도 저장은 할 수 있다.
                     .combinedClickable(
                         onClick = { if (isEditable) onClick() },
                         onLongClick = onLongClick,
                     ),
                 placeholder = ColorPainter(Color.LightGray),
             )
-            Row(
-                modifier = Modifier.padding(start = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val memo = entry.memo
-                Column(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
-                    BaseText(text = title, style = MaterialTheme.typography.titleSmall)
-                    if (!memo.isNullOrBlank()) {
-                        BaseText(text = memo, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-                if (isEditable) {
-                    TextButton(onClick = onClickDelete) { BaseText(text = "삭제") }
-                }
+            val memo = entry.memo
+            if (!memo.isNullOrBlank()) {
+                BaseText(
+                    text = memo,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextPrimary,
+                )
             }
         }
     }
@@ -209,16 +237,24 @@ private fun LoadingContent() {
 @Composable
 private fun EmptyContent() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        BaseText(text = "기록이 없습니다")
+        BaseText(
+            text = "기록이 없습니다",
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextTertiary,
+        )
     }
 }
 
 @Composable
 private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            BaseText(text = message)
-            TextButton(onClick = onClickRetry) { BaseText(text = "다시 시도") }
+        Column(
+            modifier = Modifier.padding(horizontal = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            BaseText(text = message, color = TextSecondary)
+            OutlinedActionButton(text = "다시 시도", onClick = onClickRetry)
         }
     }
 }
@@ -226,27 +262,57 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일")
 private const val PERMISSION_REQUIRED = "저장하려면 권한이 필요합니다"
 
-@Preview(showBackground = true)
+private val previewEntries = listOf(
+    DietEntry(id = 1L, imagePath = "/files/diet_images/a.jpg", memo = "닭가슴살 샐러드와 고구마"),
+    DietEntry(id = 2L, imagePath = "/files/diet_images/b.jpg", memo = null),
+)
+
+private val previewUiEvents = DietLogUiEvents(
+    onBackPressed = {},
+    onClickAddEntry = {},
+    onClickEntry = {},
+    onLongClickEntry = {},
+    onClickDeleteEntry = {},
+    onClickRetry = {},
+)
+
+@Preview(showBackground = true, heightDp = 780)
 @Composable
 private fun DietLogViewImplPreview() {
     BodyPlanTheme {
         DietLogViewImpl(
             state = DietLogState(
-                date = LocalDate.of(2026, 9, 7),
+                date = LocalDate.of(2026, 9, 8),
                 isEditable = true,
-                entries = listOf(
-                    DietEntry(id = 1L, imagePath = "/files/diet_images/a.jpg", memo = "닭가슴살과 고구마"),
-                    DietEntry(id = 2L, imagePath = "/files/diet_images/b.jpg", memo = null),
-                ),
+                entries = previewEntries,
             ),
-            uiEvents = DietLogUiEvents(
-                onBackPressed = {},
-                onClickAddEntry = {},
-                onClickEntry = {},
-                onLongClickEntry = {},
-                onClickDeleteEntry = {},
-                onClickRetry = {},
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun DietLogViewImplEmptyPreview() {
+    BodyPlanTheme {
+        DietLogViewImpl(
+            state = DietLogState(date = LocalDate.of(2026, 9, 8), isEditable = true),
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun DietLogViewImplReadOnlyPreview() {
+    BodyPlanTheme {
+        DietLogViewImpl(
+            state = DietLogState(
+                date = LocalDate.of(2026, 8, 30),
+                isEditable = false,
+                entries = previewEntries,
             ),
+            uiEvents = previewUiEvents,
         )
     }
 }

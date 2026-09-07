@@ -1,24 +1,23 @@
 package kr.sdbk.bodyplan.feature.workoutlog.impl
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -30,10 +29,21 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
-import kr.sdbk.bodyplan.core.designsystem.component.OptionChipRow
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
+import kr.sdbk.bodyplan.core.designsystem.component.ItemChip
+import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
+import kr.sdbk.bodyplan.core.designsystem.component.PrimaryButton
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
+import kr.sdbk.bodyplan.core.designsystem.component.WheelPicker
+import kr.sdbk.bodyplan.core.designsystem.theme.Accent
+import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
+import kr.sdbk.bodyplan.core.designsystem.theme.Border
+import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
+import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
+import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
@@ -100,15 +110,15 @@ private fun rememberUiEvents(
 
 @Composable
 internal fun WorkoutEntryEditViewImpl(state: WorkoutEntryEditState, uiEvents: WorkoutEntryEditUiEvents) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = uiEvents.onBackPressed) { BaseText(text = "뒤로") }
-            BaseText(
-                text = if (state.editingEntryId == null) "운동 추가" else "운동 수정",
-                style = MaterialTheme.typography.titleMedium,
-            )
-        }
-        VerticalSpacer(space = 8.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background),
+    ) {
+        BodyPlanTopBar(
+            title = if (state.editingEntryId == null) "운동 추가" else "운동 수정",
+            onBack = uiEvents.onBackPressed,
+        )
 
         BodyPartTabRow(
             selected = state.selectedBodyPart,
@@ -121,50 +131,69 @@ internal fun WorkoutEntryEditViewImpl(state: WorkoutEntryEditState, uiEvents: Wo
             when {
                 state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
                 state.isLoading -> LoadingContent()
-                state.selectedBodyPart == null -> CenterText(text = "부위를 먼저 선택하세요")
-                state.exercises.isEmpty() -> CenterText(text = "이 부위에 등록된 운동이 없습니다")
+                state.selectedBodyPart == null -> CenterText("부위를 먼저 선택하세요")
+                state.exercises.isEmpty() -> CenterText("이 부위에 등록된 운동이 없습니다")
                 else -> ExerciseAndSets(state, uiEvents)
             }
         }
 
-        VerticalSpacer(space = 8.dp)
-        Button(
+        PrimaryButton(
+            text = "저장",
             onClick = uiEvents.onClickSave,
+            modifier = Modifier.padding(16.dp),
             enabled = state.canSave,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            BaseText(text = "저장")
-        }
+        )
     }
 }
 
 @Composable
 private fun ExerciseAndSets(state: WorkoutEntryEditState, uiEvents: WorkoutEntryEditUiEvents) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         item {
-            ExerciseChipRow(
-                exercises = state.selectableExercises,
-                selectedId = state.selectedExercise?.id,
-                onSelect = uiEvents.onSelectExercise,
-            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+            ) {
+                items(items = state.selectableExercises, key = { it.id }) { exercise ->
+                    ItemChip(
+                        text = exercise.name,
+                        selected = exercise.id == state.selectedExercise?.id,
+                        onClick = { uiEvents.onSelectExercise(exercise.id) },
+                    )
+                }
+            }
         }
 
         if (state.selectedExercise == null) {
-            item { CenterText(text = "운동을 선택하세요") }
+            item { CenterText("운동을 선택하세요") }
             return@LazyColumn
         }
 
         setItems(state, uiEvents)
 
         item {
-            TextButton(onClick = uiEvents.onClickAddSet, enabled = state.canAddSet) {
-                BaseText(text = "세트 추가")
-            }
+            BaseText(
+                text = "+ 세트 추가",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clickable(enabled = state.canAddSet, onClick = uiEvents.onClickAddSet)
+                    .padding(vertical = 12.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (state.canAddSet) Accent else TextTertiary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
     }
 }
 
-private fun LazyListScope.setItems(state: WorkoutEntryEditState, uiEvents: WorkoutEntryEditUiEvents) {
+private fun androidx.compose.foundation.lazy.LazyListScope.setItems(
+    state: WorkoutEntryEditState,
+    uiEvents: WorkoutEntryEditUiEvents,
+) {
     val intensityType = state.selectedExercise?.intensityType ?: IntensityType.WEIGHT
     val intensityOptions = when (intensityType) {
         IntensityType.WEIGHT -> WorkoutOptions.weightKilograms
@@ -189,19 +218,6 @@ private fun LazyListScope.setItems(state: WorkoutEntryEditState, uiEvents: Worko
 }
 
 @Composable
-private fun ExerciseChipRow(exercises: List<Exercise>, selectedId: Long?, onSelect: (Long) -> Unit) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        items(items = exercises, key = { it.id }) { exercise ->
-            FilterChip(
-                selected = exercise.id == selectedId,
-                onClick = { onSelect(exercise.id) },
-                label = { BaseText(text = exercise.name) },
-            )
-        }
-    }
-}
-
-@Composable
 private fun SetCard(
     setNumber: Int,
     setInput: SetInput,
@@ -213,31 +229,41 @@ private fun SetCard(
     onSelectRepeatCount: (Int) -> Unit,
     onSelectIntensity: (Int) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+    BodyPlanCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            BaseText(
+                text = "${setNumber}세트",
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextPrimary,
+            )
+            WeightSpacer()
+            if (canRemove) {
                 BaseText(
-                    text = "${setNumber}세트",
-                    style = MaterialTheme.typography.titleSmall,
+                    text = "세트 삭제",
+                    modifier = Modifier.clickable(onClick = onClickRemove),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextTertiary,
                 )
-                WeightSpacer()
-                TextButton(onClick = onClickRemove, enabled = canRemove) {
-                    BaseText(text = "세트 삭제")
-                }
             }
-            BaseText(text = intensityLabel, style = MaterialTheme.typography.labelMedium)
-            OptionChipRow(
+        }
+        VerticalSpacer(space = 16.dp)
+        HorizontalDivider(color = Border)
+        VerticalSpacer(space = 16.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            WheelPicker(
+                label = intensityLabel,
                 options = intensityOptions,
                 selected = setInput.intensityValue,
                 onSelect = onSelectIntensity,
+                modifier = Modifier.weight(1f),
                 suffix = intensitySuffix,
             )
-            VerticalSpacer(space = 6.dp)
-            BaseText(text = "횟수", style = MaterialTheme.typography.labelMedium)
-            OptionChipRow(
+            WheelPicker(
+                label = "횟수",
                 options = WorkoutOptions.repeatCounts,
                 selected = setInput.repeatCount,
                 onSelect = onSelectRepeatCount,
+                modifier = Modifier.weight(1f),
                 suffix = "회",
             )
         }
@@ -253,22 +279,53 @@ private fun LoadingContent() {
 
 @Composable
 private fun CenterText(text: String) {
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        BaseText(text = text)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 40.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        BaseText(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextTertiary,
+        )
     }
 }
 
 @Composable
 private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            BaseText(text = message)
-            TextButton(onClick = onClickRetry) { BaseText(text = "다시 시도") }
+        Column(
+            modifier = Modifier.padding(horizontal = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            BaseText(text = message, color = TextSecondary)
+            OutlinedActionButton(text = "다시 시도", onClick = onClickRetry)
         }
     }
 }
 
-@Preview(showBackground = true)
+private val previewExercises = listOf(
+    Exercise(1L, BodyPart.CHEST, "인클라인 벤치프레스 머신", IntensityType.WEIGHT),
+    Exercise(2L, BodyPart.CHEST, "플랫 벤치프레스 머신", IntensityType.WEIGHT),
+    Exercise(3L, BodyPart.CHEST, "푸쉬업", IntensityType.ANGLE),
+)
+
+private val previewUiEvents = WorkoutEntryEditUiEvents(
+    onBackPressed = {},
+    onSelectBodyPart = {},
+    onSelectExercise = {},
+    onClickAddSet = {},
+    onClickRemoveSet = {},
+    onSelectSetRepeatCount = { _, _ -> },
+    onSelectSetIntensity = { _, _ -> },
+    onClickSave = {},
+    onClickRetry = {},
+)
+
+@Preview(showBackground = true, heightDp = 780)
 @Composable
 private fun WorkoutEntryEditViewImplPreview() {
     BodyPlanTheme {
@@ -276,28 +333,38 @@ private fun WorkoutEntryEditViewImplPreview() {
             state = WorkoutEntryEditState(
                 date = LocalDate.of(2026, 9, 7),
                 selectedBodyPart = BodyPart.CHEST,
-                exercises = listOf(
-                    Exercise(1L, BodyPart.CHEST, "플랫 벤치프레스 머신", IntensityType.WEIGHT),
-                    Exercise(2L, BodyPart.CHEST, "푸쉬업", IntensityType.ANGLE),
-                ),
-                selectedExercise = Exercise(1L, BodyPart.CHEST, "플랫 벤치프레스 머신", IntensityType.WEIGHT),
-                sets = listOf(
-                    SetInput(id = 0L, repeatCount = 12, intensityValue = 40),
-                    SetInput(id = 1L, repeatCount = 8, intensityValue = 45),
-                ),
-                nextSetInputId = 2L,
+                exercises = previewExercises,
+                selectedExercise = previewExercises.first(),
+                sets = listOf(SetInput(id = 0L, repeatCount = 4, intensityValue = 10)),
+                nextSetInputId = 1L,
             ),
-            uiEvents = WorkoutEntryEditUiEvents(
-                onBackPressed = {},
-                onSelectBodyPart = {},
-                onSelectExercise = {},
-                onClickAddSet = {},
-                onClickRemoveSet = {},
-                onSelectSetRepeatCount = { _, _ -> },
-                onSelectSetIntensity = { _, _ -> },
-                onClickSave = {},
-                onClickRetry = {},
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun WorkoutEntryEditViewImplNoBodyPartPreview() {
+    BodyPlanTheme {
+        WorkoutEntryEditViewImpl(
+            state = WorkoutEntryEditState(date = LocalDate.of(2026, 9, 7)),
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun WorkoutEntryEditViewImplNoExercisePreview() {
+    BodyPlanTheme {
+        WorkoutEntryEditViewImpl(
+            state = WorkoutEntryEditState(
+                date = LocalDate.of(2026, 9, 7),
+                selectedBodyPart = BodyPart.CHEST,
+                exercises = previewExercises,
             ),
+            uiEvents = previewUiEvents,
         )
     }
 }

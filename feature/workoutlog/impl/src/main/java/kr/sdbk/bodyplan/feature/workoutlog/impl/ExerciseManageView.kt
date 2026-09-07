@@ -1,9 +1,12 @@
 package kr.sdbk.bodyplan.feature.workoutlog.impl
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,25 +14,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BaseTextField
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
+import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
+import kr.sdbk.bodyplan.core.designsystem.component.PillChip
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
+import kr.sdbk.bodyplan.core.designsystem.theme.Accent
+import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
+import kr.sdbk.bodyplan.core.designsystem.theme.Surface
+import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
+import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
+import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
@@ -95,21 +106,24 @@ private fun rememberUiEvents(
 
 @Composable
 internal fun ExerciseManageViewImpl(state: ExerciseManageState, uiEvents: ExerciseManageUiEvents) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = uiEvents.onBackPressed) { BaseText(text = "뒤로") }
-            BaseText(text = "운동 종목 관리", style = MaterialTheme.typography.titleMedium)
-            WeightSpacer()
-            TextButton(onClick = uiEvents.onClickAdd) { BaseText(text = "종목 추가") }
-        }
-        VerticalSpacer(space = 8.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background),
+    ) {
+        BodyPlanTopBar(
+            title = "운동 종목 관리",
+            onBack = uiEvents.onBackPressed,
+            actionText = "종목 추가",
+            onClickAction = uiEvents.onClickAdd,
+        )
 
         BodyPartTabRow(
             selected = state.selectedBodyPart,
             onSelect = uiEvents.onSelectBodyPart,
             modifier = Modifier.fillMaxWidth(),
         )
-        VerticalSpacer(space = 12.dp)
+        VerticalSpacer(space = 16.dp)
 
         when {
             state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
@@ -126,25 +140,45 @@ internal fun ExerciseManageViewImpl(state: ExerciseManageState, uiEvents: Exerci
 
 @Composable
 private fun ExerciseList(state: ExerciseManageState, uiEvents: ExerciseManageUiEvents) {
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         items(items = state.exercises, key = { it.id }) { exercise ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.padding(start = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        BaseText(text = exercise.name, style = MaterialTheme.typography.titleSmall)
+            BodyPlanCard(contentPadding = 18.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        BaseText(
+                            text = exercise.name,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            ),
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         BaseText(
                             text = exercise.intensityType.label,
                             style = MaterialTheme.typography.labelSmall,
+                            color = TextTertiary,
                         )
                     }
-                    TextButton(onClick = { uiEvents.onClickEdit(exercise.id) }) {
-                        BaseText(text = "수정")
-                    }
-                    TextButton(onClick = { uiEvents.onClickDelete(exercise.id) }) {
-                        BaseText(text = "삭제")
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        BaseText(
+                            text = "수정",
+                            modifier = Modifier.clickable { uiEvents.onClickEdit(exercise.id) },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Accent,
+                        )
+                        BaseText(
+                            text = "삭제",
+                            modifier = Modifier.clickable { uiEvents.onClickDelete(exercise.id) },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextTertiary,
+                        )
                     }
                 }
             }
@@ -156,34 +190,53 @@ private fun ExerciseList(state: ExerciseManageState, uiEvents: ExerciseManageUiE
 private fun ExerciseDialog(state: ExerciseManageState, uiEvents: ExerciseManageUiEvents) {
     AlertDialog(
         onDismissRequest = uiEvents.onDismissDialog,
+        containerColor = Surface,
         title = {
-            BaseText(text = if (state.editingExercise == null) "종목 추가" else "종목 수정")
+            BaseText(
+                text = if (state.editingExercise == null) "종목 추가" else "종목 수정",
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+            )
         },
         text = {
             Column {
                 BaseTextField(
                     value = state.dialogName,
                     onValueChange = uiEvents.onChangeDialogName,
+                    modifier = Modifier.fillMaxWidth(),
                     placeholder = "종목 이름",
+                    textStyle = MaterialTheme.typography.bodyMedium,
                     singleLine = true,
                 )
-                VerticalSpacer(space = 12.dp)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                VerticalSpacer(space = 16.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     IntensityType.entries.forEach { type ->
-                        FilterChip(
+                        PillChip(
+                            text = type.label,
                             selected = type == state.dialogIntensityType,
                             onClick = { uiEvents.onSelectDialogIntensityType(type) },
-                            label = { BaseText(text = type.label) },
                         )
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = uiEvents.onConfirmDialog) { BaseText(text = "확인") }
+            BaseText(
+                text = "확인",
+                modifier = Modifier.clickable(onClick = uiEvents.onConfirmDialog),
+                style = MaterialTheme.typography.labelLarge,
+                color = Accent,
+            )
         },
         dismissButton = {
-            TextButton(onClick = uiEvents.onDismissDialog) { BaseText(text = "취소") }
+            BaseText(
+                text = "취소",
+                modifier = Modifier
+                    .clickable(onClick = uiEvents.onDismissDialog)
+                    .padding(end = 16.dp),
+                style = MaterialTheme.typography.labelLarge,
+                color = TextTertiary,
+            )
         },
     )
 }
@@ -204,43 +257,82 @@ private fun LoadingContent() {
 @Composable
 private fun EmptyContent() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        BaseText(text = "등록된 운동이 없습니다")
+        BaseText(
+            text = "등록된 운동이 없습니다",
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextTertiary,
+        )
     }
 }
 
 @Composable
 private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            BaseText(text = message)
-            TextButton(onClick = onClickRetry) { BaseText(text = "다시 시도") }
+        Column(
+            modifier = Modifier.padding(horizontal = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            BaseText(text = message, color = TextSecondary)
+            OutlinedActionButton(text = "다시 시도", onClick = onClickRetry)
         }
     }
 }
 
-@Preview(showBackground = true)
+private val previewExercises = listOf(
+    Exercise(1L, BodyPart.CHEST, "인클라인 벤치프레스 머신", IntensityType.WEIGHT),
+    Exercise(2L, BodyPart.CHEST, "플랫 벤치프레스 머신", IntensityType.WEIGHT),
+    Exercise(3L, BodyPart.CHEST, "팩덱 플라이 머신", IntensityType.WEIGHT),
+    Exercise(4L, BodyPart.CHEST, "푸쉬업", IntensityType.ANGLE),
+)
+
+private val previewUiEvents = ExerciseManageUiEvents(
+    onBackPressed = {},
+    onSelectBodyPart = {},
+    onClickAdd = {},
+    onClickEdit = {},
+    onClickDelete = {},
+    onChangeDialogName = {},
+    onSelectDialogIntensityType = {},
+    onConfirmDialog = {},
+    onDismissDialog = {},
+    onClickRetry = {},
+)
+
+@Preview(showBackground = true, heightDp = 780)
 @Composable
 private fun ExerciseManageViewImplPreview() {
     BodyPlanTheme {
         ExerciseManageViewImpl(
+            state = ExerciseManageState(exercises = previewExercises),
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun ExerciseManageViewImplEmptyPreview() {
+    BodyPlanTheme {
+        ExerciseManageViewImpl(
+            state = ExerciseManageState(),
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun ExerciseManageViewImplDialogPreview() {
+    BodyPlanTheme {
+        ExerciseManageViewImpl(
             state = ExerciseManageState(
-                exercises = listOf(
-                    Exercise(1L, BodyPart.CHEST, "플랫 벤치프레스 머신", IntensityType.WEIGHT),
-                    Exercise(2L, BodyPart.CHEST, "푸쉬업", IntensityType.ANGLE),
-                ),
+                exercises = previewExercises,
+                isDialogVisible = true,
+                dialogName = "푸쉬업",
+                dialogIntensityType = IntensityType.ANGLE,
             ),
-            uiEvents = ExerciseManageUiEvents(
-                onBackPressed = {},
-                onSelectBodyPart = {},
-                onClickAdd = {},
-                onClickEdit = {},
-                onClickDelete = {},
-                onChangeDialogName = {},
-                onSelectDialogIntensityType = {},
-                onConfirmDialog = {},
-                onDismissDialog = {},
-                onClickRetry = {},
-            ),
+            uiEvents = previewUiEvents,
         )
     }
 }

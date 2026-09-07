@@ -1,13 +1,26 @@
 package kr.sdbk.bodyplan.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -15,6 +28,13 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanIcon
+import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanIcons
+import kr.sdbk.bodyplan.core.designsystem.theme.Accent
+import kr.sdbk.bodyplan.core.designsystem.theme.Background
+import kr.sdbk.bodyplan.core.designsystem.theme.Border
+import kr.sdbk.bodyplan.core.designsystem.theme.Surface
+import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.dietlog.api.DietCalendarNavKey
 import kr.sdbk.bodyplan.feature.dietlog.impl.dietLogNavGraph
@@ -35,6 +55,7 @@ fun BodyPlanMainScreen(modifier: Modifier = Modifier) {
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = Background,
         bottomBar = {
             // 깊은 화면에서는 탭을 감춘다. 작성하다 다른 일지로 빠져나가는 일을 막는다.
             if (currentTab != null) {
@@ -71,14 +92,51 @@ fun BodyPlanMainScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun MainBottomBar(currentTab: MainTab, onSelectTab: (MainTab) -> Unit) {
-    NavigationBar {
-        MainTab.entries.forEach { tab ->
-            NavigationBarItem(
-                selected = tab == currentTab,
-                onClick = { onSelectTab(tab) },
-                icon = { BaseText(text = tab.label) },
-            )
+    Column(modifier = Modifier.background(Surface)) {
+        HorizontalDivider(color = Border)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(horizontal = 32.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            MainTab.entries.forEach { tab ->
+                MainTabItem(
+                    tab = tab,
+                    selected = tab == currentTab,
+                    onClick = { onSelectTab(tab) },
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun MainTabItem(tab: MainTab, selected: Boolean, onClick: () -> Unit) {
+    val tint = if (selected) Accent else TextTertiary
+    Column(
+        modifier = Modifier
+            .width(80.dp)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        BodyPlanIcon(
+            painter = tab.icon,
+            contentDescription = null,
+            boxSize = 24.dp,
+            iconSize = 20.dp,
+            tint = tint,
+        )
+        BaseText(
+            text = tab.label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            ),
+            color = tint,
+        )
     }
 }
 
@@ -86,4 +144,11 @@ private fun MainBottomBar(currentTab: MainTab, onSelectTab: (MainTab) -> Unit) {
 private enum class MainTab(val label: String, val navKey: NavKey) {
     WORKOUT("운동 일지", WorkoutCalendarNavKey),
     DIET("식단 일지", DietCalendarNavKey),
+    ;
+
+    val icon: Painter
+        @Composable get() = when (this) {
+            WORKOUT -> BodyPlanIcons.Dumbbell
+            DIET -> BodyPlanIcons.ForkKnifeCrossed
+        }
 }
