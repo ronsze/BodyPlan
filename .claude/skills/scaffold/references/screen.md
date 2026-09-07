@@ -4,15 +4,29 @@
 
 ## 파일 구성
 
-화면 하나는 `impl` 모듈의 **파일 3개**다. `api` 모듈에는 NavKey와 navigate 확장 함수를 둔다([module.md](module.md) 5번).
+**화면 하나가 패키지 하나다.** `impl` 모듈 아래 `<화면>/`을 만들고 그 안에 파일 3개를 둔다. Composable은 `<화면>/composable/`에 따로 모은다. `api` 모듈에는 NavKey와 navigate 확장 함수를 둔다([module.md](module.md) 5번).
+
+```
+feature/<이름>/impl/src/main/java/kr/sdbk/bodyplan/feature/<이름>/impl/
+    <이름>NavGraph.kt          ← 모듈에 하나. 화면 패키지 밖에 둔다
+    <화면>/
+        <화면>Contracts.kt
+        <화면>ViewModel.kt
+        composable/
+            <화면>View.kt
+```
 
 | 파일 | 담는 것 |
 |---|---|
 | `<화면>Contracts.kt` | `<화면>State`(data class) / `<화면>Intent`(sealed interface) / `<화면>Effect`(sealed interface) |
 | `<화면>ViewModel.kt` | `BaseViewModel<S, I, E>` 상속, Hilt 주입. 화면 상태를 매핑해야 하면 `BaseViewModelImpl<S, U, I, E>` |
-| `<화면>View.kt` | `<화면>Events` / `<화면>UiEvents` / `<화면>View` / `rememberUiEvents` / `<화면>ViewImpl` / Preview |
+| `composable/<화면>View.kt` | `<화면>Events` / `<화면>UiEvents` / `<화면>View` / `rememberUiEvents` / `<화면>ViewImpl` / Preview |
 
-화면 안에서만 쓰는 타입은 전부 `internal`이다. 모듈 밖으로 나가는 것은 `api`의 NavKey와 `impl`의 navGraph 함수뿐이다.
+**`composable`에는 `@Composable`만 둔다.** 화면 전용이지만 Composable이 아닌 것(순번을 문구로 바꾸는 함수 등)은 화면 패키지에 둔다. 한 화면의 Composable이 한 파일에 담기 어려울 만큼 커지면 `composable/` 안에서 파일을 나눈다.
+
+**패키지 이름은 화면을 가리키는 소문자 한 낱말이다.** `calendar`, `log`, `entryedit`, `exercisemanage`처럼 쓴다.
+
+화면 안에서만 쓰는 타입은 전부 `internal`이다. `internal`은 모듈 안에서 패키지를 넘어도 보이므로, 화면을 패키지로 나눠도 navGraph가 그대로 쓴다. 모듈 밖으로 나가는 것은 `api`의 NavKey와 `impl`의 navGraph 함수뿐이다.
 
 ### Events와 UiEvents를 나누는 기준
 
@@ -165,8 +179,9 @@ private fun DetailViewImplPreview() {
 ## 체크리스트
 
 1. `api`에 NavKey와 navigate 확장 함수를 추가한다([module.md](module.md) 5번).
-2. `impl`에 `<화면>Contracts.kt` → `<화면>ViewModel.kt` → `<화면>View.kt` 순으로 만든다.
-3. `impl`의 navGraph에 entry를 추가한다.
+2. `impl`에 `<화면>/`과 `<화면>/composable/`을 만든다.
+3. `<화면>Contracts.kt` → `<화면>ViewModel.kt` → `composable/<화면>View.kt` 순으로 만든다.
+4. `impl`의 navGraph에 entry를 추가한다. navGraph는 화면 패키지 밖이므로 `import`가 필요하다.
 
    ```kotlin
    entry<DetailNavKey> { navKey ->
@@ -179,7 +194,7 @@ private fun DetailViewImplPreview() {
    ```
 
    NavKey 인자가 없으면 `viewModel = hiltViewModel()`.
-4. 새 feature면 `:app`의 `BodyPlanNavDisplay`에 navGraph 호출을 추가한다([module.md](module.md) 7번).
+5. 새 feature면 `:app`의 루트 화면에 navGraph 호출을 추가한다([module.md](module.md) 7번).
 
 ## 검증
 
@@ -188,3 +203,5 @@ private fun DetailViewImplPreview() {
 ```
 
 추가로 `<화면>ViewImplPreview`가 Android Studio에서 렌더되는지 확인한다 — `ViewImpl`에 ViewModel 의존이 새어 들어갔는지 여기서 드러난다.
+
+테스트도 화면 패키지를 따라간다. `src/test`의 같은 경로에 `<화면>ViewModelTest.kt`를 둔다. 여러 화면이 함께 쓰는 테스트 도구(디스패처 규칙, 페이크)는 화면 패키지 밖에 둔다.

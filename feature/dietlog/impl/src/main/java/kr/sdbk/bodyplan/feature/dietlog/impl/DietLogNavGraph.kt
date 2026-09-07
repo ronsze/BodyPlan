@@ -9,6 +9,14 @@ import kr.sdbk.bodyplan.feature.dietlog.api.DietEntryEditNavKey
 import kr.sdbk.bodyplan.feature.dietlog.api.DietLogNavKey
 import kr.sdbk.bodyplan.feature.dietlog.api.navigateToDietEntryEdit
 import kr.sdbk.bodyplan.feature.dietlog.api.navigateToDietLog
+import kr.sdbk.bodyplan.feature.dietlog.impl.calendar.composable.DietCalendarEvents
+import kr.sdbk.bodyplan.feature.dietlog.impl.calendar.composable.DietCalendarView
+import kr.sdbk.bodyplan.feature.dietlog.impl.entryedit.DietEntryEditViewModel
+import kr.sdbk.bodyplan.feature.dietlog.impl.entryedit.composable.DietEntryEditEvents
+import kr.sdbk.bodyplan.feature.dietlog.impl.entryedit.composable.DietEntryEditView
+import kr.sdbk.bodyplan.feature.dietlog.impl.log.DietLogViewModel
+import kr.sdbk.bodyplan.feature.dietlog.impl.log.composable.DietLogEvents
+import kr.sdbk.bodyplan.feature.dietlog.impl.log.composable.DietLogView
 
 fun BodyPlanEntryProviderScope.dietLogNavGraph(navigator: BodyPlanNavigator) {
     entry<DietCalendarNavKey> {

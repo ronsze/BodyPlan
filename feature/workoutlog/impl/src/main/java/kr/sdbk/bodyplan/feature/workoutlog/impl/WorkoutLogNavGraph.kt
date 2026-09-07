@@ -11,6 +11,16 @@ import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToExerciseManage
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutEntryEdit
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutLog
+import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.composable.WorkoutCalendarEvents
+import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.composable.WorkoutCalendarView
+import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.WorkoutEntryEditViewModel
+import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.composable.WorkoutEntryEditEvents
+import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.composable.WorkoutEntryEditView
+import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisemanage.composable.ExerciseManageEvents
+import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisemanage.composable.ExerciseManageView
+import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogViewModel
+import kr.sdbk.bodyplan.feature.workoutlog.impl.log.composable.WorkoutLogEvents
+import kr.sdbk.bodyplan.feature.workoutlog.impl.log.composable.WorkoutLogView
 
 fun BodyPlanEntryProviderScope.workoutLogNavGraph(navigator: BodyPlanNavigator) {
     entry<WorkoutCalendarNavKey> {
