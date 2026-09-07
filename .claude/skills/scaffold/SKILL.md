@@ -16,10 +16,10 @@ description: 이 리포에 새 구성요소를 만들 때 로드한다. 구성�
 | feature 모듈 | `feature/<이름>/api` + `feature/<이름>/impl` | [module.md](references/module.md) |
 | core 모듈 | `core/<이름>` | [module.md](references/module.md) |
 | 화면 | NavKey·navigate 확장(api) + Contracts·ViewModel·View·navGraph(impl) | [screen.md](references/screen.md) |
-| UseCase | `core:domain`의 UseCase | 미작성 |
-| Repository | `core:domain` 인터페이스 + `core:data` 구현 + Hilt 바인딩 | 미작성 |
+| UseCase | `core:domain`의 UseCase | [usecase.md](references/usecase.md) |
+| Repository | `core:domain` 인터페이스 + `core:data` 구현 + 매핑 + Hilt 바인딩 | [repository.md](references/repository.md) |
 | 공용 컴포넌트 | `core:designsystem`의 Composable | 미작성 |
-| 로컬 저장소 | `core:local`의 Entity·DAO | 미작성 |
+| 로컬 저장소 | `core:local`의 Entity·DAO + Database 등록 | [local.md](references/local.md) |
 
 reference가 `미작성`인 구성요소는 규칙이 아직 없다. 그 사실을 사용자에게 말하고, 주변 기존 코드의 배치·표기를 따라 만든 뒤 규칙화 여부를 묻는다. 없는 규칙을 지어내지 않는다.
 
@@ -48,4 +48,4 @@ reference와 실제 리포가 어긋나면(지목한 컨벤션 플러그인·모
 - 호출 적절성: "정산 화면 추가해줘"(대상)와 "홈 화면 버튼 문구 바꿔줘"(비대상)가 description만으로 판별되는지 확인한다.
 - 대상 판정: "HomeViewModel에 State 필드 추가"가 비대상으로, "feature 모듈 하나 만들어줘"가 대상으로 판정되는지 확인한다.
 - 목적 달성: feature 모듈을 하나 실제로 만들어 `./gradlew :app:assembleDebug`가 통과하는지 확인한다.
-- 미작성 처리: 규칙 없는 구성요소(UseCase 등)를 요청해 지어내지 않고 사실을 알리는지 확인한다.
+- 미작성 처리: 규칙 없는 구성요소(공용 컴포넌트)를 요청해 지어내지 않고 사실을 알리는지 확인한다.
