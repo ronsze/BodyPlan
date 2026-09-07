@@ -9,6 +9,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
+import kr.sdbk.bodyplan.feature.dietlog.impl.dietLogNavGraph
 import kr.sdbk.bodyplan.feature.home.api.HomeNavKey
 import kr.sdbk.bodyplan.feature.home.impl.homeNavGraph
 import kr.sdbk.bodyplan.feature.workoutlog.impl.workoutLogNavGraph
@@ -32,6 +33,7 @@ fun BodyPlanNavDisplay(modifier: Modifier = Modifier) {
             entryProvider {
                 homeNavGraph(navigator)
                 workoutLogNavGraph(navigator)
+                dietLogNavGraph(navigator)
             },
     )
 }
