@@ -1,38 +1,18 @@
 package kr.sdbk.bodyplan.feature.dietlog.impl.analysis.composable
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kr.sdbk.bodyplan.core.designsystem.component.BaseText
-import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
-import kr.sdbk.bodyplan.core.designsystem.component.PrimaryButton
-import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
-import kr.sdbk.bodyplan.core.designsystem.theme.Danger
-import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
-import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
-import kr.sdbk.bodyplan.core.ui.components.AiTokenRequiredDialog
-import kr.sdbk.bodyplan.core.ui.components.AnalysisResultContent
+import kr.sdbk.bodyplan.core.ui.components.AnalysisScreen
+import kr.sdbk.bodyplan.core.ui.components.AnalysisScreenActions
+import kr.sdbk.bodyplan.core.ui.components.AnalysisScreenState
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.dietlog.impl.analysis.DietAnalysisEffect
 import kr.sdbk.bodyplan.feature.dietlog.impl.analysis.DietAnalysisIntent
@@ -79,86 +59,24 @@ private fun rememberUiEvents(events: DietAnalysisEvents, viewModel: DietAnalysis
 
 @Composable
 internal fun DietAnalysisViewImpl(state: DietAnalysisState, uiEvents: DietAnalysisUiEvents) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Background),
-    ) {
-        BodyPlanTopBar(title = "식단 분석", onBack = uiEvents.onBackPressed)
-
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            BaseText(
-                text = state.periodLabel,
-                style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
-            )
-
-            when {
-                state.isLoading && state.result == null -> LoadingContent()
-                state.result != null -> AnalysisResultContent(state.result)
-                else -> EmptyContent()
-            }
-
-            state.errorMessage?.let { message ->
-                BaseText(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Danger,
-                )
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-        ) {
-            PrimaryButton(
-                text = analyzeButtonText(state),
-                onClick = uiEvents.onClickAnalyze,
-                enabled = state.canAnalyze,
-            )
-        }
-    }
-
-    if (state.isTokenDialogVisible) {
-        AiTokenRequiredDialog(
-            onConfirm = uiEvents.onConfirmTokenDialog,
-            onDismiss = uiEvents.onDismissTokenDialog,
-        )
-    }
-}
-
-private fun analyzeButtonText(state: DietAnalysisState): String = when {
-    state.isAnalyzing -> "분석 중"
-    state.result != null -> "새로 분석하기"
-    else -> "분석하기"
-}
-
-@Composable
-private fun LoadingContent() {
-    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-private fun EmptyContent() {
-    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-        BaseText(
-            text = "아직 분석하지 않았어요",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextTertiary,
-        )
-    }
+    AnalysisScreen(
+        state = AnalysisScreenState(
+            title = "식단 분석",
+            subtitle = state.periodLabel,
+            result = state.result,
+            isLoading = state.isLoading,
+            isAnalyzing = state.isAnalyzing,
+            canAnalyze = state.canAnalyze,
+            isTokenDialogVisible = state.isTokenDialogVisible,
+            errorMessage = state.errorMessage,
+        ),
+        actions = AnalysisScreenActions(
+            onBack = uiEvents.onBackPressed,
+            onClickAnalyze = uiEvents.onClickAnalyze,
+            onConfirmTokenDialog = uiEvents.onConfirmTokenDialog,
+            onDismissTokenDialog = uiEvents.onDismissTokenDialog,
+        ),
+    )
 }
 
 private val previewUiEvents = DietAnalysisUiEvents(
@@ -191,7 +109,6 @@ private fun DietAnalysisViewImplPreview() {
         DietAnalysisViewImpl(
             state = DietAnalysisState(
                 periodLabel = "2026년 9월 8일",
-                kind = AnalysisKind.DIET_DAILY,
                 result = previewResult,
                 hasCredential = true,
             ),
@@ -207,7 +124,6 @@ private fun DietAnalysisViewImplEmptyPreview() {
         DietAnalysisViewImpl(
             state = DietAnalysisState(
                 periodLabel = "2026년 9월",
-                kind = AnalysisKind.DIET_MONTHLY,
                 hasCredential = true,
             ),
             uiEvents = previewUiEvents,
@@ -222,7 +138,6 @@ private fun DietAnalysisViewImplErrorPreview() {
         DietAnalysisViewImpl(
             state = DietAnalysisState(
                 periodLabel = "2026년 9월 7일 ~ 9월 13일",
-                kind = AnalysisKind.DIET_WEEKLY,
                 hasCredential = true,
                 errorMessage = "먼저 날짜별로 분석해 주세요",
             ),

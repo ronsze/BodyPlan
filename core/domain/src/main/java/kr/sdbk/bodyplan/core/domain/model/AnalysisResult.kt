@@ -11,6 +11,17 @@ enum class AnalysisKind {
     INBODY,
 }
 
+/** 분석이 덮는 기간의 단위. 인바디는 기간이 없어 [NONE]이다. */
+enum class AnalysisPeriodUnit { DAY, WEEK, MONTH, NONE }
+
+val AnalysisKind.periodUnit: AnalysisPeriodUnit
+    get() = when (this) {
+        AnalysisKind.DIET_DAILY, AnalysisKind.WORKOUT_DAILY -> AnalysisPeriodUnit.DAY
+        AnalysisKind.DIET_WEEKLY, AnalysisKind.WORKOUT_WEEKLY -> AnalysisPeriodUnit.WEEK
+        AnalysisKind.DIET_MONTHLY, AnalysisKind.WORKOUT_MONTHLY -> AnalysisPeriodUnit.MONTH
+        AnalysisKind.INBODY -> AnalysisPeriodUnit.NONE
+    }
+
 /** 결과를 이루는 묶음 하나. 제목은 AI가 붙인 것을 그대로 쓴다. */
 data class AnalysisSection(val title: String, val body: String)
 

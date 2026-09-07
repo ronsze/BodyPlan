@@ -15,6 +15,8 @@ import kr.sdbk.bodyplan.core.domain.usecase.AiCredentialMissingException
 import kr.sdbk.bodyplan.core.domain.usecase.AnalyzeDietUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.NoDailyAnalysisException
 import kr.sdbk.bodyplan.core.domain.usecase.NoRecordToAnalyzeException
+import kr.sdbk.bodyplan.core.ui.components.AnalysisPeriodInfo
+import kr.sdbk.bodyplan.core.ui.components.analysisPeriodInfo
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 import kr.sdbk.bodyplan.feature.dietlog.api.DietAnalysisNavKey
 
@@ -27,9 +29,7 @@ constructor(
     private val aiCredentialRepository: AiCredentialRepository,
     @Assisted navKey: DietAnalysisNavKey,
 ) : BaseViewModel<DietAnalysisState, DietAnalysisIntent, DietAnalysisEffect>(
-    initialState = periodInfoOf(navKey).let {
-        DietAnalysisState(periodLabel = it.label, kind = it.kind)
-    },
+    initialState = DietAnalysisState(periodLabel = periodInfoOf(navKey).label),
 ) {
     private val period = periodInfoOf(navKey)
 
@@ -118,8 +118,8 @@ constructor(
     }
 }
 
-private fun periodInfoOf(navKey: DietAnalysisNavKey): DietAnalysisPeriodInfo =
-    dietAnalysisPeriodInfo(navKey.period, LocalDate.ofEpochDay(navKey.dateEpochDay))
+private fun periodInfoOf(navKey: DietAnalysisNavKey): AnalysisPeriodInfo =
+    analysisPeriodInfo(navKey.period.analysisKind, LocalDate.ofEpochDay(navKey.dateEpochDay))
 
 private const val NO_RECORD = "분석할 기록이 없습니다"
 private const val NO_DAILY_ANALYSIS = "먼저 날짜별로 분석해 주세요"

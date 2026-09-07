@@ -14,6 +14,8 @@ import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
 import kr.sdbk.bodyplan.core.domain.usecase.AiCredentialMissingException
 import kr.sdbk.bodyplan.core.domain.usecase.AnalyzeWorkoutUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.NoRecordToAnalyzeException
+import kr.sdbk.bodyplan.core.ui.components.AnalysisPeriodInfo
+import kr.sdbk.bodyplan.core.ui.components.analysisPeriodInfo
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisNavKey
 
@@ -114,8 +116,8 @@ constructor(
     }
 }
 
-private fun periodInfoOf(navKey: WorkoutAnalysisNavKey): WorkoutAnalysisPeriodInfo =
-    workoutAnalysisPeriodInfo(navKey.period, LocalDate.ofEpochDay(navKey.dateEpochDay))
+private fun periodInfoOf(navKey: WorkoutAnalysisNavKey): AnalysisPeriodInfo =
+    analysisPeriodInfo(navKey.period.analysisKind, LocalDate.ofEpochDay(navKey.dateEpochDay))
 
 private const val NO_RECORD = "분석할 기록이 없습니다"
 private const val NO_CREDENTIAL = "AI 연결이 필요해요"
