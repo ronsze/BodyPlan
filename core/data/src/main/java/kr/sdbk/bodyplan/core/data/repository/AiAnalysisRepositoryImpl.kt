@@ -13,6 +13,7 @@ import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysis
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
@@ -58,17 +59,25 @@ constructor(
         images = emptyList(),
     )
 
-    override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent = complete(
-        credential = request.credential,
-        userPrompt = AnalysisPrompt.inbody(request),
-        images = imageLoader.load(listOf(request.imagePath)),
-    )
+    override suspend fun analyzeInbody(request: InbodyAnalysisRequest): InbodyAnalysis {
+        val raw = call(
+            credential = request.credential,
+            userPrompt = AnalysisPrompt.inbody(request),
+            images = imageLoader.load(listOf(request.imagePath)),
+        )
+        return InbodyAnalysis(
+            content = contentParser.parse(raw),
+            measurement = contentParser.parseMeasurement(raw),
+        )
+    }
 
     private suspend fun complete(
         credential: AiCredential,
         userPrompt: String,
         images: List<AiImage>,
-    ): AnalysisContent {
+    ): AnalysisContent = contentParser.parse(call(credential, userPrompt, images))
+
+    private suspend fun call(credential: AiCredential, userPrompt: String, images: List<AiImage>): String {
         val raw = runCatching {
             clientFor(credential.provider).complete(
                 token = credential.token,
@@ -79,7 +88,7 @@ constructor(
         }.getOrElse { throw it.toDomainFailure(credential.token) }
         // 빈 답을 결과로 저장하면 멀쩡한 이전 결과가 화면에서 밀려난다. 부르지 못한 것으로 본다.
         if (raw.isBlank()) throw AiRequestFailedException(null)
-        return contentParser.parse(raw)
+        return raw
     }
 
     private fun clientFor(provider: AiProvider): AiClient = when (provider) {

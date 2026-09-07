@@ -76,7 +76,11 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ProfileSummaryCard(profile = state.profile, onClick = uiEvents.onClickProfile)
+            ProfileSummaryCard(
+                profile = state.profile,
+                fromInbody = state.profileFromInbody,
+                onClick = uiEvents.onClickProfile,
+            )
             SectionRow(
                 title = "AI 연동",
                 onClick = uiEvents.onClickAiToken,

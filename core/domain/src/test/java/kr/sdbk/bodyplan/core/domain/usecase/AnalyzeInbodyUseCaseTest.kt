@@ -8,7 +8,9 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysis
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
@@ -33,9 +35,10 @@ class AnalyzeInbodyUseCaseTest {
         inbodyImageRepository: FakeInbodyImageRepository = FakeInbodyImageRepository(),
         analysisResultRepository: FakeAnalysisResultRepository = FakeAnalysisResultRepository(),
         aiAnalysisRepository: FakeAiAnalysisRepository = FakeAiAnalysisRepository(),
+        userProfileRepository: FakeUserProfileRepository = FakeUserProfileRepository(),
         credential: AiCredential? = this.credential,
     ): AnalyzeInbodyUseCase = AnalyzeInbodyUseCase(
-        userProfileRepository = FakeUserProfileRepository(),
+        userProfileRepository = userProfileRepository,
         aiCredentialRepository = FakeAiCredentialRepository(credential),
         aiAnalysisRepository = aiAnalysisRepository,
         analysisResultRepository = analysisResultRepository,
@@ -127,12 +130,85 @@ class AnalyzeInbodyUseCaseTest {
         assertTrue(analysisResultRepository.saved.isEmpty())
     }
 
-    private inner class FakeUserProfileRepository : UserProfileRepository {
+    @Test
+    fun `읽힌 체중과 키가 프로필에 반영된다`() = runTest {
+        val userProfileRepository = FakeUserProfileRepository(UserProfile(heightCm = 170, weightKg = 60))
+        val aiAnalysisRepository = FakeAiAnalysisRepository(
+            measurement = InbodyMeasurement(weightKg = 65.4, heightCm = 172.0),
+        )
+        val useCase = useCaseWith(
+            aiAnalysisRepository = aiAnalysisRepository,
+            userProfileRepository = userProfileRepository,
+        )
+
+        useCase(sourceUri)
+
+        assertEquals(65, userProfileRepository.savedProfile?.weightKg)
+        assertEquals(172, userProfileRepository.savedProfile?.heightCm)
+    }
+
+    @Test
+    fun `키를 못 읽으면 기존 키가 그대로 남고 체중도 같다`() = runTest {
+        val userProfileRepository = FakeUserProfileRepository(UserProfile(heightCm = 170, weightKg = 60))
+        val aiAnalysisRepository = FakeAiAnalysisRepository(
+            measurement = InbodyMeasurement(weightKg = 65.0, heightCm = null),
+        )
+        val useCase = useCaseWith(
+            aiAnalysisRepository = aiAnalysisRepository,
+            userProfileRepository = userProfileRepository,
+        )
+
+        useCase(sourceUri)
+
+        assertEquals(170, userProfileRepository.savedProfile?.heightCm)
+        assertEquals(65, userProfileRepository.savedProfile?.weightKg)
+    }
+
+    @Test
+    fun `측정값이 전부 비어 있으면 프로필을 저장하지 않는다`() = runTest {
+        val userProfileRepository = FakeUserProfileRepository(UserProfile(heightCm = 170, weightKg = 60))
+        val aiAnalysisRepository = FakeAiAnalysisRepository(measurement = InbodyMeasurement())
+        val useCase = useCaseWith(
+            aiAnalysisRepository = aiAnalysisRepository,
+            userProfileRepository = userProfileRepository,
+        )
+
+        useCase(sourceUri)
+
+        assertEquals(0, userProfileRepository.saveCount)
+    }
+
+    @Test
+    fun `저장되는 결과에 측정값이 함께 담긴다`() = runTest {
+        val measurement = InbodyMeasurement(weightKg = 65.0, heightCm = 172.0)
+        val aiAnalysisRepository = FakeAiAnalysisRepository(measurement = measurement)
+        val analysisResultRepository = FakeAnalysisResultRepository()
+        val useCase = useCaseWith(
+            aiAnalysisRepository = aiAnalysisRepository,
+            analysisResultRepository = analysisResultRepository,
+        )
+
+        useCase(sourceUri)
+
+        val savedEntry = analysisResultRepository.saved.entries.single()
+        assertEquals(measurement, savedEntry.value.measurement)
+    }
+
+    private inner class FakeUserProfileRepository(private val initial: UserProfile = UserProfile()) :
+        UserProfileRepository {
+        var savedProfile: UserProfile? = null
+            private set
+        var saveCount: Int = 0
+            private set
+
         override fun observeProfile(): Flow<UserProfile> = error("사용하지 않음")
 
-        override suspend fun getProfile(): UserProfile = UserProfile()
+        override suspend fun getProfile(): UserProfile = initial
 
-        override suspend fun saveProfile(profile: UserProfile) = error("사용하지 않음")
+        override suspend fun saveProfile(profile: UserProfile) {
+            saveCount++
+            savedProfile = profile
+        }
     }
 
     private inner class FakeAiCredentialRepository(private val credential: AiCredential?) : AiCredentialRepository {
@@ -161,7 +237,8 @@ class AnalyzeInbodyUseCaseTest {
         override fun pathOf(fileName: String): String = "/path/$fileName"
     }
 
-    private inner class FakeAiAnalysisRepository : AiAnalysisRepository {
+    private inner class FakeAiAnalysisRepository(private val measurement: InbodyMeasurement = InbodyMeasurement()) :
+        AiAnalysisRepository {
         var analyzeInbodyCallCount: Int = 0
             private set
         var lastRequest: InbodyAnalysisRequest? = null
@@ -180,15 +257,19 @@ class AnalyzeInbodyUseCaseTest {
             request: kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest,
         ): AnalysisContent = error("사용하지 않음")
 
-        override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent {
+        override suspend fun analyzeInbody(request: InbodyAnalysisRequest): InbodyAnalysis {
             analyzeInbodyCallCount++
             lastRequest = request
             analyzeInbodyFailure?.let { throw it }
-            return content
+            return InbodyAnalysis(content = content, measurement = measurement)
         }
     }
 
-    private data class SavedAnalysis(val content: AnalysisContent, val imageFileName: String?)
+    private data class SavedAnalysis(
+        val content: AnalysisContent,
+        val imageFileName: String?,
+        val measurement: InbodyMeasurement?,
+    )
 
     private inner class FakeAnalysisResultRepository : AnalysisResultRepository {
         val saved: MutableMap<Pair<AnalysisKind, String>, SavedAnalysis> = mutableMapOf()
@@ -205,8 +286,9 @@ class AnalyzeInbodyUseCaseTest {
             scopeKey: String,
             content: AnalysisContent,
             imageFileName: String?,
+            measurement: InbodyMeasurement?,
         ) {
-            saved[kind to scopeKey] = SavedAnalysis(content, imageFileName)
+            saved[kind to scopeKey] = SavedAnalysis(content, imageFileName, measurement)
         }
     }
 }

@@ -116,7 +116,15 @@ internal fun InbodyViewImpl(state: InbodyState, uiEvents: InbodyUiEvents) {
             onConfirmTokenDialog = uiEvents.onConfirmTokenDialog,
             onDismissTokenDialog = uiEvents.onDismissTokenDialog,
         ),
-        beforeResult = { PhotoSlot(state.shownImage, uiEvents.onClickPickImage) },
+        beforeResult = {
+            PhotoSlot(state.shownImage, uiEvents.onClickPickImage)
+            // 그래프는 오래된 것부터 그린다. 이력 목록은 최신순이라 뒤집어 넘긴다.
+            InbodyTrendChart(
+                points = state.history.reversed().mapNotNull { result ->
+                    result.measurement?.let { InbodyTrendPoint(result.createdAtMillis, it) }
+                },
+            )
+        },
         afterResult = { HistoryList(state, uiEvents.onClickHistory) },
     )
 }

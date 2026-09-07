@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import kr.sdbk.bodyplan.core.designsystem.component.Badge
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
+import kr.sdbk.bodyplan.core.designsystem.component.HorizontalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.Accent
@@ -32,7 +33,12 @@ import kr.sdbk.bodyplan.feature.my.impl.profile.composable.label
  * 카드 전체가 수정으로 들어가는 자리다. 수정 글자만 눌리면 누르기 어렵다.
  */
 @Composable
-internal fun ProfileSummaryCard(profile: UserProfile, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun ProfileSummaryCard(
+    profile: UserProfile,
+    fromInbody: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     BodyPlanCard(modifier = modifier.clickable(onClick = onClick)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             BaseText(
@@ -41,6 +47,16 @@ internal fun ProfileSummaryCard(profile: UserProfile, onClick: () -> Unit, modif
                 color = TextPrimary,
             )
             WeightSpacer()
+            // 자동으로 바뀐 값이 어디서 왔는지 알려 준다. 말없이 바뀌면 손수 넣은 값이
+            // 사라진 것처럼 보인다.
+            if (fromInbody) {
+                BaseText(
+                    text = "최근 인바디로 갱신됨",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextTertiary,
+                )
+                HorizontalSpacer(space = 8.dp)
+            }
             BaseText(
                 text = "수정",
                 style = MaterialTheme.typography.bodySmall,
@@ -113,6 +129,7 @@ private fun ProfileSummaryCardPreview() {
                 goals = setOf(Goal.DIET, Goal.MUSCLE_GAIN),
                 targetWeightKg = 68,
             ),
+            fromInbody = true,
             onClick = {},
         )
     }
@@ -122,6 +139,6 @@ private fun ProfileSummaryCardPreview() {
 @Composable
 private fun ProfileSummaryCardEmptyPreview() {
     BodyPlanTheme {
-        ProfileSummaryCard(profile = UserProfile(), onClick = {})
+        ProfileSummaryCard(profile = UserProfile(), fromInbody = false, onClick = {})
     }
 }

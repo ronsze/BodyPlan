@@ -4,6 +4,7 @@ import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysis
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 
@@ -29,6 +30,10 @@ interface AiAnalysisRepository {
      */
     suspend fun summarize(request: AnalysisSummaryRequest): AnalysisContent
 
-    /** 인바디 사진을 읽어 체성분을 정리하고 식단·운동 개선 방향을 낸다. */
-    suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent
+    /**
+     * 인바디 사진을 읽어 체성분을 정리하고 식단·운동 개선 방향을 낸다.
+     *
+     * 글과 함께 읽어 낸 숫자도 받는다 — 그래프와 프로필 갱신이 숫자를 쓴다.
+     */
+    suspend fun analyzeInbody(request: InbodyAnalysisRequest): InbodyAnalysis
 }

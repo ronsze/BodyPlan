@@ -1,12 +1,14 @@
 package kr.sdbk.bodyplan.core.domain.usecase
 
 import javax.inject.Inject
+import kotlin.math.roundToInt
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisStage
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
@@ -36,7 +38,7 @@ constructor(
         onStage(AnalysisStage.PREPARING_IMAGES)
         val fileName = inbodyImageRepository.save(sourceUri)
         onStage(AnalysisStage.CALLING)
-        val content = try {
+        val analysis = try {
             aiAnalysisRepository.analyzeInbody(
                 InbodyAnalysisRequest(
                     credential = credential,
@@ -56,9 +58,36 @@ constructor(
         analysisResultRepository.save(
             kind = AnalysisKind.INBODY,
             scopeKey = "",
-            content = content,
+            content = analysis.content,
             imageFileName = fileName,
+            measurement = analysis.measurement,
         )
-        return content
+        updateProfile(analysis.measurement)
+        return analysis.content
+    }
+
+    /**
+     * 읽어 낸 값만 프로필에 덮어쓴다.
+     *
+     * 결과지가 키를 싣지 않는 경우가 흔해, 못 읽은 값까지 지우면 사용자가 손수 넣은 것이
+     * 사라진다. 소수점은 프로필이 정수로 들고 있어 반올림한다.
+     *
+     * 프로필을 여기서 다시 읽는 것은, 분석이 도는 수십 초 사이에 사용자가 나이나 목적을
+     * 고쳤을 수 있어서다. 부르기 전에 읽어 둔 것에 덮어쓰면 그 편집이 되돌아간다.
+     *
+     * 갱신에 실패해도 분석은 성공이다. 결과는 이미 저장됐고, 프로필 갱신은 곁다리다.
+     */
+    private suspend fun updateProfile(measurement: InbodyMeasurement) {
+        if (measurement.isEmpty) return
+        runCatching {
+            withContext(NonCancellable) {
+                val current = userProfileRepository.getProfile()
+                val updated = current.copy(
+                    heightCm = measurement.heightCm?.roundToInt() ?: current.heightCm,
+                    weightKg = measurement.weightKg?.roundToInt() ?: current.weightKg,
+                )
+                if (updated != current) userProfileRepository.saveProfile(updated)
+            }
+        }
     }
 }

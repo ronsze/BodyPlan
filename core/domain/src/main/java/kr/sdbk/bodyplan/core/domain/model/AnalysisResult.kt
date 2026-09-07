@@ -42,6 +42,7 @@ data class AnalysisContent(val summary: String, val sections: List<AnalysisSecti
  * epochDay, 월간은 `yyyy-MM`이다. 인바디는 매번 새 결과를 쌓으므로 빈 문자열이다.
  *
  * [imagePath]는 인바디가 분석한 사진이다. 다른 분석은 `null`이다.
+ * [measurement]도 인바디만 채운다 — 그래프와 프로필 갱신이 숫자를 쓴다.
  */
 data class AnalysisResult(
     val id: Long,
@@ -50,4 +51,5 @@ data class AnalysisResult(
     val content: AnalysisContent,
     val createdAtMillis: Long,
     val imagePath: String? = null,
+    val measurement: InbodyMeasurement? = null,
 )

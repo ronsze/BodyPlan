@@ -23,7 +23,7 @@ import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
         UserProfileEntity::class,
         AnalysisResultEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class BodyPlanDatabase : RoomDatabase() {

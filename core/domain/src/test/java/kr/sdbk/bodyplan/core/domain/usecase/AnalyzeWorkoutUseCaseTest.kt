@@ -15,7 +15,9 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.DietAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysis
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
@@ -524,7 +526,7 @@ class AnalyzeWorkoutUseCaseTest {
             return content
         }
 
-        override suspend fun analyzeInbody(request: InbodyAnalysisRequest): AnalysisContent = error("사용하지 않음")
+        override suspend fun analyzeInbody(request: InbodyAnalysisRequest): InbodyAnalysis = error("사용하지 않음")
     }
 
     private inner class FakeAnalysisResultRepository(private val preloaded: Map<String, AnalysisResult> = emptyMap()) :
@@ -543,6 +545,7 @@ class AnalyzeWorkoutUseCaseTest {
             scopeKey: String,
             content: AnalysisContent,
             imageFileName: String?,
+            measurement: InbodyMeasurement?,
         ) {
             saved[kind to scopeKey] = content
         }

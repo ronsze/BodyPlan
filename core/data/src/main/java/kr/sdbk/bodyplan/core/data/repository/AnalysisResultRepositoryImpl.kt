@@ -12,6 +12,7 @@ import kr.sdbk.bodyplan.core.data.mapper.toDomain
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
+import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
 import kr.sdbk.bodyplan.core.local.dao.AnalysisResultDao
 import kr.sdbk.bodyplan.core.local.entity.AnalysisResultEntity
@@ -40,7 +41,13 @@ constructor(
     }
 
     // 지난 결과를 지우지 않고 쌓는다. 화면은 마지막 것만 보고, 이력은 뒤 화면이 쓴다.
-    override suspend fun save(kind: AnalysisKind, scopeKey: String, content: AnalysisContent, imageFileName: String?) {
+    override suspend fun save(
+        kind: AnalysisKind,
+        scopeKey: String,
+        content: AnalysisContent,
+        imageFileName: String?,
+        measurement: InbodyMeasurement?,
+    ) {
         analysisResultDao.insert(
             AnalysisResultEntity(
                 kind = kind.name,
@@ -48,6 +55,10 @@ constructor(
                 summary = content.summary,
                 sections = encodeSections(json, content.sections),
                 imageFileName = imageFileName,
+                weightKg = measurement?.weightKg,
+                skeletalMuscleKg = measurement?.skeletalMuscleKg,
+                bodyFatKg = measurement?.bodyFatKg,
+                heightCm = measurement?.heightCm,
                 createdAtMillis = clock.millis(),
             ),
         )

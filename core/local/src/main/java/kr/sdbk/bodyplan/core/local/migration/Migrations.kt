@@ -100,3 +100,12 @@ internal val MIGRATION_5_6 = object : Migration(5, 6) {
         }
     }
 }
+
+/** 인바디 결과지에서 읽어 낸 값. 그래프와 프로필 갱신이 숫자를 쓴다. */
+internal val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        listOf("weightKg", "skeletalMuscleKg", "bodyFatKg", "heightCm").forEach { column ->
+            db.execSQL("ALTER TABLE `analysis_result` ADD COLUMN `$column` REAL")
+        }
+    }
+}

@@ -25,5 +25,10 @@ data class AnalysisResultEntity(
     val sections: String,
     /** 인바디가 분석한 사진의 파일명. 다른 분석은 null이다. */
     val imageFileName: String? = null,
+    /** 결과지에서 읽어 낸 값. 인바디만 채우고, 항목마다 없을 수 있다. */
+    val weightKg: Double? = null,
+    val skeletalMuscleKg: Double? = null,
+    val bodyFatKg: Double? = null,
+    val heightCm: Double? = null,
     val createdAtMillis: Long,
 )

@@ -124,7 +124,11 @@ internal object AnalysisPrompt {
         appendLine("- 식단 개선: 무엇을 어떻게 먹을지 적습니다.")
         appendLine("- 운동 개선: 어떤 운동을 어떤 강도로 할지 적습니다.")
         appendLine()
-        appendLine("사진이 인바디 결과지가 아니면 그 사실만 요약에 적고 묶음은 비우세요.")
+        appendLine("그리고 JSON에 measurement 칸을 함께 넣으세요. 읽어 내지 못한 항목은 null로 둡니다.")
+        appendLine(MEASUREMENT_EXAMPLE)
+        appendLine("단위는 kg과 cm이고 숫자만 넣습니다. 결과지에 없는 항목은 지어내지 말고 null로 둡니다.")
+        appendLine()
+        appendLine("사진이 인바디 결과지가 아니면 그 사실만 요약에 적고 묶음과 measurement를 비우세요.")
     }
 
     private fun profileBlock(profile: UserProfile): String {
@@ -184,3 +188,7 @@ private val BodyPart.text: String
         BodyPart.TRICEPS -> "삼두"
         BodyPart.CARDIO -> "유산소"
     }
+
+/** 지시문에 그대로 싣는 예시. 따옴표가 많아 문자열 안에 두면 읽기 어렵다. */
+private val MEASUREMENT_EXAMPLE = """{"measurement": {"weightKg": 72.4, "skeletalMuscleKg": 33.1, """ +
+    """"bodyFatKg": 15.4, "heightCm": 175}}"""

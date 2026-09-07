@@ -6,6 +6,7 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
+import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.local.entity.AnalysisResultEntity
 
 /** 묶음을 한 컬럼에 담기 위한 저장 모양. 도메인 모델을 직렬화 대상으로 만들지 않으려고 따로 둔다. */
@@ -22,7 +23,19 @@ internal fun AnalysisResultEntity.toDomain(json: Json, pathOf: (String) -> Strin
         content = AnalysisContent(summary = summary, sections = decodeSections(json, sections)),
         createdAtMillis = createdAtMillis,
         imagePath = imageFileName?.let(pathOf),
+        measurement = measurement(),
     )
+}
+
+/** 값이 하나도 없으면 인바디가 아니거나 읽어 내지 못한 것이다. */
+private fun AnalysisResultEntity.measurement(): InbodyMeasurement? {
+    val parsed = InbodyMeasurement(
+        weightKg = weightKg,
+        skeletalMuscleKg = skeletalMuscleKg,
+        bodyFatKg = bodyFatKg,
+        heightCm = heightCm,
+    )
+    return parsed.takeUnless { it.isEmpty }
 }
 
 internal fun encodeSections(json: Json, sections: List<AnalysisSection>): String =

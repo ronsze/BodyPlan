@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.map
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
+import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
 
 /**
@@ -31,7 +32,13 @@ internal class FakeAnalysisResultRepository(initialHistory: List<AnalysisResult>
     override fun observeHistory(kind: AnalysisKind): Flow<List<AnalysisResult>> =
         history.map { all -> all.filter { it.kind == kind }.sortedByDescending { it.id } }
 
-    override suspend fun save(kind: AnalysisKind, scopeKey: String, content: AnalysisContent, imageFileName: String?) {
+    override suspend fun save(
+        kind: AnalysisKind,
+        scopeKey: String,
+        content: AnalysisContent,
+        imageFileName: String?,
+        measurement: InbodyMeasurement?,
+    ) {
         saveCount++
         val result = AnalysisResult(
             id = nextId++,
@@ -40,6 +47,7 @@ internal class FakeAnalysisResultRepository(initialHistory: List<AnalysisResult>
             content = content,
             createdAtMillis = 0L,
             imagePath = imageFileName,
+            measurement = measurement,
         )
         lastSaved = result
         history.value = history.value + result

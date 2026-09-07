@@ -2,7 +2,9 @@ package kr.sdbk.bodyplan.core.data.ai
 
 import kotlinx.serialization.json.Json
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
+import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -112,5 +114,88 @@ class AnalysisContentParserTest {
         val result = parser.parse(raw)
 
         assertEquals(listOf(AnalysisSection("제목만", "")), result.sections)
+    }
+
+    @Test
+    fun `정상 JSON에서 네 측정값을 읽는다`() {
+        val raw = """
+            {"summary": "요약", "sections": [], "measurement": {
+                "weightKg": 65.4, "skeletalMuscleKg": 30.1, "bodyFatKg": 12.3, "heightCm": 172.5
+            }}
+        """.trimIndent()
+
+        val result = parser.parseMeasurement(raw)
+
+        assertEquals(
+            InbodyMeasurement(weightKg = 65.4, skeletalMuscleKg = 30.1, bodyFatKg = 12.3, heightCm = 172.5),
+            result,
+        )
+    }
+
+    @Test
+    fun `measurement가 없으면 값이 전부 null인 InbodyMeasurement를 낸다`() {
+        val raw = """{"summary": "요약", "sections": []}"""
+
+        val result = parser.parseMeasurement(raw)
+
+        assertEquals(InbodyMeasurement(), result)
+    }
+
+    @Test
+    fun `JSON이 아니면 값이 전부 null인 InbodyMeasurement를 내고 예외를 던지지 않는다`() {
+        val raw = "이건 JSON이 아니라 그냥 평범한 글입니다."
+
+        val result = parser.parseMeasurement(raw)
+
+        assertEquals(InbodyMeasurement(), result)
+    }
+
+    @Test
+    fun `항목이 null이면 그 항목만 null이고 나머지는 읽힌다`() {
+        val raw = """
+            {"summary": "요약", "sections": [], "measurement": {
+                "weightKg": 65.4, "skeletalMuscleKg": null, "bodyFatKg": 12.3, "heightCm": null
+            }}
+        """.trimIndent()
+
+        val result = parser.parseMeasurement(raw)
+
+        assertEquals(65.4, result.weightKg)
+        assertNull(result.skeletalMuscleKg)
+        assertEquals(12.3, result.bodyFatKg)
+        assertNull(result.heightCm)
+    }
+
+    @Test
+    fun `0이나 음수는 읽어 내지 못한 것으로 보고 null이 된다`() {
+        val raw = """
+            {"summary": "요약", "sections": [], "measurement": {
+                "weightKg": 0, "skeletalMuscleKg": -1.5, "bodyFatKg": 12.3, "heightCm": 172.5
+            }}
+        """.trimIndent()
+
+        val result = parser.parseMeasurement(raw)
+
+        assertNull(result.weightKg)
+        assertNull(result.skeletalMuscleKg)
+        assertEquals(12.3, result.bodyFatKg)
+        assertEquals(172.5, result.heightCm)
+    }
+
+    @Test
+    fun `값이 문자열로 와도 예외 없이 숫자로 읽히거나 null이 된다`() {
+        val raw = """
+            {"summary": "요약", "sections": [], "measurement": {
+                "weightKg": "65.4", "skeletalMuscleKg": "모름", "bodyFatKg": 12.3, "heightCm": "172.5"
+            }}
+        """.trimIndent()
+
+        val result = parser.parseMeasurement(raw)
+
+        // 값이 문자열이면 읽히거나(숫자로 파싱) null이거나, 어느 쪽이든 허용된다 — 예외만 없으면 된다.
+        assertTrue(result.weightKg == null || result.weightKg == 65.4)
+        assertTrue(result.skeletalMuscleKg == null)
+        assertEquals(12.3, result.bodyFatKg)
+        assertTrue(result.heightCm == null || result.heightCm == 172.5)
     }
 }
