@@ -1,8 +1,10 @@
 package kr.sdbk.bodyplan.feature.workoutlog.impl.fake
 
 import java.time.LocalDate
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
@@ -16,6 +18,7 @@ internal class FakeWorkoutLogRepository(
     private val bodyPartsByDate: Map<LocalDate, Set<BodyPart>> = emptyMap(),
 ) : WorkoutLogRepository {
     private val entries = MutableStateFlow(initial)
+    private val memo = MutableStateFlow<String?>(null)
 
     var observeFailure: Throwable? = null
     var mutateFailure: Throwable? = null
@@ -28,10 +31,17 @@ internal class FakeWorkoutLogRepository(
         private set
     var lastSavedExercise: Exercise? = null
         private set
+    var lastSavedMemo: String? = null
+        private set
+    var saveMemoCallCount: Int = 0
+        private set
 
-    override fun observeLog(date: LocalDate): Flow<WorkoutLog> = entries.map { list ->
+    // 저장이 끝나지 않은 채로 두 번째 인텐트가 오는 상황을 만들려면 이 걸쇠로 완료 시점을 붙잡아 둔다.
+    var saveMemoGate: CompletableDeferred<Unit>? = null
+
+    override fun observeLog(date: LocalDate): Flow<WorkoutLog> = combine(entries, memo) { list, text ->
         observeFailure?.let { throw it }
-        WorkoutLog(date = date, entries = list)
+        WorkoutLog(date = date, entries = list, memo = text)
     }
 
     override fun observeBodyPartsInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, Set<BodyPart>>> =
@@ -60,5 +70,14 @@ internal class FakeWorkoutLogRepository(
     override suspend fun deleteEntry(id: Long) {
         mutateFailure?.let { throw it }
         entries.value = entries.value.filterNot { it.id == id }
+    }
+
+    override suspend fun saveMemo(date: LocalDate, text: String) {
+        mutateFailure?.let { throw it }
+        saveMemoCallCount++
+        saveMemoGate?.await()
+        lastSavedMemo = text
+        // 실제 구현과 같이 공백뿐인 메모는 남기지 않는다.
+        memo.value = text.trim().ifEmpty { null }
     }
 }

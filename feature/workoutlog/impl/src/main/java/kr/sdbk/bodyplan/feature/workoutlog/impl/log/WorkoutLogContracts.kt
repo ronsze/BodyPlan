@@ -12,6 +12,10 @@ internal data class WorkoutLogState(
     val isEditable: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val memo: String? = null,
+    val memoInput: String = "",
+    val isEditingMemo: Boolean = false,
+    val isSavingMemo: Boolean = false,
 ) : State
 
 internal sealed interface WorkoutLogIntent : Intent {
@@ -24,6 +28,14 @@ internal sealed interface WorkoutLogIntent : Intent {
     data object ClickBack : WorkoutLogIntent
 
     data object ClickRetry : WorkoutLogIntent
+
+    data object ClickEditMemo : WorkoutLogIntent
+
+    data class ChangeMemoInput(val text: String) : WorkoutLogIntent
+
+    data object ClickSaveMemo : WorkoutLogIntent
+
+    data object ClickCancelMemo : WorkoutLogIntent
 }
 
 internal sealed interface WorkoutLogEffect : Effect {

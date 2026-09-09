@@ -67,6 +67,10 @@ internal data class WorkoutLogUiEvents(
     val onClickDeleteEntry: (Long) -> Unit,
     val onClickAnalyze: () -> Unit,
     val onClickRetry: () -> Unit,
+    val onClickEditMemo: () -> Unit,
+    val onChangeMemoInput: (String) -> Unit,
+    val onClickSaveMemo: () -> Unit,
+    val onClickCancelMemo: () -> Unit,
 )
 
 @Composable
@@ -105,6 +109,10 @@ private fun rememberUiEvents(
         onClickDeleteEntry = { viewModel.handleIntent(WorkoutLogIntent.ClickDeleteEntry(it)) },
         onClickAnalyze = { events.goToAnalysis(WorkoutAnalysisPeriod.DAILY, date) },
         onClickRetry = { viewModel.handleIntent(WorkoutLogIntent.ClickRetry) },
+        onClickEditMemo = { viewModel.handleIntent(WorkoutLogIntent.ClickEditMemo) },
+        onChangeMemoInput = { viewModel.handleIntent(WorkoutLogIntent.ChangeMemoInput(it)) },
+        onClickSaveMemo = { viewModel.handleIntent(WorkoutLogIntent.ClickSaveMemo) },
+        onClickCancelMemo = { viewModel.handleIntent(WorkoutLogIntent.ClickCancelMemo) },
     )
 }
 
@@ -125,9 +133,8 @@ internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEv
         Box(modifier = Modifier.weight(1f)) {
             when {
                 state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
-                state.isLoading && state.entries.isEmpty() -> LoadingContent()
-                state.entries.isEmpty() -> EmptyContent()
-                else -> EntryList(state, uiEvents)
+                state.isLoading && state.entries.isEmpty() && state.memo == null -> LoadingContent()
+                else -> LogContent(state, uiEvents)
             }
         }
 
@@ -143,12 +150,29 @@ internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEv
     }
 }
 
+/** 메모는 운동 기록이 없는 날에도 보여야 해서 빈 상태 표시를 목록 안에 둔다. */
 @Composable
-private fun EntryList(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
+private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item {
+            WorkoutMemoCard(
+                memo = state.memo,
+                input = state.memoInput,
+                isEditable = state.isEditable,
+                isEditing = state.isEditingMemo,
+                isSaving = state.isSavingMemo,
+                onClickEdit = uiEvents.onClickEditMemo,
+                onChangeInput = uiEvents.onChangeMemoInput,
+                onClickSave = uiEvents.onClickSaveMemo,
+                onClickCancel = uiEvents.onClickCancelMemo,
+            )
+        }
+        if (state.entries.isEmpty()) {
+            item { EmptyEntriesText() }
+        }
         items(items = state.entries, key = { it.id }) { entry ->
             EntryCard(
                 entry = entry,
@@ -227,8 +251,13 @@ private fun LoadingContent() {
 }
 
 @Composable
-private fun EmptyContent() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+private fun EmptyEntriesText() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 48.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         BaseText(
             text = "기록이 없습니다",
             style = MaterialTheme.typography.bodyMedium,
@@ -282,6 +311,10 @@ private val previewUiEvents = WorkoutLogUiEvents(
     onClickEntry = {},
     onClickDeleteEntry = {},
     onClickRetry = {},
+    onClickEditMemo = {},
+    onChangeMemoInput = {},
+    onClickSaveMemo = {},
+    onClickCancelMemo = {},
 )
 
 @Preview(showBackground = true, heightDp = 780)
@@ -293,7 +326,19 @@ private fun WorkoutLogViewImplPreview() {
                 date = LocalDate.of(2026, 9, 7),
                 isEditable = true,
                 entries = previewEntries,
+                memo = "어깨가 뻐근해서 무게를 내렸다",
             ),
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun WorkoutLogViewImplEmptyPreview() {
+    BodyPlanTheme {
+        WorkoutLogViewImpl(
+            state = WorkoutLogState(date = LocalDate.of(2026, 9, 7), isEditable = true),
             uiEvents = previewUiEvents,
         )
     }
@@ -308,18 +353,8 @@ private fun WorkoutLogViewImplReadOnlyPreview() {
                 date = LocalDate.of(2026, 8, 30),
                 isEditable = false,
                 entries = previewEntries,
+                memo = "지난주에 남긴 메모",
             ),
-            uiEvents = previewUiEvents,
-        )
-    }
-}
-
-@Preview(showBackground = true, heightDp = 780)
-@Composable
-private fun WorkoutLogViewImplEmptyPreview() {
-    BodyPlanTheme {
-        WorkoutLogViewImpl(
-            state = WorkoutLogState(date = LocalDate.of(2026, 9, 7), isEditable = true),
             uiEvents = previewUiEvents,
         )
     }
