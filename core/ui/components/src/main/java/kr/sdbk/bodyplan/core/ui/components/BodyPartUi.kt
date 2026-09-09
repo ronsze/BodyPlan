@@ -1,21 +1,19 @@
 package kr.sdbk.bodyplan.core.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
@@ -67,7 +65,7 @@ fun DayStatusIndicator(status: DayStatus, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.TopCenter,
     ) {
         when (status) {
-            is DayStatus.Recorded -> BodyPartDots(bodyParts = status.bodyParts)
+            is DayStatus.Recorded -> BodyPartLabels(bodyParts = status.bodyParts)
 
             is DayStatus.Rest ->
                 BaseText(
@@ -81,23 +79,40 @@ fun DayStatusIndicator(status: DayStatus, modifier: Modifier = Modifier) {
     }
 }
 
-/** 그 날 수행한 부위를 색 점으로 늘어놓는다. 순서는 [BodyPart] 선언 순서로 고정한다. */
+/**
+ * 그 날 수행한 부위를 이름으로 늘어놓는다. 순서는 [BodyPart] 선언 순서로 고정한다.
+ *
+ * 셀 폭이 화면의 1/7뿐이라 한 줄에 한 부위씩, 두 줄까지만 적는다. 셋 이상이면 둘째 줄을 개수로 줄인다 —
+ * 이름을 더 욱여넣으면 잘려서 읽히지 않는다. 색은 점을 쓰던 때와 같게 두어 부위 구분을 잃지 않는다.
+ */
 @Composable
-private fun BodyPartDots(bodyParts: Set<BodyPart>, modifier: Modifier = Modifier) {
-    Row(
+private fun BodyPartLabels(bodyParts: Set<BodyPart>, modifier: Modifier = Modifier) {
+    val ordered = BodyPart.entries.filter { it in bodyParts }
+    if (ordered.isEmpty()) return
+
+    Column(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(1.dp),
     ) {
-        BodyPart.entries.filter { it in bodyParts }.forEach { bodyPart ->
-            Box(
-                modifier = Modifier
-                    .size(5.dp)
-                    .clip(CircleShape)
-                    .background(bodyPart.color),
-            )
+        BodyPartLabel(text = ordered.first().label, color = ordered.first().color)
+        when {
+            ordered.size == 2 -> BodyPartLabel(text = ordered[1].label, color = ordered[1].color)
+
+            ordered.size > 2 -> BodyPartLabel(text = "외 ${ordered.size - 1}", color = TextTertiary)
         }
     }
+}
+
+@Composable
+private fun BodyPartLabel(text: String, color: Color) {
+    BaseText(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        maxLines = 1,
+        overflow = TextOverflow.Clip,
+    )
 }
 
 /** 부위 여섯 개를 늘어놓고 하나를 고르게 한다. 고른 것이 없는 상태를 허용한다. */
@@ -118,7 +133,8 @@ fun BodyPartTabRow(selected: BodyPart?, onSelect: (BodyPart) -> Unit, modifier: 
     }
 }
 
-private val INDICATOR_HEIGHT = 14.dp
+/** 부위 이름 두 줄이 들어가는 높이. 표시가 있든 없든 칸이 흔들리지 않게 고정한다. */
+private val INDICATOR_HEIGHT = 30.dp
 
 @Preview(showBackground = true)
 @Composable
@@ -133,7 +149,9 @@ private fun BodyPartTabRowPreview() {
 private fun DayStatusIndicatorPreview() {
     BodyPlanTheme {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            DayStatusIndicator(DayStatus.Recorded(setOf(BodyPart.CHEST)))
             DayStatusIndicator(DayStatus.Recorded(setOf(BodyPart.CHEST, BodyPart.TRICEPS)))
+            DayStatusIndicator(DayStatus.Recorded(setOf(BodyPart.CHEST, BodyPart.TRICEPS, BodyPart.CARDIO)))
             DayStatusIndicator(DayStatus.Rest)
             DayStatusIndicator(DayStatus.Pending)
         }

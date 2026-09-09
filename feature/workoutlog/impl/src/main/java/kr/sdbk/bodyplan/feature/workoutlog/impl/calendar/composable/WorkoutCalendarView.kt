@@ -136,6 +136,8 @@ internal fun WorkoutCalendarViewImpl(state: WorkoutCalendarState, uiEvents: Work
                 selectedDate = state.today,
                 onSelectDate = uiEvents.onSelectDate,
                 onChangeMonth = uiEvents.onChangeMonth,
+                // 부위를 이름으로 적으면서 표시가 두 줄까지 늘었다. 그만큼 칸을 키운다.
+                cellHeight = CELL_HEIGHT,
                 dayContent = { date ->
                     DayStatusIndicator(status = state.dayStatuses[date] ?: DayStatus.Pending)
                 },
@@ -193,6 +195,8 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
         }
     }
 }
+
+private val CELL_HEIGHT = 72.dp
 
 private val previewStatuses = mapOf(
     LocalDate.of(2026, 9, 1) to DayStatus.Recorded(setOf(BodyPart.CHEST, BodyPart.TRICEPS)),
