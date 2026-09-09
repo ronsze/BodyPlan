@@ -43,6 +43,7 @@ import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.WorkoutCalendarViewMode
 internal data class WorkoutCalendarEvents(
     val goToLog: (LocalDate) -> Unit,
     val goToExerciseManage: () -> Unit,
+    val goToExerciseTrend: () -> Unit,
     val goToAnalysis: (WorkoutAnalysisPeriod, LocalDate) -> Unit,
 )
 
@@ -52,6 +53,7 @@ internal data class WorkoutCalendarUiEvents(
     val onClickMonthlyAnalysis: () -> Unit,
     val onChangeMonth: (YearMonth) -> Unit,
     val onClickManageExercise: () -> Unit,
+    val onClickExerciseTrend: () -> Unit,
     val onClickRetry: () -> Unit,
 )
 
@@ -69,6 +71,7 @@ internal fun WorkoutCalendarView(events: WorkoutCalendarEvents, viewModel: Worko
         when (effect) {
             is WorkoutCalendarEffect.NavigateToLog -> events.goToLog(effect.date)
             is WorkoutCalendarEffect.NavigateToExerciseManage -> events.goToExerciseManage()
+            is WorkoutCalendarEffect.NavigateToExerciseTrend -> events.goToExerciseTrend()
         }
     }
 }
@@ -94,6 +97,7 @@ private fun rememberUiEvents(
         onClickMonthlyAnalysis = { events.goToAnalysis(WorkoutAnalysisPeriod.MONTHLY, dateInMonth) },
         onChangeMonth = { viewModel.handleIntent(WorkoutCalendarIntent.ChangeMonth(it)) },
         onClickManageExercise = { viewModel.handleIntent(WorkoutCalendarIntent.ClickManageExercise) },
+        onClickExerciseTrend = { viewModel.handleIntent(WorkoutCalendarIntent.ClickExerciseTrend) },
         onClickRetry = { viewModel.handleIntent(WorkoutCalendarIntent.ClickRetry) },
     )
 }
@@ -109,6 +113,9 @@ internal fun WorkoutCalendarViewImpl(state: WorkoutCalendarState, uiEvents: Work
             title = "운동 기록",
             actionText = "운동 종목 관리",
             onClickAction = uiEvents.onClickManageExercise,
+            actionIcon = BodyPlanIcons.ChartLine,
+            actionIconDescription = "종목 추이",
+            onClickActionIcon = uiEvents.onClickExerciseTrend,
         )
 
         if (state.errorMessage != null) {
@@ -205,6 +212,7 @@ private val previewUiEvents = WorkoutCalendarUiEvents(
     onClickMonthlyAnalysis = {},
     onChangeMonth = {},
     onClickManageExercise = {},
+    onClickExerciseTrend = {},
     onClickRetry = {},
 )
 

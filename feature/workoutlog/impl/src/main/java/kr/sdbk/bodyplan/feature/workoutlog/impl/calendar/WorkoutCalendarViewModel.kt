@@ -40,6 +40,9 @@ constructor(
             is WorkoutCalendarIntent.ClickManageExercise ->
                 updateEffect(WorkoutCalendarEffect.NavigateToExerciseManage)
 
+            is WorkoutCalendarIntent.ClickExerciseTrend ->
+                updateEffect(WorkoutCalendarEffect.NavigateToExerciseTrend)
+
             is WorkoutCalendarIntent.ClickRetry -> observeMonth()
         }
     }

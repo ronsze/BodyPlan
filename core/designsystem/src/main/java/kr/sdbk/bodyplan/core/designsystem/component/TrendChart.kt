@@ -1,4 +1,4 @@
-package kr.sdbk.bodyplan.core.ui.components
+package kr.sdbk.bodyplan.core.designsystem.component
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -20,9 +20,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import java.util.Locale
-import kr.sdbk.bodyplan.core.designsystem.component.BaseText
-import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
-import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.PartCardio
 import kr.sdbk.bodyplan.core.designsystem.theme.PartChest

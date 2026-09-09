@@ -6,11 +6,13 @@ import kr.sdbk.bodyplan.core.navigation.BodyPlanEntryProviderScope
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.my.api.navigateToAiToken
 import kr.sdbk.bodyplan.feature.workoutlog.api.ExerciseManageNavKey
+import kr.sdbk.bodyplan.feature.workoutlog.api.ExerciseTrendNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutCalendarNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutEntryEditNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToExerciseManage
+import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToExerciseTrend
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutAnalysis
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutEntryEdit
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutLog
@@ -24,6 +26,8 @@ import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.composable.WorkoutEntr
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.composable.WorkoutEntryEditView
 import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisemanage.composable.ExerciseManageEvents
 import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisemanage.composable.ExerciseManageView
+import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisetrend.composable.ExerciseTrendEvents
+import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisetrend.composable.ExerciseTrendView
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogViewModel
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.composable.WorkoutLogEvents
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.composable.WorkoutLogView
@@ -34,10 +38,16 @@ fun BodyPlanEntryProviderScope.workoutLogNavGraph(navigator: BodyPlanNavigator) 
             WorkoutCalendarEvents(
                 goToLog = navigator::navigateToWorkoutLog,
                 goToExerciseManage = navigator::navigateToExerciseManage,
+                goToExerciseTrend = navigator::navigateToExerciseTrend,
                 goToAnalysis = navigator::navigateToWorkoutAnalysis,
             )
         }
         WorkoutCalendarView(events = events, viewModel = hiltViewModel())
+    }
+
+    entry<ExerciseTrendNavKey> {
+        val events = remember { ExerciseTrendEvents(goBack = navigator::goBack) }
+        ExerciseTrendView(events = events, viewModel = hiltViewModel())
     }
 
     entry<ExerciseManageNavKey> {

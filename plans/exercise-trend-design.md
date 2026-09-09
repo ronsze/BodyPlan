@@ -18,6 +18,8 @@
 
 꺾은선 차트는 리포에 하나뿐인데(`InbodyTrendChart`) `:feature:my:impl` 안에 갇혀 있고 `InbodyMeasurement`에 묶여 있다. 공용으로 올려 두 화면이 함께 쓴다.
 
+올리는 자리는 `:core:designsystem`이다 — 리뷰 뒤 고쳤다. 옮긴 그리기는 도메인 타입을 하나도 쓰지 않아, 「도메인에 종속되면 `core:ui:components`, 아니면 `core:designsystem`」이라는 규칙이 그쪽을 가리킨다(`BodyPlanCalendar`·`WheelPicker`와 같은 자리).
+
 `BodyPlanTopBar`는 오른쪽에 글자 액션 하나만 받는데 운동 캘린더는 그 자리를 「운동 종목 관리」로 이미 쓴다. 아이콘 액션 슬롯을 더한다 — 사용자가 정했다.
 
 ### 수용 조건
@@ -189,6 +191,7 @@ Column(fillMaxSize + background(Background))
 
 ```kotlin
 actionIcon: Painter? = null,
+actionIconDescription: String? = null,
 onClickActionIcon: () -> Unit = {},
 ```
 
@@ -196,7 +199,7 @@ onClickActionIcon: () -> Unit = {},
 
 아이콘 drawable `ic_chart_line.xml`을 `:core:designsystem`에 더하고 `BodyPlanIcons.ChartLine`을 늘린다. 규격은 기존 아이콘과 같다 — `24dp`, `viewportWidth/Height 24`, `strokeWidth 2`, `strokeLineCap/Join round`, 채우기 없이 선만.
 
-**공용 차트 `TrendChart` (`:core:ui:components`, 신규)**
+**공용 차트 `TrendChart` (`:core:designsystem`, 신규)**
 
 `InbodyTrendChart`의 그리기를 그대로 옮기고 도메인에 묶인 것만 호출부로 뺀다.
 
@@ -286,7 +289,7 @@ internal fun ExerciseTrendCard(trend: ExerciseTrend, modifier: Modifier = Modifi
 
 | 경로 | 신규/수정 | 할 일 |
 |---|---|---|
-| `core/ui/components/src/main/java/kr/sdbk/bodyplan/core/ui/components/TrendChart.kt` | 신규 | `TrendChartLine`·`TrendChart`·`defaultValueText` + Preview |
+| `core/designsystem/src/main/java/kr/sdbk/bodyplan/core/designsystem/component/TrendChart.kt` | 신규 | `TrendChartLine`·`TrendChart`·`defaultValueText` + Preview |
 | `feature/my/impl/src/main/java/kr/sdbk/bodyplan/feature/my/impl/inbody/composable/InbodyTrendChart.kt` | 수정 | 그리기를 `TrendChart`에 넘기고 카드·문구·`InbodyMeasurement` 매핑만 남긴다 |
 | `core/domain/src/main/java/kr/sdbk/bodyplan/core/domain/model/ExerciseTrend.kt` | 신규 | `ExerciseTrendMetric`·`ExerciseTrendPoint`·`RecordedExercise`·`ExerciseTrend`·`ExerciseTrendResult`·`IntensityType.trendMetrics` |
 | `core/domain/src/main/java/kr/sdbk/bodyplan/core/domain/usecase/SummarizeExerciseTrendUseCase.kt` | 신규 | 주 버킷·지표 집계(순수) |

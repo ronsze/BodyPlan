@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -18,10 +19,10 @@ import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 
 /**
- * 화면 상단 줄. 왼쪽에 뒤로가기와 제목, 오른쪽에 글자 동작 하나를 둔다.
+ * 화면 상단 줄. 왼쪽에 뒤로가기와 제목, 오른쪽에 동작을 둔다.
  *
  * [onBack]이 null이면 뒤로가기를 그리지 않는다 — 탭의 첫 화면처럼 돌아갈 곳이 없는 화면이다.
- * [actionText]가 null이면 오른쪽을 비운다.
+ * 오른쪽은 아이콘과 글자를 함께 둘 수 있고, 아이콘이 글자 왼쪽에 온다. 둘 다 null이면 비운다.
  */
 @Composable
 fun BodyPlanTopBar(
@@ -30,6 +31,9 @@ fun BodyPlanTopBar(
     onBack: (() -> Unit)? = null,
     actionText: String? = null,
     onClickAction: () -> Unit = {},
+    actionIcon: Painter? = null,
+    actionIconDescription: String? = null,
+    onClickActionIcon: () -> Unit = {},
 ) {
     Row(
         modifier = modifier
@@ -62,13 +66,28 @@ fun BodyPlanTopBar(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (actionText != null) {
-            BaseText(
-                text = actionText,
-                modifier = Modifier.clickable(onClick = onClickAction),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (actionIcon != null) {
+                BodyPlanIcon(
+                    painter = actionIcon,
+                    contentDescription = actionIconDescription,
+                    boxSize = 24.dp,
+                    iconSize = 20.dp,
+                    tint = TextPrimary,
+                    modifier = Modifier.clickable(onClick = onClickActionIcon),
+                )
+            }
+            if (actionText != null) {
+                BaseText(
+                    text = actionText,
+                    modifier = Modifier.clickable(onClick = onClickAction),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
     }
 }
@@ -77,6 +96,12 @@ fun BodyPlanTopBar(
 @Composable
 private fun BodyPlanTopBarPreview() {
     BodyPlanTheme {
-        BodyPlanTopBar(title = "2026년 9월 7일", onBack = {}, actionText = "운동 추가")
+        BodyPlanTopBar(
+            title = "2026년 9월 7일",
+            onBack = {},
+            actionText = "운동 추가",
+            actionIcon = BodyPlanIcons.ChartLine,
+            actionIconDescription = "종목 추이",
+        )
     }
 }

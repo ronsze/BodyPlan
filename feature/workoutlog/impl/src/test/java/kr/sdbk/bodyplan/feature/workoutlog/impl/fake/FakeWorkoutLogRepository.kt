@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
@@ -37,6 +38,10 @@ internal class FakeWorkoutLogRepository(
     var saveMemoCallCount: Int = 0
         private set
 
+    // 종목을 바꿀 때마다 새로 구독하지 않는지 보려고 둔다 — ExerciseTrendViewModel이 확인한다.
+    var observeEntriesInRangeCallCount: Int = 0
+        private set
+
     // 저장이 끝나지 않은 채로 두 번째 인텐트가 오는 상황을 만들려면 이 걸쇠로 완료 시점을 붙잡아 둔다.
     var saveMemoGate: CompletableDeferred<Unit>? = null
 
@@ -55,7 +60,7 @@ internal class FakeWorkoutLogRepository(
         entries.map {
             observeFailure?.let { failure -> throw failure }
             entriesByDate.filterKeys { date -> !date.isBefore(from) && !date.isAfter(to) }
-        }
+        }.onStart { observeEntriesInRangeCallCount++ }
 
     override suspend fun getEntry(id: Long): WorkoutEntry? = entries.value.firstOrNull { it.id == id }
 

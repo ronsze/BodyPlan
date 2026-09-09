@@ -141,6 +141,21 @@ internal class WorkoutCalendarViewModelTest {
     }
 
     @Test
+    fun `종목 추이 아이콘을 누르면 종목 추이 화면으로 이동한다`() = runTest {
+        val viewModel = viewModel(FakeWorkoutLogRepository())
+        val effects = mutableListOf<WorkoutCalendarEffect>()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            viewModel.effect.collect { effects += it }
+        }
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutCalendarIntent.ClickExerciseTrend)
+        advanceUntilIdle()
+
+        assertTrue(effects.contains(WorkoutCalendarEffect.NavigateToExerciseTrend))
+    }
+
+    @Test
     fun `조회가 실패하면 에러가 실리고 재시도가 다시 읽는다`() = runTest {
         val repository = FakeWorkoutLogRepository(
             bodyPartsByDate = mapOf(LocalDate.of(2026, 9, 3) to setOf(BodyPart.LEG)),
