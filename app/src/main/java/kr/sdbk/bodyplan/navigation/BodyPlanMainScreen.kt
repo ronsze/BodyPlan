@@ -162,7 +162,7 @@ private fun MainBottomBar(currentTab: MainTab, onSelectTab: (MainTab) -> Unit, m
                     tab = tab,
                     selected = tab == currentTab,
                     onClick = { onSelectTab(tab) },
-                    // 탭이 바의 절반씩 차지한다. 아이콘과 글자만 눌리면 누르기 어렵다.
+                    // 탭이 바를 고르게 나눠 갖는다. 아이콘과 글자만 눌리면 누르기 어렵다.
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -194,6 +194,8 @@ private fun MainTabItem(tab: MainTab, selected: Boolean, onClick: () -> Unit, mo
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             ),
             color = tint,
+            // 탭이 늘어날수록 칸이 좁아진다. 좁은 기기에서 두 낱말 라벨이 두 줄로 접히지 않게 막는다.
+            maxLines = 1,
         )
     }
 }
