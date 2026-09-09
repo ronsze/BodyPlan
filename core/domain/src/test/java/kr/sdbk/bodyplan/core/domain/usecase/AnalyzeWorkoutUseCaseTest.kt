@@ -466,10 +466,8 @@ class AnalyzeWorkoutUseCaseTest {
         override fun observeBodyPartsInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, Set<BodyPart>>> =
             error("사용하지 않음")
 
-        override fun observeEntriesInRange(
-            from: LocalDate,
-            to: LocalDate,
-        ): Flow<Map<LocalDate, List<WorkoutEntry>>> = error("사용하지 않음")
+        override fun observeEntriesInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<WorkoutEntry>>> =
+            error("사용하지 않음")
 
         override suspend fun getEntry(id: Long): WorkoutEntry? = error("사용하지 않음")
 
