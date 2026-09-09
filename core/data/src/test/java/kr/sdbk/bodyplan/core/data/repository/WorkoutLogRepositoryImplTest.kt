@@ -213,4 +213,55 @@ class WorkoutLogRepositoryImplTest {
 
         assertNull(repository.observeLog(date.plusDays(1)).first().memo)
     }
+
+    @Test
+    fun `기간 조회는 날짜별로 묶어 낸다`() = runTest {
+        repository.addEntry(date, exercise, listOf(WorkoutSet(repeatCount = 10, intensity = Intensity.Weight(20))))
+        repository.addEntry(
+            date.plusDays(1),
+            exercise,
+            listOf(WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(30))),
+        )
+
+        val byDate = repository.observeEntriesInRange(date, date.plusDays(1)).first()
+
+        assertEquals(setOf(date, date.plusDays(1)), byDate.keys)
+        assertEquals(1, byDate.getValue(date).size)
+        assertEquals(20, byDate.getValue(date).first().sets.first().intensity.value)
+    }
+
+    @Test
+    fun `기간 조회는 범위 밖의 기록을 담지 않는다`() = runTest {
+        repository.addEntry(date, exercise, listOf(WorkoutSet(repeatCount = 10, intensity = Intensity.Weight(20))))
+
+        val byDate = repository.observeEntriesInRange(date.plusDays(1), date.plusDays(7)).first()
+
+        assertTrue(byDate.isEmpty())
+    }
+
+    @Test
+    fun `기간 조회는 기록이 없는 날짜를 담지 않는다`() = runTest {
+        repository.addEntry(date, exercise, listOf(WorkoutSet(repeatCount = 10, intensity = Intensity.Weight(20))))
+
+        val byDate = repository.observeEntriesInRange(date.minusDays(3), date).first()
+
+        assertEquals(setOf(date), byDate.keys)
+    }
+
+    @Test
+    fun `기간 조회의 세트는 저장한 순서를 지킨다`() = runTest {
+        repository.addEntry(
+            date,
+            exercise,
+            listOf(
+                WorkoutSet(repeatCount = 12, intensity = Intensity.Weight(10)),
+                WorkoutSet(repeatCount = 10, intensity = Intensity.Weight(20)),
+                WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(30)),
+            ),
+        )
+
+        val sets = repository.observeEntriesInRange(date, date).first().getValue(date).first().sets
+
+        assertEquals(listOf(10, 20, 30), sets.map { it.intensity.value })
+    }
 }

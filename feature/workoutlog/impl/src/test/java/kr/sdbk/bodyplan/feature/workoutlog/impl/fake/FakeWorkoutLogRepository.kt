@@ -16,6 +16,7 @@ import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 internal class FakeWorkoutLogRepository(
     initial: List<WorkoutEntry> = emptyList(),
     private val bodyPartsByDate: Map<LocalDate, Set<BodyPart>> = emptyMap(),
+    private val entriesByDate: Map<LocalDate, List<WorkoutEntry>> = emptyMap(),
 ) : WorkoutLogRepository {
     private val entries = MutableStateFlow(initial)
     private val memo = MutableStateFlow<String?>(null)
@@ -48,6 +49,12 @@ internal class FakeWorkoutLogRepository(
         entries.map {
             observeFailure?.let { failure -> throw failure }
             bodyPartsByDate.filterKeys { date -> !date.isBefore(from) && !date.isAfter(to) }
+        }
+
+    override fun observeEntriesInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<WorkoutEntry>>> =
+        entries.map {
+            observeFailure?.let { failure -> throw failure }
+            entriesByDate.filterKeys { date -> !date.isBefore(from) && !date.isAfter(to) }
         }
 
     override suspend fun getEntry(id: Long): WorkoutEntry? = entries.value.firstOrNull { it.id == id }

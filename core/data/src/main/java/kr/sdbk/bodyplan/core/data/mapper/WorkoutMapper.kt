@@ -59,6 +59,11 @@ internal fun newEntryEntity(date: LocalDate, exercise: Exercise, createdAtMillis
         createdAtMillis = createdAtMillis,
     )
 
+/** 기록이 없는 날짜는 결과에 넣지 않는다 — 빈 목록과 기록 없음을 호출부가 구분할 이유가 없다. */
+internal fun List<WorkoutEntryWithSets>.toEntriesByDate(): Map<LocalDate, List<WorkoutEntry>> =
+    groupBy { LocalDate.ofEpochDay(it.entry.dateEpochDay) }
+        .mapValues { (_, rows) -> rows.map { it.toDomain() } }
+
 /** 기록이 없는 날짜는 결과에 넣지 않는다. */
 internal fun List<DateBodyPart>.toBodyPartsByDate(): Map<LocalDate, Set<BodyPart>> =
     groupBy { LocalDate.ofEpochDay(it.dateEpochDay) }

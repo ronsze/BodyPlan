@@ -23,6 +23,11 @@ interface WorkoutEntryDao {
     )
     fun observeInRange(from: Long, to: Long): Flow<List<DateBodyPart>>
 
+    /** 기간 집계용. 부위만 보는 [observeInRange]와 달리 세트까지 싣는다. */
+    @Transaction
+    @Query("SELECT * FROM workout_entry WHERE dateEpochDay BETWEEN :from AND :to")
+    fun observeWithSetsInRange(from: Long, to: Long): Flow<List<WorkoutEntryWithSets>>
+
     @Transaction
     @Query("SELECT * FROM workout_entry WHERE id = :id")
     suspend fun getWithSets(id: Long): WorkoutEntryWithSets?

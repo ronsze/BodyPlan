@@ -101,6 +101,11 @@ class GetMonthlyDayStatusUseCaseTest {
         override fun observeBodyPartsInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, Set<BodyPart>>> =
             flowOf(recorded.filterKeys { it in from..to })
 
+        override fun observeEntriesInRange(
+            from: LocalDate,
+            to: LocalDate,
+        ): Flow<Map<LocalDate, List<WorkoutEntry>>> = error("사용하지 않음")
+
         override suspend fun getEntry(id: Long): WorkoutEntry? = error("사용하지 않음")
 
         override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long =

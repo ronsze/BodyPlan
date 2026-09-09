@@ -42,6 +42,14 @@ internal class FakeWorkoutEntryDao : WorkoutEntryDao {
             .distinct()
     }
 
+    override fun observeWithSetsInRange(from: Long, to: Long): Flow<List<WorkoutEntryWithSets>> =
+        combine(entries, sets) { e, s ->
+            e.values
+                .filter { it.dateEpochDay in from..to }
+                .sortedWith(compareBy({ it.dateEpochDay }, { it.createdAtMillis }, { it.id }))
+                .map { entry -> WorkoutEntryWithSets(entry, s.values.filter { it.entryId == entry.id }) }
+        }
+
     override suspend fun getWithSets(id: Long): WorkoutEntryWithSets? {
         val entry = entries.value[id] ?: return null
         return WorkoutEntryWithSets(entry, setsFor(id))
