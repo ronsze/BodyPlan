@@ -18,6 +18,7 @@ import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
 import kr.sdbk.bodyplan.core.local.dao.UserProfileDao
 import kr.sdbk.bodyplan.core.local.dao.WeightRecordDao
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
+import kr.sdbk.bodyplan.core.local.dao.WorkoutMemoDao
 import kr.sdbk.bodyplan.core.local.datastore.AppPreferences
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_1_2
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_2_3
@@ -26,6 +27,7 @@ import kr.sdbk.bodyplan.core.local.migration.MIGRATION_4_5
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_5_6
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_6_7
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_7_8
+import kr.sdbk.bodyplan.core.local.migration.MIGRATION_8_9
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -44,6 +46,7 @@ object LocalModule {
                 MIGRATION_5_6,
                 MIGRATION_6_7,
                 MIGRATION_7_8,
+                MIGRATION_8_9,
             )
             .build()
 
@@ -64,6 +67,9 @@ object LocalModule {
 
     @Provides
     fun provideWeightRecordDao(database: BodyPlanDatabase): WeightRecordDao = database.weightRecordDao()
+
+    @Provides
+    fun provideWorkoutMemoDao(database: BodyPlanDatabase): WorkoutMemoDao = database.workoutMemoDao()
 
     @Provides
     @Singleton

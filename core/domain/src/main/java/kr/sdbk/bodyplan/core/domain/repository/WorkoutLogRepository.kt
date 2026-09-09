@@ -23,4 +23,7 @@ interface WorkoutLogRepository {
     suspend fun updateEntry(entryId: Long, exercise: Exercise, sets: List<WorkoutSet>)
 
     suspend fun deleteEntry(id: Long)
+
+    /** 그날의 메모를 덮어쓴다. [text]가 공백뿐이면 메모를 지운다. */
+    suspend fun saveMemo(date: LocalDate, text: String)
 }

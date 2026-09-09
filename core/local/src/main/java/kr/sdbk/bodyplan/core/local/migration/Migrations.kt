@@ -122,3 +122,16 @@ internal val MIGRATION_7_8 = object : Migration(7, 8) {
         )
     }
 }
+
+/** 하루치 운동 메모 표를 더한다. 기존 기록은 건드리지 않는다. */
+internal val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `workout_memo` (" +
+                "`dateEpochDay` INTEGER NOT NULL, " +
+                "`text` TEXT NOT NULL, " +
+                "`updatedAtMillis` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`dateEpochDay`))",
+        )
+    }
+}

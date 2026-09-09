@@ -478,6 +478,10 @@ class AnalyzeWorkoutUseCaseTest {
         override suspend fun deleteEntry(id: Long) {
             error("사용하지 않음")
         }
+
+        override suspend fun saveMemo(date: LocalDate, text: String) {
+            error("사용하지 않음")
+        }
     }
 
     private inner class FakeUserProfileRepository : UserProfileRepository {

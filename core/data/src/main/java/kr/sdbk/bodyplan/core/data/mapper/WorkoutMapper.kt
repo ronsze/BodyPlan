@@ -11,6 +11,7 @@ import kr.sdbk.bodyplan.core.local.entity.DateBodyPart
 import kr.sdbk.bodyplan.core.local.entity.ExerciseEntity
 import kr.sdbk.bodyplan.core.local.entity.WorkoutEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.WorkoutEntryWithSets
+import kr.sdbk.bodyplan.core.local.entity.WorkoutMemoEntity
 import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
 
 internal fun ExerciseEntity.toDomain(): Exercise = Exercise(
@@ -62,3 +63,9 @@ internal fun newEntryEntity(date: LocalDate, exercise: Exercise, createdAtMillis
 internal fun List<DateBodyPart>.toBodyPartsByDate(): Map<LocalDate, Set<BodyPart>> =
     groupBy { LocalDate.ofEpochDay(it.dateEpochDay) }
         .mapValues { (_, rows) -> rows.map { BodyPart.valueOf(it.bodyPart) }.toSet() }
+
+internal fun newMemoEntity(date: LocalDate, text: String, updatedAtMillis: Long): WorkoutMemoEntity = WorkoutMemoEntity(
+    dateEpochDay = date.toEpochDay(),
+    text = text,
+    updatedAtMillis = updatedAtMillis,
+)
