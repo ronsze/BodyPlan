@@ -48,6 +48,8 @@ import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.dietlog.api.DietCalendarNavKey
 import kr.sdbk.bodyplan.feature.dietlog.impl.dietLogNavGraph
+import kr.sdbk.bodyplan.feature.home.api.HomeNavKey
+import kr.sdbk.bodyplan.feature.home.impl.homeNavGraph
 import kr.sdbk.bodyplan.feature.my.api.MyNavKey
 import kr.sdbk.bodyplan.feature.my.api.OnboardingNavKey
 import kr.sdbk.bodyplan.feature.my.impl.myNavGraph
@@ -136,6 +138,7 @@ fun BodyPlanMainScreen(
             ),
             entryProvider =
                 entryProvider {
+                    homeNavGraph(navigator)
                     workoutLogNavGraph(navigator)
                     dietLogNavGraph(navigator)
                     myNavGraph(navigator)
@@ -197,6 +200,7 @@ private fun MainTabItem(tab: MainTab, selected: Boolean, onClick: () -> Unit, mo
 
 /** 하단 탭. 각 탭은 그 일지의 캘린더를 백스택의 뿌리로 세운다. */
 private enum class MainTab(val label: String, val navKey: NavKey) {
+    HOME("홈", HomeNavKey),
     WORKOUT("운동 일지", WorkoutCalendarNavKey),
     DIET("식단 일지", DietCalendarNavKey),
     MY("마이", MyNavKey),
@@ -204,6 +208,7 @@ private enum class MainTab(val label: String, val navKey: NavKey) {
 
     val icon: Painter
         @Composable get() = when (this) {
+            HOME -> BodyPlanIcons.House
             WORKOUT -> BodyPlanIcons.Dumbbell
             DIET -> BodyPlanIcons.ForkKnifeCrossed
             MY -> BodyPlanIcons.User

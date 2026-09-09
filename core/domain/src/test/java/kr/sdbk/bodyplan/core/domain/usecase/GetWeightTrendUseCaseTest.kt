@@ -101,6 +101,54 @@ class GetWeightTrendUseCaseTest {
         // 최근 7일에 기록 2건뿐이어도 평균은 70.0이다. 나머지 5일을 0으로 세지 않는다.
         assertEquals(-4.0, trend.weeklyAverageChangeKg!!, DELTA)
     }
+
+    @Test
+    fun `두 구간 모두 기록이 있으면 최근·이전 주간 평균과 그 차가 주간 평균 변동과 같다`() {
+        val trend = trendOf(
+            today to 70.0,
+            daysAgo(6) to 72.0,
+            daysAgo(7) to 74.0,
+            daysAgo(13) to 76.0,
+        )
+
+        assertEquals(71.0, trend.recentWeeklyAverageKg!!, DELTA)
+        assertEquals(75.0, trend.previousWeeklyAverageKg!!, DELTA)
+        assertEquals(
+            trend.recentWeeklyAverageKg!! - trend.previousWeeklyAverageKg!!,
+            trend.weeklyAverageChangeKg!!,
+            DELTA,
+        )
+    }
+
+    @Test
+    fun `최근 구간에만 기록이 있으면 최근 평균만 있고 이전 평균과 주간 변동은 없다`() {
+        val trend = trendOf(today to 70.0, daysAgo(6) to 72.0)
+
+        assertEquals(71.0, trend.recentWeeklyAverageKg!!, DELTA)
+        assertNull(trend.previousWeeklyAverageKg)
+        assertNull(trend.weeklyAverageChangeKg)
+    }
+
+    @Test
+    fun `기록이 하나도 없으면 최근·이전 주간 평균도 없다`() {
+        val trend = trendOf()
+
+        assertNull(trend.recentWeeklyAverageKg)
+        assertNull(trend.previousWeeklyAverageKg)
+    }
+
+    @Test
+    fun `구간 안에 빠진 날이 있어도 기록이 있는 날만으로 최근·이전 주간 평균을 낸다`() {
+        val trend = trendOf(
+            today to 70.0,
+            daysAgo(1) to 70.0,
+            daysAgo(7) to 74.0,
+        )
+
+        // 최근 7일에 기록 2건뿐이어도 평균은 70.0이다. 나머지 5일을 0으로 세지 않는다.
+        assertEquals(70.0, trend.recentWeeklyAverageKg!!, DELTA)
+        assertEquals(74.0, trend.previousWeeklyAverageKg!!, DELTA)
+    }
 }
 
 private const val DELTA = 0.0001

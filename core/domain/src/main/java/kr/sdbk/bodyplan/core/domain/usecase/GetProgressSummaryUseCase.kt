@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.combine
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.Goal
+import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.ProgressDirection
 import kr.sdbk.bodyplan.core.domain.model.ProgressHeadline
 import kr.sdbk.bodyplan.core.domain.model.ProgressMetric
@@ -16,6 +17,7 @@ import kr.sdbk.bodyplan.core.domain.model.ProgressMetricKey
 import kr.sdbk.bodyplan.core.domain.model.ProgressSummary
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WeightRecord
+import kr.sdbk.bodyplan.core.domain.model.WeightTrend
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
@@ -72,31 +74,28 @@ constructor(
      * 넘기는 기록이 14일치라 월간 값은 나오지 않는다. 여기서는 주간 값만 쓴다.
      */
     private fun weightMetric(records: List<WeightRecord>, today: LocalDate, profile: UserProfile): ProgressMetric {
-        val change = getWeightTrend(records, today).weeklyAverageChangeKg
+        val trend = getWeightTrend(records, today)
         return ProgressMetric(
             key = ProgressMetricKey.WEIGHT,
-            changeValue = change,
-            direction = weightDirection(change, records, today, profile),
+            changeValue = trend.weeklyAverageChangeKg,
+            direction = weightDirection(trend, profile),
         )
     }
 
-    private fun weightDirection(
-        change: Double?,
-        records: List<WeightRecord>,
-        today: LocalDate,
-        profile: UserProfile,
-    ): ProgressDirection {
-        if (change == null) return ProgressDirection.UNKNOWN
+    private fun weightDirection(trend: WeightTrend, profile: UserProfile): ProgressDirection {
+        val change = trend.weeklyAverageChangeKg ?: return ProgressDirection.UNKNOWN
         if (abs(change) < WEIGHT_THRESHOLD_KG) return ProgressDirection.STEADY
 
         val targetWeight = profile.targetWeightKg?.toDouble()
-        val recentAverage = recentWeightAverage(records, today)
+        val recentAverage = trend.recentWeeklyAverageKg
+        val previousAverage = trend.previousWeeklyAverageKg
         return when {
             // 목표 체중이 있으면 늘었는지 줄었는지가 아니라 목표에 가까워졌는지를 본다.
-            Goal.TARGET_WEIGHT in profile.goals && targetWeight != null && recentAverage != null -> {
-                val previousAverage = recentAverage - change
+            Goal.TARGET_WEIGHT in profile.goals &&
+                targetWeight != null &&
+                recentAverage != null &&
+                previousAverage != null ->
                 improvingIf(abs(recentAverage - targetWeight) < abs(previousAverage - targetWeight))
-            }
 
             Goal.DIET in profile.goals -> improvingIf(change < 0)
 
@@ -107,23 +106,18 @@ constructor(
         }
     }
 
-    private fun recentWeightAverage(records: List<WeightRecord>, today: LocalDate): Double? {
-        val from = today.minusDays(COMPARE_DAYS - 1)
-        val values = records.filter { !it.date.isBefore(from) && !it.date.isAfter(today) }.map { it.weightKg }
-        return if (values.isEmpty()) null else values.average()
-    }
-
     private fun volumeMetric(
         entriesByDate: Map<LocalDate, List<WorkoutEntry>>,
         recentFrom: LocalDate,
         previousFrom: LocalDate,
         today: LocalDate,
     ): ProgressMetric {
-        val recent = summarizeWorkoutVolume(entriesByDate.between(recentFrom, today)).weightVolumeKg
-        val previous = summarizeWorkoutVolume(
-            entriesByDate.between(previousFrom, recentFrom.minusDays(1)),
-        ).weightVolumeKg
-        val hasAny = recent > 0 || previous > 0
+        val recentEntries = entriesByDate.between(recentFrom, today)
+        val previousEntries = entriesByDate.between(previousFrom, recentFrom.minusDays(1))
+        val recent = summarizeWorkoutVolume(recentEntries).weightVolumeKg
+        val previous = summarizeWorkoutVolume(previousEntries).weightVolumeKg
+        // 볼륨 합이 아니라 기록의 유무로 가른다 — 맨몸으로 남긴 0kg 기록도 기록이다.
+        val hasAny = recentEntries.hasWeightEntry() || previousEntries.hasWeightEntry()
         return metric(ProgressMetricKey.WORKOUT_VOLUME, if (hasAny) (recent - previous).toDouble() else null)
     }
 
@@ -186,6 +180,9 @@ constructor(
 
     private fun improvingIf(condition: Boolean): ProgressDirection =
         if (condition) ProgressDirection.IMPROVING else ProgressDirection.WORSENING
+
+    private fun Map<LocalDate, List<WorkoutEntry>>.hasWeightEntry(): Boolean =
+        values.any { entries -> entries.any { it.intensityType == IntensityType.WEIGHT } }
 
     private fun Map<LocalDate, List<WorkoutEntry>>.between(
         from: LocalDate,

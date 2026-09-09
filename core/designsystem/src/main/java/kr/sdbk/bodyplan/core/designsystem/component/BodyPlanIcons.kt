@@ -23,6 +23,7 @@ object BodyPlanIcons {
     val Bed: Painter @Composable get() = painterResource(R.drawable.ic_bed)
     val CameraOff: Painter @Composable get() = painterResource(R.drawable.ic_camera_off)
     val User: Painter @Composable get() = painterResource(R.drawable.ic_user)
+    val House: Painter @Composable get() = painterResource(R.drawable.ic_house)
 }
 
 /**

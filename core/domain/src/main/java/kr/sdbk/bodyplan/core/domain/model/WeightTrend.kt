@@ -10,4 +10,12 @@ data class WeightTrend(
     val dailyChangeKg: Double? = null,
     val weeklyAverageChangeKg: Double? = null,
     val monthlyAverageChangeKg: Double? = null,
+    /**
+     * 주간 변동을 이루는 두 구간의 평균. 화면은 쓰지 않고, 이 평균으로 판정하는 곳이 쓴다.
+     *
+     * 변동만 내면 호출부가 `최근평균 - 변동`으로 이전 평균을 역산하게 되는데, 그 유도는 평균법이
+     * 같을 때만 성립한다. 평균 규약이 여러 곳에 흩어지지 않게 여기서 함께 낸다.
+     */
+    val recentWeeklyAverageKg: Double? = null,
+    val previousWeeklyAverageKg: Double? = null,
 )

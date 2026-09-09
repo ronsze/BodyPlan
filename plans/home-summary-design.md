@@ -79,6 +79,13 @@
 `AnalysisResult`에서 쓰는 필드는 `measurement`(`InbodyMeasurement`)뿐이다. `id`·`kind`·`scopeKey`·`content`·`createdAtMillis`·`imagePath`는 **미사용**.
 `InbodyMeasurement`에서 쓰는 필드는 `skeletalMuscleKg`·`bodyFatKg`뿐이다. `weightKg`·`heightCm`은 **미사용** — 체중은 사람이 손수 넣은 `WeightRecord`만 쓴다(추정값과 섞지 않는다는 기존 판단).
 
+**`WeightTrend` 확장 (수정)** — 리뷰 뒤 사용자가 정했다.
+
+`recentWeeklyAverageKg: Double?`·`previousWeeklyAverageKg: Double?` 두 필드를 더하고 `GetWeightTrendUseCase`가 채운다.
+목표 체중 판정이 이전 구간 평균을 `최근평균 - 변화량`으로 역산하지 않고 받아 쓰게 하려는 것이다 — 역산은 두 계산이
+같은 평균법일 때만 성립해 평균 규약이 두 곳에 흩어진다. 기존 세 필드와 체중 화면의 표시는 그대로다.
+
+
 **신규 도메인 모델 `core/domain/model/ProgressSummary.kt`**
 
 ```kotlin
@@ -131,7 +138,7 @@ data class WorkoutVolume(val weightVolumeKg: Int, val workoutDays: Int)
 | 키 | `changeValue` | `UNKNOWN`이 되는 조건 |
 |---|---|---|
 | `WEIGHT` | `getWeightTrend(records, today).weeklyAverageChangeKg` | 두 구간 중 한쪽이라도 체중 기록이 없어 `null`일 때 |
-| `WORKOUT_VOLUME` | 최근 구간 `weightVolumeKg` − 앞 구간 `weightVolumeKg` (`Double`로 올림) | 두 구간 모두 무게 종목 기록이 0건일 때 |
+| `WORKOUT_VOLUME` | 최근 구간 `weightVolumeKg` − 앞 구간 `weightVolumeKg` (`Double`로 올림) | 두 구간 모두 무게 종목 기록이 0건일 때. 볼륨 합이 0인 것과 다르다 — 맨몸으로 남긴 0kg 기록도 기록이다 |
 | `WORKOUT_DAYS` | 최근 구간 `workoutDays` − 앞 구간 `workoutDays` (`Double`로 올림) | 두 구간 모두 기록이 0일일 때 |
 | `SKELETAL_MUSCLE` | 최신 `skeletalMuscleKg` − 그 이전 `skeletalMuscleKg` | 그 값이 있는 인바디 결과가 2건 미만일 때 |
 | `BODY_FAT` | 최신 `bodyFatKg` − 그 이전 `bodyFatKg` | 그 값이 있는 인바디 결과가 2건 미만일 때 |
@@ -165,13 +172,13 @@ data class WorkoutVolume(val weightVolumeKg: Int, val workoutDays: Int)
 | 필드 | 타입 | 초기값 | 출처 |
 |---|---|---|---|
 | `summary` | `ProgressSummary?` | `null` | `GetProgressSummaryUseCase` |
-| `isLoading` | `Boolean` | `false` | 구독 시작 시 `true`, 첫 방출·실패에 `false` |
 | `errorMessage` | `String?` | `null` | 구독 실패 시 `LOAD_ERROR` |
 
 - `HomeIntent`: `data object ClickRetry` — 구독을 취소하고 다시 연다(`WorkoutLogViewModel.observeLog`와 같은 짜임새).
 - `HomeEffect`: 멤버 없는 sealed interface. 홈은 이동도 토스트도 없다 — `BaseViewModel<S, I, E>`가 타입을 요구하므로 선언만 둔다.
 - 초기 로드는 `initializeData()`에서 구독을 연다.
-- 실패: `catch`로 받아 `isLoading = false`, `errorMessage = LOAD_ERROR`. 문구 상수 `LOAD_ERROR = "불러오지 못했습니다"`.
+- 실패: `catch`로 받아 `errorMessage = LOAD_ERROR`. 문구 상수 `LOAD_ERROR = "불러오지 못했습니다"`.
+- `isLoading`은 두지 않는다 — 리뷰 뒤 사용자가 정했다. 홈은 보여줄 것이 생기면 그리고 아니면 스피너라, 로딩 여부가 `summary == null`과 같은 뜻이 된다.
 
 ### 화면 구성
 
@@ -182,7 +189,7 @@ Column(fillMaxSize + background(Background))
 ├ BodyPlanTopBar(title = "홈")                       (재사용, onBack 없음)
 └ Box(weight 1f)
    ├ errorMessage != null → ErrorContent             (신규 — 홈 모듈 내 private)
-   ├ isLoading && summary == null → LoadingContent   (신규 — 홈 모듈 내 private)
+   ├ summary == null → LoadingContent                (신규 — 홈 모듈 내 private)
    └ else → Column(verticalScroll, padding 16.dp, spacedBy 12.dp)
         ├ ProgressCard(...)                          (신규)
         └ BodyCompositionCard(...)                   (신규)
@@ -297,6 +304,9 @@ internal fun MetricRow(metric: ProgressMetric, modifier: Modifier = Modifier)
 | `core/data/src/main/java/kr/sdbk/bodyplan/core/data/mapper/WorkoutMapper.kt` | 수정 | `List<WorkoutEntryWithSets>.toEntriesByDate()` 추가 |
 | `core/domain/src/main/java/kr/sdbk/bodyplan/core/domain/repository/WorkoutLogRepository.kt` | 수정 | `observeEntriesInRange(from, to): Flow<Map<LocalDate, List<WorkoutEntry>>>` 추가 |
 | `core/data/src/main/java/kr/sdbk/bodyplan/core/data/repository/WorkoutLogRepositoryImpl.kt` | 수정 | `observeEntriesInRange` 구현 |
+| `core/domain/src/main/java/kr/sdbk/bodyplan/core/domain/model/WeightTrend.kt` | 수정 | `recentWeeklyAverageKg`·`previousWeeklyAverageKg` 추가 |
+| `core/domain/src/main/java/kr/sdbk/bodyplan/core/domain/usecase/GetWeightTrendUseCase.kt` | 수정 | 두 필드를 채운다 |
+| `core/domain/src/test/java/kr/sdbk/bodyplan/core/domain/usecase/GetWeightTrendUseCaseTest.kt` | 수정 | 두 필드 케이스 추가 |
 | `core/domain/src/main/java/kr/sdbk/bodyplan/core/domain/model/WorkoutVolume.kt` | 신규 | `WorkoutVolume(weightVolumeKg, workoutDays)` |
 | `core/domain/src/main/java/kr/sdbk/bodyplan/core/domain/model/ProgressSummary.kt` | 신규 | `ProgressMetricKey`·`ProgressDirection`·`ProgressHeadline`·`ProgressMetric`·`ProgressSummary` |
 | `core/domain/src/main/java/kr/sdbk/bodyplan/core/domain/usecase/SummarizeWorkoutVolumeUseCase.kt` | 신규 | 순수 집계 |
@@ -353,6 +363,7 @@ internal fun MetricRow(metric: ProgressMetric, modifier: Modifier = Modifier)
 |---|---|
 | `WorkoutLogRepository` 인터페이스 확장 | 구현체 4곳: `WorkoutLogRepositoryImpl`, `feature/workoutlog/impl` 테스트의 `FakeWorkoutLogRepository`, `AnalyzeWorkoutUseCaseTest` 내부 가짜, `GetMonthlyDayStatusUseCaseTest` 내부 가짜 |
 | `WorkoutEntryDao` 확장 | `FakeWorkoutEntryDao`(`:core:data` 테스트). 기존 `observeInRange`를 쓰는 `GetMonthlyDayStatusUseCase`가 그대로인지 |
+| `WeightTrend` 필드 추가 | `WeightTrendCard`(마이 탭 체중 화면), `WeightViewModel`, `GetWeightTrendUseCaseTest` — 기존 세 필드를 건드리지 않는지 |
 | `BodyPlanIcons` 확장 | `BodyPlanMainScreen`의 `MainTab.icon`, `SectionRow`의 `ChevronRight` — 기존 프로퍼티를 건드리지 않는지 |
 | `MainTab` 맨 앞에 탭 추가 | 백스택 뿌리(`MainTab.entries.first().navKey`), 온보딩 완료 후 이동, 알림으로 들어오는 `startNavKey` 처리 — 셋 다 `first()`를 쓰므로 홈으로 바뀐다 |
 | 탭 4개로 늘어남 | `MainBottomBar`의 `Modifier.weight(1f)` 배분 — 좁은 화면에서 라벨이 줄바꿈되는지 |

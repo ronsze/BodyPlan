@@ -9,8 +9,8 @@ import kr.sdbk.bodyplan.core.data.mapper.newEntryEntity
 import kr.sdbk.bodyplan.core.data.mapper.newMemoEntity
 import kr.sdbk.bodyplan.core.data.mapper.toBodyPartsByDate
 import kr.sdbk.bodyplan.core.data.mapper.toDomain
-import kr.sdbk.bodyplan.core.data.mapper.toEntriesByDate
 import kr.sdbk.bodyplan.core.data.mapper.toEntities
+import kr.sdbk.bodyplan.core.data.mapper.toEntriesByDate
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
@@ -34,10 +34,7 @@ constructor(
         WorkoutLog(date = date, entries = rows.map { it.toDomain() }, memo = memo?.text)
     }
 
-    override fun observeEntriesInRange(
-        from: LocalDate,
-        to: LocalDate,
-    ): Flow<Map<LocalDate, List<WorkoutEntry>>> =
+    override fun observeEntriesInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<WorkoutEntry>>> =
         workoutEntryDao.observeWithSetsInRange(from.toEpochDay(), to.toEpochDay())
             .map { rows -> rows.toEntriesByDate() }
 

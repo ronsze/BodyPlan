@@ -30,6 +30,12 @@ constructor() {
             dailyChangeKg = dailyChange(byDate, today),
             weeklyAverageChangeKg = averageChange(byDate, today, WEEK_DAYS),
             monthlyAverageChangeKg = averageChange(byDate, today, MONTH_DAYS),
+            recentWeeklyAverageKg = average(byDate, today.minusDays(WEEK_DAYS - 1), today),
+            previousWeeklyAverageKg = average(
+                byDate,
+                today.minusDays(WEEK_DAYS * 2 - 1),
+                today.minusDays(WEEK_DAYS),
+            ),
         )
     }
 
