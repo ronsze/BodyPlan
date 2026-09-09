@@ -9,9 +9,11 @@ import kr.sdbk.bodyplan.feature.my.api.InbodyNavKey
 import kr.sdbk.bodyplan.feature.my.api.MyNavKey
 import kr.sdbk.bodyplan.feature.my.api.OnboardingNavKey
 import kr.sdbk.bodyplan.feature.my.api.ProfileNavKey
+import kr.sdbk.bodyplan.feature.my.api.WeightNavKey
 import kr.sdbk.bodyplan.feature.my.api.navigateToAiToken
 import kr.sdbk.bodyplan.feature.my.api.navigateToInbody
 import kr.sdbk.bodyplan.feature.my.api.navigateToProfile
+import kr.sdbk.bodyplan.feature.my.api.navigateToWeight
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.composable.AiTokenEvents
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.composable.AiTokenView
 import kr.sdbk.bodyplan.feature.my.impl.home.composable.MyEvents
@@ -21,6 +23,8 @@ import kr.sdbk.bodyplan.feature.my.impl.inbody.composable.InbodyView
 import kr.sdbk.bodyplan.feature.my.impl.onboarding.composable.OnboardingView
 import kr.sdbk.bodyplan.feature.my.impl.profile.composable.ProfileEvents
 import kr.sdbk.bodyplan.feature.my.impl.profile.composable.ProfileView
+import kr.sdbk.bodyplan.feature.my.impl.weight.composable.WeightEvents
+import kr.sdbk.bodyplan.feature.my.impl.weight.composable.WeightView
 
 fun BodyPlanEntryProviderScope.myNavGraph(navigator: BodyPlanNavigator) {
     entry<OnboardingNavKey> {
@@ -34,6 +38,7 @@ fun BodyPlanEntryProviderScope.myNavGraph(navigator: BodyPlanNavigator) {
                 goToAiToken = navigator::navigateToAiToken,
                 goToProfile = navigator::navigateToProfile,
                 goToInbody = navigator::navigateToInbody,
+                goToWeight = navigator::navigateToWeight,
             )
         }
         MyView(events = events, viewModel = hiltViewModel())
@@ -52,6 +57,11 @@ fun BodyPlanEntryProviderScope.myNavGraph(navigator: BodyPlanNavigator) {
             )
         }
         InbodyView(events = events, viewModel = hiltViewModel())
+    }
+
+    entry<WeightNavKey> {
+        val events = remember { WeightEvents(goBack = navigator::goBack) }
+        WeightView(events = events, viewModel = hiltViewModel())
     }
 
     entry<AiTokenNavKey> {

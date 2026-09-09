@@ -170,6 +170,21 @@ internal class MyViewModelTest {
         assertFalse(viewModel.uiState.value.profileFromInbody)
     }
 
+    @Test
+    fun `체중 줄을 누르면 체중 화면으로 이동한다`() = runTest {
+        val viewModel = viewModel()
+        val effects = mutableListOf<MyEffect>()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            viewModel.effect.collect { effects += it }
+        }
+        subscribe(viewModel)
+
+        viewModel.handleIntent(MyIntent.ClickWeight)
+        advanceUntilIdle()
+
+        assertTrue(effects.any { it is MyEffect.NavigateToWeight })
+    }
+
     private fun kotlinx.coroutines.test.TestScope.subscribe(viewModel: MyViewModel) {
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         advanceUntilIdle()

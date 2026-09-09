@@ -13,7 +13,10 @@ import kr.sdbk.bodyplan.core.local.dao.WeightRecordDao
 
 internal class WeightLogRepositoryImpl
 @Inject
-constructor(private val weightRecordDao: WeightRecordDao, private val clock: Clock) : WeightLogRepository {
+constructor(
+    private val weightRecordDao: WeightRecordDao,
+    private val clock: Clock,
+) : WeightLogRepository {
     override fun observeRecordsInRange(from: LocalDate, to: LocalDate): Flow<List<WeightRecord>> =
         weightRecordDao.observeInRange(from.toEpochDay(), to.toEpochDay())
             .map { entities -> entities.map { it.toDomain() } }

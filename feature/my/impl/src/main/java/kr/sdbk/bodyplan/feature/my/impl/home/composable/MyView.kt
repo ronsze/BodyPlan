@@ -27,12 +27,18 @@ import kr.sdbk.bodyplan.feature.my.impl.home.MyIntent
 import kr.sdbk.bodyplan.feature.my.impl.home.MyState
 import kr.sdbk.bodyplan.feature.my.impl.home.MyViewModel
 
-internal data class MyEvents(val goToAiToken: () -> Unit, val goToProfile: () -> Unit, val goToInbody: () -> Unit)
+internal data class MyEvents(
+    val goToAiToken: () -> Unit,
+    val goToProfile: () -> Unit,
+    val goToInbody: () -> Unit,
+    val goToWeight: () -> Unit,
+)
 
 internal data class MyUiEvents(
     val onClickAiToken: () -> Unit,
     val onClickProfile: () -> Unit,
     val onClickInbody: () -> Unit,
+    val onClickWeight: () -> Unit,
 )
 
 @Composable
@@ -50,6 +56,7 @@ internal fun MyView(events: MyEvents, viewModel: MyViewModel) {
             is MyEffect.NavigateToAiToken -> events.goToAiToken()
             is MyEffect.NavigateToProfile -> events.goToProfile()
             is MyEffect.NavigateToInbody -> events.goToInbody()
+            is MyEffect.NavigateToWeight -> events.goToWeight()
         }
     }
 }
@@ -60,6 +67,7 @@ private fun rememberUiEvents(viewModel: MyViewModel): MyUiEvents = remember {
         onClickAiToken = { viewModel.handleIntent(MyIntent.ClickAiToken) },
         onClickProfile = { viewModel.handleIntent(MyIntent.ClickProfile) },
         onClickInbody = { viewModel.handleIntent(MyIntent.ClickInbody) },
+        onClickWeight = { viewModel.handleIntent(MyIntent.ClickWeight) },
     )
 }
 
@@ -94,11 +102,17 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
                 onClick = uiEvents.onClickInbody,
                 description = "사진으로 체성분을 분석해요",
             )
+            SectionRow(
+                title = "체중 기록",
+                onClick = uiEvents.onClickWeight,
+                description = "매일 재고 변동을 확인해요",
+            )
         }
     }
 }
 
-private val previewUiEvents = MyUiEvents(onClickAiToken = {}, onClickProfile = {}, onClickInbody = {})
+private val previewUiEvents =
+    MyUiEvents(onClickAiToken = {}, onClickProfile = {}, onClickInbody = {}, onClickWeight = {})
 
 @Preview(showBackground = true, heightDp = 780)
 @Composable

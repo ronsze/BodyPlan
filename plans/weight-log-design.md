@@ -105,16 +105,18 @@ interface WeightLogRepository {
 **변동 계산** (`core/domain/usecase/GetWeightTrendUseCase.kt`)
 
 ```kotlin
-class GetWeightTrendUseCase @Inject constructor(
-    private val weightLogRepository: WeightLogRepository,
-    private val clock: Clock,
-) {
-    operator fun invoke(): Flow<WeightTrend>
+class GetWeightTrendUseCase @Inject constructor() {
+    operator fun invoke(records: List<WeightRecord>, today: LocalDate): WeightTrend
 }
 ```
 
-`LocalDate.now(clock)`을 함수 시작에서 한 번만 읽는다(`GetMonthlyDietStatusUseCase`와 같은 규칙).
-조회 구간은 `today.minusDays(59) .. today`, 60일. 구간 정의는 사용자가 고른 이동 구간 기준이다.
+**저장소를 스스로 구독하지 않고 이미 읽은 기록을 받는다**(2026-09-10 리뷰 반영). 스스로 구독하면
+화면이 목록에 쓰는 60일 구독과 같은 구간을 두 번 열게 되고, 저장할 때마다 두 흐름이 각각 다시 돌며
+조회가 실패하면 같은 문구가 두 번 뜬다. 기준일도 화면이 읽은 것을 넘겨받아 목록과 변동이 같은
+오늘을 쓴다.
+
+호출부가 넘기는 기록은 `today.minusDays(59) .. today`, 60일이어야 한다 — 월간 변동이 최근 30일과
+그 앞 30일을 견주기 때문이다. 구간 정의는 사용자가 고른 이동 구간 기준이다.
 
 | 값 | 정의 | `null`이 되는 조건 |
 |---|---|---|
@@ -136,7 +138,7 @@ State 필드 — 전부 초기값 포함:
 | `selectedDate` | `LocalDate?` | `null` | 초기화 때 `today`, 이후 `SelectDate` |
 | `input` | `String` | `""` | 선택 날짜의 기록 값 또는 `ChangeInput` |
 | `records` | `List<WeightRecord>` | `emptyList()` | `WeightLogRepository.observeRecordsInRange` (60일, 오래된 날짜부터) |
-| `trend` | `WeightTrend` | `WeightTrend()` | `GetWeightTrendUseCase` |
+| `trend` | `WeightTrend` | `WeightTrend()` | `GetWeightTrendUseCase(records, today)` — `records`가 방출될 때마다 다시 센다 |
 | `isLoading` | `Boolean` | `false` | 구독 시작에서 `true`, 첫 방출·실패에서 `false` |
 | `isSaving` | `Boolean` | `false` | 저장 시작/종료 |
 
@@ -159,9 +161,9 @@ Effect: `GoBack`, `ShowMessage(message: String)`.
 
 실패·경계 경로:
 
-- 조회 실패(`observeRecordsInRange` 또는 UseCase의 Flow가 던짐) → `isLoading = false`, `ShowMessage("체중 기록을 불러오지 못했습니다")`. 자동 재시도하지 않는다. 화면을 다시 열면 다시 구독한다.
+- 조회 실패(`observeRecordsInRange`가 던짐) → `isLoading = false`, `ShowMessage("체중 기록을 불러오지 못했습니다")`. 구독이 하나뿐이라 실패당 한 번만 뜬다. 자동 재시도하지 않는다. 화면을 다시 열면 다시 구독한다.
 - 저장 실패 → `isSaving = false`, `ShowMessage("체중을 저장하지 못했습니다")`. `input`은 그대로 둔다.
-- `ClickSave` 시 `selectedDate`가 `null`이거나 `canSave`가 `false`면 아무 일도 하지 않는다.
+- `ClickSave` 시 `selectedDate`가 `null`이거나 `canSave`가 `false`면 아무 일도 하지 않는다. `isSaving`은 코루틴을 띄우기 전에 세운다 — 버튼을 연타해도 저장이 한 번만 돈다(2026-09-10 리뷰 반영).
 - `ClickSave` 시 `isEditableDate(selectedDate)`가 `false`면(화면을 열어 둔 채 자정을 넘긴 경우) 저장하지 않고 `ShowMessage("오늘과 어제만 기록할 수 있어요")`. `IsEditableDateUseCase`의 `invoke(date: LocalDate)` 오버로드를 쓴다 — 지금 시각으로 다시 판정해야 하므로 `today`를 넘기는 오버로드를 쓰지 않는다.
 - 저장 성공 시 `input`을 지우지 않는다. 방금 넣은 값이 그 날짜의 값이므로 그대로 두는 것이 맞다.
 
@@ -200,7 +202,7 @@ Column(fillMaxSize, background(Background))
 
 신규 컴포저블:
 
-- `WeightInputCard(dates: List<LocalDate>, selectedDate: LocalDate?, input: String, canSave: Boolean, isSaving: Boolean, onSelectDate: (LocalDate) -> Unit, onChangeInput: (String) -> Unit, onClickSave: () -> Unit, modifier: Modifier = Modifier)` — `feature/my/impl/weight/composable/WeightInputCard.kt`. 날짜 칩 두 개, 소수 입력칸, 저장 버튼.
+- `WeightInputCard(dates: List<LocalDate>, today: LocalDate?, selectedDate: LocalDate?, input: String, canSave: Boolean, isSaving: Boolean, onSelectDate: (LocalDate) -> Unit, onChangeInput: (String) -> Unit, onClickSave: () -> Unit, modifier: Modifier = Modifier)` — `feature/my/impl/weight/composable/WeightInputCard.kt`. 날짜 칩 두 개, 소수 입력칸, 저장 버튼. 칩 문구는 `today`와 견줘 정한다. `isSaving`이면 버튼 문구가 `저장 중...`이다.
 - `WeightTrendCard(trend: WeightTrend, modifier: Modifier = Modifier)` — `.../composable/WeightTrendCard.kt`. 세 줄(제목 · 값).
 - `WeightHistoryCard(records: List<WeightRecord>, modifier: Modifier = Modifier)` — `.../composable/WeightHistoryCard.kt`. 최신순 목록.
 
@@ -217,7 +219,7 @@ Column(fillMaxSize, background(Background))
 - 상단 제목: `체중 기록`
 - 입력 카드 제목: `오늘의 체중`
 - 입력칸 placeholder: `72.4`
-- 저장 버튼: `저장`
+- 저장 버튼: `저장`, 저장 중에는 `저장 중...`
 - 변동 카드 제목: `변동`
 - 변동 항목 이름: `일간`, `주간 평균`, `월간 평균`
 - 변동 카드 설명: `최근 구간과 그 이전 같은 길이 구간의 차이입니다.`
@@ -335,3 +337,11 @@ Figma 시안: 해당 없음.
 
 자기 대조: 통과 (대조 15/15)
 - 고침: 데이터 계약, 상태 계약, 화면 구성, 구현 순서
+
+## 구현 후 갱신
+
+**2026-09-10** — 리뷰 발견을 반영해 계약을 고쳤다. 사용자가 반영 대상을 고른 뒤 갱신한 것이다.
+- `GetWeightTrendUseCase`가 저장소를 구독하지 않고 기록과 기준일을 받는 순수 계산이 됐다. 60일 구독이 하나로 줄고, 조회 실패 문구가 한 번만 뜬다.
+- `recentRecords`가 매번 정렬하지 않고 되집기만 한다.
+- `isSaving`을 코루틴 밖에서 세워 저장 연타를 막는다.
+- `WeightInputCard`가 `isSaving`을 받아 저장 중 버튼 문구를 바꾼다.

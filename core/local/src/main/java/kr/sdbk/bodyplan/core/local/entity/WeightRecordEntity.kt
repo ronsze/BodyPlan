@@ -10,8 +10,4 @@ import androidx.room.PrimaryKey
  * [updatedAtMillis]는 아직 화면에 쓰지 않는다. 언제 고친 값인지 나중에 보이려고 남긴다.
  */
 @Entity(tableName = "weight_record")
-data class WeightRecordEntity(
-    @PrimaryKey val dateEpochDay: Long,
-    val weightKg: Double,
-    val updatedAtMillis: Long,
-)
+data class WeightRecordEntity(@PrimaryKey val dateEpochDay: Long, val weightKg: Double, val updatedAtMillis: Long)
