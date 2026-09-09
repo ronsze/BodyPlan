@@ -109,3 +109,16 @@ internal val MIGRATION_6_7 = object : Migration(6, 7) {
         }
     }
 }
+
+/** 손으로 넣는 체중 기록 표를 더한다. 기존 기록은 건드리지 않는다. */
+internal val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `weight_record` (" +
+                "`dateEpochDay` INTEGER NOT NULL, " +
+                "`weightKg` REAL NOT NULL, " +
+                "`updatedAtMillis` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`dateEpochDay`))",
+        )
+    }
+}

@@ -24,6 +24,7 @@ import kr.sdbk.bodyplan.core.data.repository.ExerciseRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.InbodyImageRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.OnboardingRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.UserProfileRepositoryImpl
+import kr.sdbk.bodyplan.core.data.repository.WeightLogRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.WorkoutLogRepositoryImpl
 import kr.sdbk.bodyplan.core.data.work.AnalysisRunnerImpl
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
@@ -35,6 +36,7 @@ import kr.sdbk.bodyplan.core.domain.repository.ExerciseRepository
 import kr.sdbk.bodyplan.core.domain.repository.InbodyImageRepository
 import kr.sdbk.bodyplan.core.domain.repository.OnboardingRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
+import kr.sdbk.bodyplan.core.domain.repository.WeightLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 
 @Module
@@ -75,6 +77,10 @@ internal abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindInbodyImageRepository(impl: InbodyImageRepositoryImpl): InbodyImageRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWeightLogRepository(impl: WeightLogRepositoryImpl): WeightLogRepository
 
     @Binds
     @Singleton

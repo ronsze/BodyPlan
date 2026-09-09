@@ -16,3 +16,5 @@
 분류는 필요에 따라 추가·제거한다.
 
 ## 기록
+
+- 2026-09-10 | 규격 불일치 | skills/scaffold/references/local.md | 등록 절에 "배포 전까지 fallbackToDestructiveMigration(dropAllTables = true)을 쓰므로 마이그레이션을 쓰지 않는다"고 적혀 있으나, 실제 LocalModule은 fallback 없이 MIGRATION_1_2~6_7을 addMigrations로 등록한다. 버전을 올릴 때 마이그레이션을 빠뜨리게 하는 지시다 | 자체

@@ -6,11 +6,13 @@ import kr.sdbk.bodyplan.core.local.dao.AnalysisResultDao
 import kr.sdbk.bodyplan.core.local.dao.DietEntryDao
 import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
 import kr.sdbk.bodyplan.core.local.dao.UserProfileDao
+import kr.sdbk.bodyplan.core.local.dao.WeightRecordDao
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
 import kr.sdbk.bodyplan.core.local.entity.AnalysisResultEntity
 import kr.sdbk.bodyplan.core.local.entity.DietEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.ExerciseEntity
 import kr.sdbk.bodyplan.core.local.entity.UserProfileEntity
+import kr.sdbk.bodyplan.core.local.entity.WeightRecordEntity
 import kr.sdbk.bodyplan.core.local.entity.WorkoutEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
 
@@ -22,8 +24,9 @@ import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
         DietEntryEntity::class,
         UserProfileEntity::class,
         AnalysisResultEntity::class,
+        WeightRecordEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class BodyPlanDatabase : RoomDatabase() {
@@ -36,4 +39,6 @@ abstract class BodyPlanDatabase : RoomDatabase() {
     abstract fun userProfileDao(): UserProfileDao
 
     abstract fun analysisResultDao(): AnalysisResultDao
+
+    abstract fun weightRecordDao(): WeightRecordDao
 }
