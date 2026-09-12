@@ -514,3 +514,14 @@ fun BodyPlanNavigator.navigateToRoutineEntryEdit(routineId: Long, entryId: Long?
 
 자기 대조: 통과 (대조 15/15)
 - 고침: 상태 계약, 화면 구성, 네비게이션, 파일별 작업, 회귀 대상
+
+## 단위 B — 부위·종목 2단계 접기/펼치기 (2026-09-13)
+
+수준 표준. 일간 일지와 루틴 상세의 항목 목록을 부위 → 종목 → 세트로 묶고 두 단계 모두 접고 펼칠 수 있게 한다.
+
+- 접힘 상태는 화면 표시 상태라 ViewModel State에 두지 않는다. `core/ui/components/WorkoutEntryGroups.kt`의 `WorkoutEntryGroupExpansion`이 **접힌 키**만 `rememberSaveable`로 든다 — 기본이 전부 펼침이라 새 항목을 등록할 것이 없다. 키는 부위 `BodyPart.name`, 종목 `"<부위>/<exerciseId>"`.
+- `LazyListScope.workoutEntryGroups(entries, isEditable, expansion, onClickEntry, onClickDeleteEntry)`가 부위 헤더(부위명·`종목 N개`·화살표)와 종목 카드(종목명·`세트 N개`·화살표 → 세트 행, 편집 가능하면 `수정`·`삭제`)를 늘어놓는다. 같은 종목이 여러 건이면 종목 카드 하나 안에 구분선으로 나뉜다.
+- 단위 A의 `WorkoutEntryCard`는 종목 헤더와 이름이 겹쳐 지운다. 세트 행 표기는 새 파일로 옮겼다.
+- 루틴 관리(목록)는 하위가 종목이 아니라 루틴이라 이번 대상에서 뺐다.
+- 루틴 상세의 부위 `Badge`는 지운다 — 루틴은 부위 하나라 바로 아래 부위 헤더와 같은 글자가 두 번 보인다(리뷰 지적).
+- 검증: `:app:compileDebugKotlin` + 기존 테스트 + Preview(`WorkoutEntryGroupsPreview`·`…CollapsedPreview`, 일지·루틴 상세 Preview). ViewModel 계약 변경 없음이라 테스트 추가 없음.

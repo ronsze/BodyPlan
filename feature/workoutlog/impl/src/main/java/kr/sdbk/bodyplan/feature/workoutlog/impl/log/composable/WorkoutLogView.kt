@@ -37,7 +37,8 @@ import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
-import kr.sdbk.bodyplan.core.ui.components.WorkoutEntryCard
+import kr.sdbk.bodyplan.core.ui.components.rememberWorkoutEntryGroupExpansion
+import kr.sdbk.bodyplan.core.ui.components.workoutEntryGroups
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisPeriod
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogEffect
@@ -163,6 +164,7 @@ internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEv
 /** 메모는 운동 기록이 없는 날에도 보여야 해서 빈 상태 표시를 목록 안에 둔다. */
 @Composable
 private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
+    val expansion = rememberWorkoutEntryGroupExpansion()
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -183,14 +185,13 @@ private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
         if (state.entries.isEmpty()) {
             item { EmptyEntriesText() }
         }
-        items(items = state.entries, key = { it.id }) { entry ->
-            WorkoutEntryCard(
-                entry = entry,
-                isEditable = state.isEditable,
-                onClick = { uiEvents.onClickEntry(entry.id) },
-                onClickDelete = { uiEvents.onClickDeleteEntry(entry.id) },
-            )
-        }
+        workoutEntryGroups(
+            entries = state.entries,
+            isEditable = state.isEditable,
+            expansion = expansion,
+            onClickEntry = uiEvents.onClickEntry,
+            onClickDeleteEntry = uiEvents.onClickDeleteEntry,
+        )
     }
 }
 

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -22,7 +21,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kr.sdbk.bodyplan.core.designsystem.component.Badge
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
 import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
@@ -36,8 +34,8 @@ import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
-import kr.sdbk.bodyplan.core.ui.components.WorkoutEntryCard
-import kr.sdbk.bodyplan.core.ui.components.label
+import kr.sdbk.bodyplan.core.ui.components.rememberWorkoutEntryGroupExpansion
+import kr.sdbk.bodyplan.core.ui.components.workoutEntryGroups
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.routinedetail.RoutineDetailEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.routinedetail.RoutineDetailIntent
@@ -115,22 +113,21 @@ internal fun RoutineDetailViewImpl(state: RoutineDetailState, uiEvents: RoutineD
 
 @Composable
 private fun EntryList(routine: Routine, uiEvents: RoutineDetailUiEvents) {
+    val expansion = rememberWorkoutEntryGroupExpansion()
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { Badge(text = routine.bodyPart.label) }
         if (routine.entries.isEmpty()) {
             item { EmptyEntriesText() }
         }
-        items(items = routine.entries, key = { it.id }) { entry ->
-            WorkoutEntryCard(
-                entry = entry,
-                isEditable = true,
-                onClick = { uiEvents.onClickEntry(entry.id) },
-                onClickDelete = { uiEvents.onClickDeleteEntry(entry.id) },
-            )
-        }
+        workoutEntryGroups(
+            entries = routine.entries,
+            isEditable = true,
+            expansion = expansion,
+            onClickEntry = uiEvents.onClickEntry,
+            onClickDeleteEntry = uiEvents.onClickDeleteEntry,
+        )
     }
 }
 
