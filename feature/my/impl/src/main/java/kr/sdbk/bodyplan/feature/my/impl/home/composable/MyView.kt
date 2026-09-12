@@ -32,6 +32,7 @@ internal data class MyEvents(
     val goToProfile: () -> Unit,
     val goToInbody: () -> Unit,
     val goToWeight: () -> Unit,
+    val goToRoutine: () -> Unit,
 )
 
 internal data class MyUiEvents(
@@ -39,6 +40,7 @@ internal data class MyUiEvents(
     val onClickProfile: () -> Unit,
     val onClickInbody: () -> Unit,
     val onClickWeight: () -> Unit,
+    val onClickRoutine: () -> Unit,
 )
 
 @Composable
@@ -57,6 +59,7 @@ internal fun MyView(events: MyEvents, viewModel: MyViewModel) {
             is MyEffect.NavigateToProfile -> events.goToProfile()
             is MyEffect.NavigateToInbody -> events.goToInbody()
             is MyEffect.NavigateToWeight -> events.goToWeight()
+            is MyEffect.NavigateToRoutine -> events.goToRoutine()
         }
     }
 }
@@ -68,6 +71,7 @@ private fun rememberUiEvents(viewModel: MyViewModel): MyUiEvents = remember {
         onClickProfile = { viewModel.handleIntent(MyIntent.ClickProfile) },
         onClickInbody = { viewModel.handleIntent(MyIntent.ClickInbody) },
         onClickWeight = { viewModel.handleIntent(MyIntent.ClickWeight) },
+        onClickRoutine = { viewModel.handleIntent(MyIntent.ClickRoutine) },
     )
 }
 
@@ -107,12 +111,22 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
                 onClick = uiEvents.onClickWeight,
                 description = "매일 재고 변동을 확인해요",
             )
+            SectionRow(
+                title = "루틴 관리",
+                onClick = uiEvents.onClickRoutine,
+                description = "부위별 루틴을 만들어 일지에 불러와요",
+            )
         }
     }
 }
 
-private val previewUiEvents =
-    MyUiEvents(onClickAiToken = {}, onClickProfile = {}, onClickInbody = {}, onClickWeight = {})
+private val previewUiEvents = MyUiEvents(
+    onClickAiToken = {},
+    onClickProfile = {},
+    onClickInbody = {},
+    onClickWeight = {},
+    onClickRoutine = {},
+)
 
 @Preview(showBackground = true, heightDp = 780)
 @Composable

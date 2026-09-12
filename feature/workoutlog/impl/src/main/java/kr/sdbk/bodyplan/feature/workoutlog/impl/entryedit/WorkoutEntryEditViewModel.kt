@@ -5,7 +5,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.time.LocalDate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
@@ -18,9 +17,9 @@ import kr.sdbk.bodyplan.core.domain.model.WorkoutOptions
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.model.countsRepeats
 import kr.sdbk.bodyplan.core.domain.repository.ExerciseRepository
+import kr.sdbk.bodyplan.core.domain.repository.RoutineRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
-import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutEntryEditNavKey
 
 @HiltViewModel(assistedFactory = WorkoutEntryEditViewModel.Factory::class)
 internal class WorkoutEntryEditViewModel
@@ -28,23 +27,29 @@ internal class WorkoutEntryEditViewModel
 constructor(
     private val exerciseRepository: ExerciseRepository,
     private val workoutLogRepository: WorkoutLogRepository,
-    @Assisted navKey: WorkoutEntryEditNavKey,
+    private val routineRepository: RoutineRepository,
+    @Assisted target: WorkoutEntryEditTarget,
+    @Assisted editingEntryId: Long?,
 ) : BaseViewModel<WorkoutEntryEditState, WorkoutEntryEditIntent, WorkoutEntryEditEffect>(
-    initialState = WorkoutEntryEditState(
-        date = LocalDate.ofEpochDay(navKey.dateEpochDay),
-        editingEntryId = navKey.entryId,
-    ),
+    initialState = WorkoutEntryEditState(target = target, editingEntryId = editingEntryId),
 ) {
     private var exercisesJob: Job? = null
 
     override suspend fun initializeData() {
-        val entryId = state.value.editingEntryId ?: return
-        restoreEntry(entryId)
+        val entryId = state.value.editingEntryId
+        when {
+            entryId != null -> restoreEntry(entryId)
+
+            // 루틴은 부위가 정해져 있어 고르게 하지 않고 바로 그 부위 종목을 연다.
+            state.value.target is WorkoutEntryEditTarget.Routine -> loadRoutineBodyPart()
+        }
     }
 
     override fun handleIntent(intent: WorkoutEntryEditIntent) {
         when (intent) {
-            is WorkoutEntryEditIntent.SelectBodyPart -> selectBodyPart(intent.bodyPart)
+            // 탭이 없지만 상태 쪽에서도 막는다 — 루틴 항목의 부위는 루틴이 정한다.
+            is WorkoutEntryEditIntent.SelectBodyPart ->
+                if (!state.value.isBodyPartLocked) selectBodyPart(intent.bodyPart)
 
             is WorkoutEntryEditIntent.SelectExercise -> selectExercise(intent.id)
 
@@ -72,13 +77,29 @@ constructor(
             viewModelScope.launch { restoreEntry(entryId) }
             return
         }
-        state.value.selectedBodyPart?.let(::observeExercises)
+        // 부위가 이미 정해졌으면 종목 구독만 실패한 것이다. 루틴을 다시 읽어 부위를 되돌리지 않는다.
+        val bodyPart = state.value.selectedBodyPart
+        if (bodyPart != null) {
+            observeExercises(bodyPart)
+            return
+        }
+        if (state.value.target is WorkoutEntryEditTarget.Routine) {
+            viewModelScope.launch { loadRoutineBodyPart() }
+        }
+    }
+
+    private suspend fun loadRoutineBodyPart() {
+        val routineId = (state.value.target as? WorkoutEntryEditTarget.Routine)?.routineId ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
+        runCatching { requireNotNull(routineRepository.getRoutine(routineId)) { "루틴이 없습니다" } }
+            .onSuccess { routine -> selectBodyPart(routine.bodyPart) }
+            .onFailure { updateState { it.copy(isLoading = false, errorMessage = LOAD_ERROR) } }
     }
 
     private suspend fun restoreEntry(entryId: Long) {
         updateState { it.copy(isLoading = true, errorMessage = null) }
         runCatching {
-            val entry = requireNotNull(workoutLogRepository.getEntry(entryId)) { "기록이 없습니다" }
+            val entry = requireNotNull(getStoredEntry(entryId)) { "기록이 없습니다" }
             entry to resolveExercise(entry)
         }.onSuccess { (entry, exercise) ->
             updateState { current ->
@@ -101,6 +122,11 @@ constructor(
         }.onFailure {
             updateState { it.copy(isLoading = false, errorMessage = LOAD_ERROR) }
         }
+    }
+
+    private suspend fun getStoredEntry(entryId: Long): WorkoutEntry? = when (state.value.target) {
+        is WorkoutEntryEditTarget.Log -> workoutLogRepository.getEntry(entryId)
+        is WorkoutEntryEditTarget.Routine -> routineRepository.getEntry(entryId)
     }
 
     /** 종목이 지워졌으면 기록의 스냅샷으로 되살린다. 지운 종목의 기록도 세트는 고칠 수 있어야 한다. */
@@ -199,12 +225,7 @@ constructor(
                 )
             }
             runCatching {
-                val entryId = current.editingEntryId
-                if (entryId == null) {
-                    workoutLogRepository.addEntry(current.date, exercise, sets)
-                } else {
-                    workoutLogRepository.updateEntry(entryId, exercise, sets)
-                }
+                saveTo(current.target, current.editingEntryId, exercise, sets)
             }.onSuccess {
                 updateState { it.copy(isSaving = false) }
                 updateEffect(WorkoutEntryEditEffect.GoBack)
@@ -215,9 +236,32 @@ constructor(
         }
     }
 
+    private suspend fun saveTo(
+        target: WorkoutEntryEditTarget,
+        entryId: Long?,
+        exercise: Exercise,
+        sets: List<WorkoutSet>,
+    ) {
+        when (target) {
+            is WorkoutEntryEditTarget.Log ->
+                if (entryId == null) {
+                    workoutLogRepository.addEntry(target.date, exercise, sets)
+                } else {
+                    workoutLogRepository.updateEntry(entryId, exercise, sets)
+                }
+
+            is WorkoutEntryEditTarget.Routine ->
+                if (entryId == null) {
+                    routineRepository.addEntry(target.routineId, exercise, sets)
+                } else {
+                    routineRepository.updateEntry(entryId, exercise, sets)
+                }
+        }
+    }
+
     @AssistedFactory
     interface Factory {
-        fun create(navKey: WorkoutEntryEditNavKey): WorkoutEntryEditViewModel
+        fun create(target: WorkoutEntryEditTarget, editingEntryId: Long?): WorkoutEntryEditViewModel
     }
 }
 

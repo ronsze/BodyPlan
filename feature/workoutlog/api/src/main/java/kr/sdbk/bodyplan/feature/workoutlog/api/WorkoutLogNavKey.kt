@@ -24,6 +24,16 @@ data object ExerciseManageNavKey : BodyPlanNavKey()
 @Serializable
 data object ExerciseTrendNavKey : BodyPlanNavKey()
 
+@Serializable
+data object RoutineListNavKey : BodyPlanNavKey()
+
+@Serializable
+data class RoutineDetailNavKey(val routineId: Long) : BodyPlanNavKey()
+
+/** 운동 편집 화면을 루틴 대상으로 연다. 일지 대상은 [WorkoutEntryEditNavKey]다 — 한 키에 두 대상을 섞지 않는다. */
+@Serializable
+data class RoutineEntryEditNavKey(val routineId: Long, val entryId: Long? = null) : BodyPlanNavKey()
+
 /** 분석 화면 하나가 셋을 겸한다. 기간만 다르고 화면이 하는 일은 같다. */
 enum class WorkoutAnalysisPeriod { DAILY, WEEKLY, MONTHLY }
 
@@ -41,6 +51,13 @@ fun BodyPlanNavigator.navigateToWorkoutEntryEdit(date: LocalDate, entryId: Long?
 fun BodyPlanNavigator.navigateToExerciseManage() = navigate(ExerciseManageNavKey)
 
 fun BodyPlanNavigator.navigateToExerciseTrend() = navigate(ExerciseTrendNavKey)
+
+fun BodyPlanNavigator.navigateToRoutineList() = navigate(RoutineListNavKey)
+
+fun BodyPlanNavigator.navigateToRoutineDetail(routineId: Long) = navigate(RoutineDetailNavKey(routineId))
+
+fun BodyPlanNavigator.navigateToRoutineEntryEdit(routineId: Long, entryId: Long? = null) =
+    navigate(RoutineEntryEditNavKey(routineId, entryId))
 
 fun BodyPlanNavigator.navigateToWorkoutAnalysis(period: WorkoutAnalysisPeriod, date: LocalDate) =
     navigate(WorkoutAnalysisNavKey(period, date.toEpochDay()))

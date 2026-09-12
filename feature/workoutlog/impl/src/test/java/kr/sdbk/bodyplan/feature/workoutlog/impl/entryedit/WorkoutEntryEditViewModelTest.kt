@@ -8,12 +8,13 @@ import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
+import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutOptions
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
-import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutEntryEditNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.impl.MainDispatcherRule
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeExerciseRepository
+import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeRoutineRepository
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeWorkoutLogRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,10 +41,14 @@ internal class WorkoutEntryEditViewModelTest {
             listOf(benchPress, pushUp, latPullDown, running),
         ),
         workoutLogRepository: FakeWorkoutLogRepository = FakeWorkoutLogRepository(),
+        routineRepository: FakeRoutineRepository = FakeRoutineRepository(),
+        target: WorkoutEntryEditTarget = WorkoutEntryEditTarget.Log(date),
     ) = WorkoutEntryEditViewModel(
         exerciseRepository = exerciseRepository,
         workoutLogRepository = workoutLogRepository,
-        navKey = WorkoutEntryEditNavKey(date.toEpochDay(), entryId),
+        routineRepository = routineRepository,
+        target = target,
+        editingEntryId = entryId,
     )
 
     @Test
@@ -336,6 +341,103 @@ internal class WorkoutEntryEditViewModelTest {
 
         assertNotNull(viewModel.uiState.value.errorMessage)
         assertFalse(viewModel.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `루틴 대상으로 열면 그 루틴의 부위가 고정되고 종목이 실린다`() = runTest {
+        val routine = Routine(id = 1L, name = "하체 루틴", bodyPart = BodyPart.BACK, entries = emptyList())
+        val routineRepository = FakeRoutineRepository(listOf(routine))
+        val viewModel = viewModel(routineRepository = routineRepository, target = WorkoutEntryEditTarget.Routine(1L))
+
+        subscribe(viewModel)
+
+        assertEquals(BodyPart.BACK, viewModel.uiState.value.selectedBodyPart)
+        assertEquals(listOf(3L), viewModel.uiState.value.exercises.map { it.id })
+        assertTrue(viewModel.uiState.value.isBodyPartLocked)
+    }
+
+    @Test
+    fun `루틴 대상에서는 부위 선택이 무시된다`() = runTest {
+        val routine = Routine(id = 1L, name = "하체 루틴", bodyPart = BodyPart.BACK, entries = emptyList())
+        val routineRepository = FakeRoutineRepository(listOf(routine))
+        val viewModel = viewModel(routineRepository = routineRepository, target = WorkoutEntryEditTarget.Routine(1L))
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CHEST))
+        advanceUntilIdle()
+
+        assertEquals(BodyPart.BACK, viewModel.uiState.value.selectedBodyPart)
+    }
+
+    @Test
+    fun `루틴 대상 신규 저장은 RoutineRepository addEntry를 부른다`() = runTest {
+        val routine = Routine(id = 1L, name = "가슴 루틴", bodyPart = BodyPart.CHEST, entries = emptyList())
+        val routineRepository = FakeRoutineRepository(listOf(routine))
+        val viewModel = viewModel(routineRepository = routineRepository, target = WorkoutEntryEditTarget.Routine(1L))
+        val effects = collectEffects(viewModel)
+        subscribe(viewModel)
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(benchPress.id))
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
+        advanceUntilIdle()
+
+        assertEquals(1, routineRepository.addedEntryCount)
+        assertEquals(benchPress, routineRepository.lastSavedExercise)
+        assertTrue(effects.any { it is WorkoutEntryEditEffect.GoBack })
+    }
+
+    @Test
+    fun `루틴 대상 수정 저장은 RoutineRepository updateEntry를 부른다`() = runTest {
+        val routine = Routine(id = 1L, name = "가슴 루틴", bodyPart = BodyPart.CHEST, entries = listOf(storedEntry()))
+        val routineRepository = FakeRoutineRepository(listOf(routine))
+        val viewModel = viewModel(
+            entryId = storedEntry().id,
+            routineRepository = routineRepository,
+            target = WorkoutEntryEditTarget.Routine(1L),
+        )
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
+        advanceUntilIdle()
+
+        assertEquals(storedEntry().id, routineRepository.lastUpdatedEntryId)
+        assertEquals(0, routineRepository.addedEntryCount)
+    }
+
+    @Test
+    fun `루틴 대상 수정 진입은 RoutineRepository getEntry로 복원된다`() = runTest {
+        val routine = Routine(id = 1L, name = "가슴 루틴", bodyPart = BodyPart.CHEST, entries = listOf(storedEntry()))
+        val routineRepository = FakeRoutineRepository(listOf(routine))
+        val viewModel = viewModel(
+            entryId = storedEntry().id,
+            routineRepository = routineRepository,
+            target = WorkoutEntryEditTarget.Routine(1L),
+        )
+
+        subscribe(viewModel)
+
+        val state = viewModel.uiState.value
+        assertEquals(BodyPart.CHEST, state.selectedBodyPart)
+        assertEquals(benchPress.id, state.selectedExercise?.id)
+        assertEquals(listOf(40, 45), state.sets.map { it.intensityValue })
+    }
+
+    @Test
+    fun `루틴이 없으면 에러가 실리고 재시도가 다시 조회한다`() = runTest {
+        val routineRepository = FakeRoutineRepository()
+        val viewModel = viewModel(routineRepository = routineRepository, target = WorkoutEntryEditTarget.Routine(1L))
+
+        subscribe(viewModel)
+
+        assertNotNull(viewModel.uiState.value.errorMessage)
+        assertFalse(viewModel.uiState.value.isLoading)
+
+        routineRepository.addRoutine("가슴 루틴", BodyPart.CHEST)
+        viewModel.handleIntent(WorkoutEntryEditIntent.ClickRetry)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.errorMessage)
+        assertEquals(BodyPart.CHEST, viewModel.uiState.value.selectedBodyPart)
     }
 
     private fun kotlinx.coroutines.test.TestScope.subscribe(viewModel: WorkoutEntryEditViewModel) {

@@ -25,6 +25,7 @@ import kr.sdbk.bodyplan.feature.my.impl.profile.composable.ProfileEvents
 import kr.sdbk.bodyplan.feature.my.impl.profile.composable.ProfileView
 import kr.sdbk.bodyplan.feature.my.impl.weight.composable.WeightEvents
 import kr.sdbk.bodyplan.feature.my.impl.weight.composable.WeightView
+import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToRoutineList
 
 fun BodyPlanEntryProviderScope.myNavGraph(navigator: BodyPlanNavigator) {
     entry<OnboardingNavKey> {
@@ -39,6 +40,7 @@ fun BodyPlanEntryProviderScope.myNavGraph(navigator: BodyPlanNavigator) {
                 goToProfile = navigator::navigateToProfile,
                 goToInbody = navigator::navigateToInbody,
                 goToWeight = navigator::navigateToWeight,
+                goToRoutine = navigator::navigateToRoutineList,
             )
         }
         MyView(events = events, viewModel = hiltViewModel())

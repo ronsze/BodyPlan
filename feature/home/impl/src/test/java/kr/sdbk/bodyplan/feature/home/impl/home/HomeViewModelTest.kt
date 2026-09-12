@@ -127,6 +127,10 @@ internal class HomeViewModelTest {
         override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long =
             error("사용하지 않음")
 
+        override suspend fun addEntries(date: LocalDate, entries: List<WorkoutEntry>) {
+            error("사용하지 않음")
+        }
+
         override suspend fun updateEntry(entryId: Long, exercise: Exercise, sets: List<WorkoutSet>) {
             error("사용하지 않음")
         }

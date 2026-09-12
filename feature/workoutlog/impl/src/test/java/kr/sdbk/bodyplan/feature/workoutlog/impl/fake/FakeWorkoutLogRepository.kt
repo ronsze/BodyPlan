@@ -35,6 +35,8 @@ internal class FakeWorkoutLogRepository(
         private set
     var lastSavedMemo: String? = null
         private set
+    var lastAddedEntries: List<WorkoutEntry>? = null
+        private set
     var saveMemoCallCount: Int = 0
         private set
 
@@ -70,6 +72,14 @@ internal class FakeWorkoutLogRepository(
         lastSavedExercise = exercise
         lastSavedSets = sets
         return 100L
+    }
+
+    override suspend fun addEntries(date: LocalDate, entries: List<WorkoutEntry>) {
+        mutateFailure?.let { throw it }
+        lastAddedEntries = entries
+        // 실제 구현과 같이 id를 새로 매겨 뒤에 덧붙인다.
+        val nextId = (this.entries.value.maxOfOrNull { it.id } ?: 0L) + 1
+        this.entries.value = this.entries.value + entries.mapIndexed { index, entry -> entry.copy(id = nextId + index) }
     }
 
     override suspend fun updateEntry(entryId: Long, exercise: Exercise, sets: List<WorkoutSet>) {

@@ -59,6 +59,20 @@ internal fun newEntryEntity(date: LocalDate, exercise: Exercise, createdAtMillis
         createdAtMillis = createdAtMillis,
     )
 
+/** 루틴 항목을 그날 기록으로 옮긴다. `id`는 비워 새 행으로 들어가게 한다. */
+internal fun WorkoutEntry.toEntityWithSets(date: LocalDate, createdAtMillis: Long): WorkoutEntryWithSets =
+    WorkoutEntryWithSets(
+        entry = WorkoutEntryEntity(
+            dateEpochDay = date.toEpochDay(),
+            exerciseId = exerciseId,
+            exerciseName = exerciseName,
+            bodyPart = bodyPart.name,
+            intensityType = intensityType.name,
+            createdAtMillis = createdAtMillis,
+        ),
+        sets = sets.toEntities(entryId = 0L),
+    )
+
 /** 기록이 없는 날짜는 결과에 넣지 않는다 — 빈 목록과 기록 없음을 호출부가 구분할 이유가 없다. */
 internal fun List<WorkoutEntryWithSets>.toEntriesByDate(): Map<LocalDate, List<WorkoutEntry>> =
     groupBy { LocalDate.ofEpochDay(it.entry.dateEpochDay) }

@@ -22,6 +22,8 @@ internal sealed interface MyIntent : Intent {
     data object ClickInbody : MyIntent
 
     data object ClickWeight : MyIntent
+
+    data object ClickRoutine : MyIntent
 }
 
 internal sealed interface MyEffect : Effect {
@@ -32,4 +34,6 @@ internal sealed interface MyEffect : Effect {
     data object NavigateToInbody : MyEffect
 
     data object NavigateToWeight : MyEffect
+
+    data object NavigateToRoutine : MyEffect
 }

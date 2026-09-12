@@ -26,6 +26,14 @@ interface WorkoutLogRepository {
 
     suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long
 
+    /**
+     * 여러 건을 한 번에 넣는다. 루틴을 불러올 때 쓴다.
+     *
+     * 각 항목의 `id`는 무시하고 새 기록으로 넣으며, 하나라도 실패하면 아무것도 남지 않는다.
+     * 순서는 [entries]의 순서를 따른다.
+     */
+    suspend fun addEntries(date: LocalDate, entries: List<WorkoutEntry>)
+
     /** 종목까지 바꿀 수 있으므로 [exercise]를 받아 스냅샷을 갱신하고 세트를 갈아끼운다. */
     suspend fun updateEntry(entryId: Long, exercise: Exercise, sets: List<WorkoutSet>)
 
