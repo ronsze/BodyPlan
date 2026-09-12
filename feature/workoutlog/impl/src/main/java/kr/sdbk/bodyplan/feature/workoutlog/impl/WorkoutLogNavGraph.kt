@@ -2,11 +2,13 @@ package kr.sdbk.bodyplan.feature.workoutlog.impl
 
 import androidx.compose.runtime.remember
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import java.time.LocalDate
 import kr.sdbk.bodyplan.core.navigation.BodyPlanEntryProviderScope
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.my.api.navigateToAiToken
 import kr.sdbk.bodyplan.feature.workoutlog.api.ExerciseManageNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.ExerciseTrendNavKey
+import kr.sdbk.bodyplan.feature.workoutlog.api.RoutineEntryEditNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutCalendarNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutEntryEditNavKey
@@ -21,6 +23,7 @@ import kr.sdbk.bodyplan.feature.workoutlog.impl.analysis.composable.WorkoutAnaly
 import kr.sdbk.bodyplan.feature.workoutlog.impl.analysis.composable.WorkoutAnalysisView
 import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.composable.WorkoutCalendarEvents
 import kr.sdbk.bodyplan.feature.workoutlog.impl.calendar.composable.WorkoutCalendarView
+import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.WorkoutEntryEditTarget
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.WorkoutEntryEditViewModel
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.composable.WorkoutEntryEditEvents
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.composable.WorkoutEntryEditView
@@ -91,7 +94,17 @@ fun BodyPlanEntryProviderScope.workoutLogNavGraph(navigator: BodyPlanNavigator) 
         WorkoutEntryEditView(
             events = events,
             viewModel = hiltViewModel<WorkoutEntryEditViewModel, WorkoutEntryEditViewModel.Factory> {
-                it.create(navKey)
+                it.create(WorkoutEntryEditTarget.Log(LocalDate.ofEpochDay(navKey.dateEpochDay)), navKey.entryId)
+            },
+        )
+    }
+
+    entry<RoutineEntryEditNavKey> { navKey ->
+        val events = remember { WorkoutEntryEditEvents(goBack = navigator::goBack) }
+        WorkoutEntryEditView(
+            events = events,
+            viewModel = hiltViewModel<WorkoutEntryEditViewModel, WorkoutEntryEditViewModel.Factory> {
+                it.create(WorkoutEntryEditTarget.Routine(navKey.routineId), navKey.entryId)
             },
         )
     }

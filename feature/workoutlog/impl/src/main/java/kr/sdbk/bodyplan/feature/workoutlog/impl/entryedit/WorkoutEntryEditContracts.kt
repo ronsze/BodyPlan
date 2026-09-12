@@ -14,8 +14,15 @@ import kr.sdbk.bodyplan.core.ui.coordinator.State
  */
 internal data class SetInput(val id: Long, val repeatCount: Int, val intensityValue: Int)
 
+/** 저장 대상. 일지는 날짜에, 루틴은 루틴 id에 묶인다. */
+internal sealed interface WorkoutEntryEditTarget {
+    data class Log(val date: LocalDate) : WorkoutEntryEditTarget
+
+    data class Routine(val routineId: Long) : WorkoutEntryEditTarget
+}
+
 internal data class WorkoutEntryEditState(
-    val date: LocalDate,
+    val target: WorkoutEntryEditTarget,
     val editingEntryId: Long? = null,
     val selectedBodyPart: BodyPart? = null,
     val exercises: List<Exercise> = emptyList(),
@@ -37,6 +44,9 @@ internal data class WorkoutEntryEditState(
         }
 
     val canSave: Boolean get() = selectedExercise != null && sets.isNotEmpty() && !isSaving
+
+    /** 루틴은 부위 하나에 묶여 있어 항목의 부위를 고르게 하지 않는다. */
+    val isBodyPartLocked: Boolean get() = target is WorkoutEntryEditTarget.Routine
 
     val canAddSet: Boolean get() = selectedExercise != null && sets.size < WorkoutOptions.MAX_SET_COUNT
 

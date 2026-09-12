@@ -55,6 +55,7 @@ import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.SetInput
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.WorkoutEntryEditEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.WorkoutEntryEditIntent
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.WorkoutEntryEditState
+import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.WorkoutEntryEditTarget
 import kr.sdbk.bodyplan.feature.workoutlog.impl.entryedit.WorkoutEntryEditViewModel
 
 internal data class WorkoutEntryEditEvents(val goBack: () -> Unit)
@@ -126,12 +127,14 @@ internal fun WorkoutEntryEditViewImpl(state: WorkoutEntryEditState, uiEvents: Wo
             onBack = uiEvents.onBackPressed,
         )
 
-        BodyPartTabRow(
-            selected = state.selectedBodyPart,
-            onSelect = uiEvents.onSelectBodyPart,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        VerticalSpacer(space = 12.dp)
+        if (!state.isBodyPartLocked) {
+            BodyPartTabRow(
+                selected = state.selectedBodyPart,
+                onSelect = uiEvents.onSelectBodyPart,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            VerticalSpacer(space = 12.dp)
+        }
 
         Box(modifier = Modifier.weight(1f)) {
             when {
@@ -351,7 +354,7 @@ private fun WorkoutEntryEditViewImplPreview() {
     BodyPlanTheme {
         WorkoutEntryEditViewImpl(
             state = WorkoutEntryEditState(
-                date = LocalDate.of(2026, 9, 7),
+                target = WorkoutEntryEditTarget.Log(LocalDate.of(2026, 9, 7)),
                 selectedBodyPart = BodyPart.CHEST,
                 exercises = previewExercises,
                 selectedExercise = previewExercises.first(),
@@ -368,7 +371,7 @@ private fun WorkoutEntryEditViewImplPreview() {
 private fun WorkoutEntryEditViewImplNoBodyPartPreview() {
     BodyPlanTheme {
         WorkoutEntryEditViewImpl(
-            state = WorkoutEntryEditState(date = LocalDate.of(2026, 9, 7)),
+            state = WorkoutEntryEditState(target = WorkoutEntryEditTarget.Log(LocalDate.of(2026, 9, 7))),
             uiEvents = previewUiEvents,
         )
     }
@@ -380,9 +383,27 @@ private fun WorkoutEntryEditViewImplNoExercisePreview() {
     BodyPlanTheme {
         WorkoutEntryEditViewImpl(
             state = WorkoutEntryEditState(
-                date = LocalDate.of(2026, 9, 7),
+                target = WorkoutEntryEditTarget.Log(LocalDate.of(2026, 9, 7)),
                 selectedBodyPart = BodyPart.CHEST,
                 exercises = previewExercises,
+            ),
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun WorkoutEntryEditViewImplRoutinePreview() {
+    BodyPlanTheme {
+        WorkoutEntryEditViewImpl(
+            state = WorkoutEntryEditState(
+                target = WorkoutEntryEditTarget.Routine(routineId = 1L),
+                selectedBodyPart = BodyPart.CHEST,
+                exercises = previewExercises,
+                selectedExercise = previewExercises.first(),
+                sets = listOf(SetInput(id = 0L, repeatCount = 4, intensityValue = 10)),
+                nextSetInputId = 1L,
             ),
             uiEvents = previewUiEvents,
         )
