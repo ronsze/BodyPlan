@@ -10,11 +10,13 @@ import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
+import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.usecase.IsEditableDateUseCase
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.impl.MainDispatcherRule
+import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeRoutineRepository
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeWorkoutLogRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,12 +33,16 @@ internal class WorkoutLogViewModelTest {
     private val today: LocalDate = LocalDate.of(2026, 9, 7)
     private val clock: Clock = Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
 
-    private fun viewModel(date: LocalDate = today, repository: FakeWorkoutLogRepository = FakeWorkoutLogRepository()) =
-        WorkoutLogViewModel(
-            workoutLogRepository = repository,
-            isEditableDate = IsEditableDateUseCase(clock),
-            navKey = WorkoutLogNavKey(date.toEpochDay()),
-        )
+    private fun viewModel(
+        date: LocalDate = today,
+        repository: FakeWorkoutLogRepository = FakeWorkoutLogRepository(),
+        routineRepository: FakeRoutineRepository = FakeRoutineRepository(),
+    ) = WorkoutLogViewModel(
+        workoutLogRepository = repository,
+        routineRepository = routineRepository,
+        isEditableDate = IsEditableDateUseCase(clock),
+        navKey = WorkoutLogNavKey(date.toEpochDay()),
+    )
 
     @Test
     fun `오늘 날짜로 진입하면 편집 가능하다`() = runTest {
@@ -344,6 +350,173 @@ internal class WorkoutLogViewModelTest {
 
         assertEquals(0, repository.saveMemoCallCount)
     }
+
+    @Test
+    fun `조회 전용 날짜에서는 루틴 불러오기를 눌러도 시트가 열리지 않는다`() = runTest {
+        val viewModel = viewModel(date = today.minusDays(2))
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(WorkoutLogIntent.ClickLoadRoutine)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isRoutineSheetVisible)
+    }
+
+    @Test
+    fun `편집 가능한 날짜에서 루틴 불러오기를 누르면 시트가 열린다`() = runTest {
+        val viewModel = viewModel()
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(WorkoutLogIntent.ClickLoadRoutine)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isRoutineSheetVisible)
+    }
+
+    @Test
+    fun `조회 전용 날짜에서는 루틴을 구독하지 않는다`() = runTest {
+        val routineRepository = FakeRoutineRepository(listOf(routine(id = 1L, entries = listOf(entry(id = 10L)))))
+        val viewModel = viewModel(date = today.minusDays(2), routineRepository = routineRepository)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.routines.isEmpty())
+    }
+
+    @Test
+    fun `루틴을 고르면 그 루틴의 항목이 기록 뒤에 덧붙고 시트가 닫힌다`() = runTest {
+        val routineEntry = entry(id = 10L)
+        val routineRepository = FakeRoutineRepository(listOf(routine(id = 1L, entries = listOf(routineEntry))))
+        val logRepository = FakeWorkoutLogRepository(listOf(entry(id = 1L)))
+        val viewModel = viewModel(repository = logRepository, routineRepository = routineRepository)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(WorkoutLogIntent.ClickLoadRoutine)
+        viewModel.handleIntent(WorkoutLogIntent.SelectRoutine(1L))
+        advanceUntilIdle()
+
+        assertEquals(2, viewModel.uiState.value.entries.size)
+        assertFalse(viewModel.uiState.value.isRoutineSheetVisible)
+        assertEquals(listOf(routineEntry), logRepository.lastAddedEntries)
+    }
+
+    @Test
+    fun `루틴이 없으면 시트에 만든 루틴이 없다는 안내가 보인다`() = runTest {
+        val viewModel = viewModel()
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.routineSections.isEmpty())
+    }
+
+    @Test
+    fun `항목이 없는 루틴을 고르면 메시지가 나가고 시트는 유지된다`() = runTest {
+        val routineRepository = FakeRoutineRepository(listOf(routine(id = 1L, entries = emptyList())))
+        val viewModel = viewModel(routineRepository = routineRepository)
+        val effects = mutableListOf<WorkoutLogEffect>()
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.effect.collect { effects += it } }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(WorkoutLogIntent.ClickLoadRoutine)
+        viewModel.handleIntent(WorkoutLogIntent.SelectRoutine(1L))
+        advanceUntilIdle()
+
+        assertTrue(
+            effects.filterIsInstance<WorkoutLogEffect.ShowMessage>().any { it.message == "루틴에 종목이 없습니다" },
+        )
+        assertTrue(viewModel.uiState.value.isRoutineSheetVisible)
+    }
+
+    @Test
+    fun `없는 루틴 id를 고르면 메시지가 나가고 시트는 유지된다`() = runTest {
+        val viewModel = viewModel()
+        val effects = mutableListOf<WorkoutLogEffect>()
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.effect.collect { effects += it } }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(WorkoutLogIntent.ClickLoadRoutine)
+        viewModel.handleIntent(WorkoutLogIntent.SelectRoutine(999L))
+        advanceUntilIdle()
+
+        assertTrue(
+            effects.filterIsInstance<WorkoutLogEffect.ShowMessage>().any { it.message == "루틴에 종목이 없습니다" },
+        )
+        assertTrue(viewModel.uiState.value.isRoutineSheetVisible)
+    }
+
+    @Test
+    fun `addEntries가 실패하면 메시지가 나가고 시트는 유지된다`() = runTest {
+        val routineRepository = FakeRoutineRepository(listOf(routine(id = 1L, entries = listOf(entry(id = 10L)))))
+        val logRepository = FakeWorkoutLogRepository()
+        logRepository.mutateFailure = IllegalStateException("boom")
+        val viewModel = viewModel(repository = logRepository, routineRepository = routineRepository)
+        val effects = mutableListOf<WorkoutLogEffect>()
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.effect.collect { effects += it } }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(WorkoutLogIntent.ClickLoadRoutine)
+        viewModel.handleIntent(WorkoutLogIntent.SelectRoutine(1L))
+        advanceUntilIdle()
+
+        assertTrue(
+            effects.filterIsInstance<WorkoutLogEffect.ShowMessage>().any { it.message == "루틴을 불러오지 못했습니다" },
+        )
+        assertTrue(viewModel.uiState.value.isRoutineSheetVisible)
+    }
+
+    @Test
+    fun `시트를 닫는 인텐트는 넣는 중이면 무시된다`() = runTest {
+        val routineRepository = FakeRoutineRepository(listOf(routine(id = 1L, entries = listOf(entry(id = 10L)))))
+        routineRepository.getRoutineGate = CompletableDeferred()
+        val viewModel = viewModel(routineRepository = routineRepository)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(WorkoutLogIntent.ClickLoadRoutine)
+        viewModel.handleIntent(WorkoutLogIntent.SelectRoutine(1L))
+        // 저장이 끝나기 전(걸쇠에 걸려 멈춘 동안)에는 넣는 중 상태라 닫기를 무시해야 한다.
+        assertTrue(viewModel.uiState.value.isApplyingRoutine)
+        viewModel.handleIntent(WorkoutLogIntent.DismissRoutineSheet)
+
+        assertTrue(viewModel.uiState.value.isRoutineSheetVisible)
+
+        routineRepository.getRoutineGate?.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `루틴 조회가 실패하면 메시지가 한 번 나가고 화면은 에러 상태가 아니다`() = runTest {
+        val routineRepository = FakeRoutineRepository()
+        routineRepository.observeFailure = IllegalStateException("boom")
+        val viewModel = viewModel(routineRepository = routineRepository)
+        val effects = mutableListOf<WorkoutLogEffect>()
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.effect.collect { effects += it } }
+        advanceUntilIdle()
+
+        assertEquals(1, effects.filterIsInstance<WorkoutLogEffect.ShowMessage>().size)
+        assertNull(viewModel.uiState.value.errorMessage)
+        assertTrue(viewModel.uiState.value.routines.isEmpty())
+    }
+
+    private fun routine(id: Long, entries: List<WorkoutEntry>) =
+        Routine(id = id, name = "루틴$id", bodyPart = BodyPart.CHEST, entries = entries)
 
     private fun entry(id: Long) = WorkoutEntry(
         id = id,

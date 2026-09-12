@@ -2,19 +2,16 @@ package kr.sdbk.bodyplan.feature.workoutlog.impl.log.composable
 
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,18 +24,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import kr.sdbk.bodyplan.core.designsystem.component.Badge
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
-import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
-import kr.sdbk.bodyplan.core.designsystem.component.HorizontalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
-import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
-import kr.sdbk.bodyplan.core.designsystem.theme.Border
-import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
@@ -46,7 +37,7 @@ import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
-import kr.sdbk.bodyplan.core.ui.components.label
+import kr.sdbk.bodyplan.core.ui.components.WorkoutEntryCard
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisPeriod
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogEffect
@@ -71,6 +62,9 @@ internal data class WorkoutLogUiEvents(
     val onChangeMemoInput: (String) -> Unit,
     val onClickSaveMemo: () -> Unit,
     val onClickCancelMemo: () -> Unit,
+    val onClickLoadRoutine: () -> Unit,
+    val onDismissRoutineSheet: () -> Unit,
+    val onSelectRoutine: (Long) -> Unit,
 )
 
 @Composable
@@ -113,6 +107,9 @@ private fun rememberUiEvents(
         onChangeMemoInput = { viewModel.handleIntent(WorkoutLogIntent.ChangeMemoInput(it)) },
         onClickSaveMemo = { viewModel.handleIntent(WorkoutLogIntent.ClickSaveMemo) },
         onClickCancelMemo = { viewModel.handleIntent(WorkoutLogIntent.ClickCancelMemo) },
+        onClickLoadRoutine = { viewModel.handleIntent(WorkoutLogIntent.ClickLoadRoutine) },
+        onDismissRoutineSheet = { viewModel.handleIntent(WorkoutLogIntent.DismissRoutineSheet) },
+        onSelectRoutine = { viewModel.handleIntent(WorkoutLogIntent.SelectRoutine(it)) },
     )
 }
 
@@ -145,8 +142,21 @@ internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEv
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
         ) {
+            if (state.isEditable) {
+                OutlinedActionButton(text = "루틴 불러오기", onClick = uiEvents.onClickLoadRoutine)
+                VerticalSpacer(space = 8.dp)
+            }
             OutlinedActionButton(text = "운동 분석", onClick = uiEvents.onClickAnalyze)
         }
+    }
+
+    if (state.isRoutineSheetVisible) {
+        RoutineSheet(
+            sections = state.routineSections,
+            isApplying = state.isApplyingRoutine,
+            onSelectRoutine = uiEvents.onSelectRoutine,
+            onDismiss = uiEvents.onDismissRoutineSheet,
+        )
     }
 }
 
@@ -174,7 +184,7 @@ private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
             item { EmptyEntriesText() }
         }
         items(items = state.entries, key = { it.id }) { entry ->
-            EntryCard(
+            WorkoutEntryCard(
                 entry = entry,
                 isEditable = state.isEditable,
                 onClick = { uiEvents.onClickEntry(entry.id) },
@@ -182,65 +192,6 @@ private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
             )
         }
     }
-}
-
-@Composable
-private fun EntryCard(entry: WorkoutEntry, isEditable: Boolean, onClick: () -> Unit, onClickDelete: () -> Unit) {
-    BodyPlanCard(
-        modifier = if (isEditable) Modifier.clickable(onClick = onClick) else Modifier,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            BaseText(
-                text = entry.exerciseName,
-                style = MaterialTheme.typography.titleSmall,
-                color = TextPrimary,
-            )
-            Badge(text = entry.bodyPart.label, modifier = Modifier.padding(start = 8.dp))
-            WeightSpacer()
-            if (isEditable) {
-                BaseText(
-                    text = "삭제",
-                    modifier = Modifier.clickable(onClick = onClickDelete),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextTertiary,
-                )
-            }
-        }
-        VerticalSpacer(space = 14.dp)
-        HorizontalDivider(color = Border)
-        VerticalSpacer(space = 14.dp)
-        entry.sets.forEachIndexed { index, set ->
-            if (index > 0) VerticalSpacer(space = 8.dp)
-            SetRow(setNumber = index + 1, set = set)
-        }
-    }
-}
-
-@Composable
-private fun SetRow(setNumber: Int, set: WorkoutSet) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        BaseText(
-            text = "${setNumber}세트",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextSecondary,
-        )
-        BaseText(
-            text = intensityText(set),
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            ),
-            color = TextPrimary,
-        )
-    }
-}
-
-private fun intensityText(set: WorkoutSet): String = when (set.intensity) {
-    is Intensity.Weight -> "${set.intensity.value}kg × ${set.repeatCount}회"
-
-    is Intensity.Angle -> "${set.intensity.value}도 × ${set.repeatCount}회"
-
-    // 시간으로 재는 종목은 한 세트가 한 회차라 횟수를 적지 않는다.
-    is Intensity.Duration -> "${set.intensity.value}분"
 }
 
 @Composable
@@ -315,6 +266,9 @@ private val previewUiEvents = WorkoutLogUiEvents(
     onChangeMemoInput = {},
     onClickSaveMemo = {},
     onClickCancelMemo = {},
+    onClickLoadRoutine = {},
+    onDismissRoutineSheet = {},
+    onSelectRoutine = {},
 )
 
 @Preview(showBackground = true, heightDp = 780)

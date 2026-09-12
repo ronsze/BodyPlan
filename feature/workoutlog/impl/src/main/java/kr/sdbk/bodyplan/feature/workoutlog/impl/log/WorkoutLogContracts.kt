@@ -1,7 +1,10 @@
 package kr.sdbk.bodyplan.feature.workoutlog.impl.log
 
 import java.time.LocalDate
+import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
+import kr.sdbk.bodyplan.core.domain.model.groupedByBodyPart
 import kr.sdbk.bodyplan.core.ui.coordinator.Effect
 import kr.sdbk.bodyplan.core.ui.coordinator.Intent
 import kr.sdbk.bodyplan.core.ui.coordinator.State
@@ -16,7 +19,13 @@ internal data class WorkoutLogState(
     val memoInput: String = "",
     val isEditingMemo: Boolean = false,
     val isSavingMemo: Boolean = false,
-) : State
+    val routines: List<Routine> = emptyList(),
+    val isRoutineSheetVisible: Boolean = false,
+    val isApplyingRoutine: Boolean = false,
+) : State {
+    /** 시트에 보일 부위별 루틴 묶음. 루틴이 없는 부위는 나오지 않는다. */
+    val routineSections: List<Pair<BodyPart, List<Routine>>> get() = routines.groupedByBodyPart()
+}
 
 internal sealed interface WorkoutLogIntent : Intent {
     data object ClickAddEntry : WorkoutLogIntent
@@ -36,6 +45,12 @@ internal sealed interface WorkoutLogIntent : Intent {
     data object ClickSaveMemo : WorkoutLogIntent
 
     data object ClickCancelMemo : WorkoutLogIntent
+
+    data object ClickLoadRoutine : WorkoutLogIntent
+
+    data object DismissRoutineSheet : WorkoutLogIntent
+
+    data class SelectRoutine(val id: Long) : WorkoutLogIntent
 }
 
 internal sealed interface WorkoutLogEffect : Effect {
