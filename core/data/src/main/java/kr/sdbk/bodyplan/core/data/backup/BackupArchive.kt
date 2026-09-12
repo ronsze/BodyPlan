@@ -1,10 +1,10 @@
 package kr.sdbk.bodyplan.core.data.backup
 
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.ZipEntry
-import java.util.zip.ZipException
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kr.sdbk.bodyplan.core.domain.model.InvalidBackupFileException
@@ -57,7 +57,8 @@ internal object BackupArchive {
                     zip.closeEntry()
                 }
             }
-        } catch (exception: ZipException) {
+        } catch (exception: IOException) {
+            // zip이 아닌 파일은 ZipException, 전송 중 잘린 zip은 EOFException — 둘 다 "다른 파일을 고르라"는 뜻이다.
             throw InvalidBackupFileException(exception)
         }
         return Contents(
