@@ -10,6 +10,7 @@ import kr.sdbk.bodyplan.core.data.mapper.newMemoEntity
 import kr.sdbk.bodyplan.core.data.mapper.toBodyPartsByDate
 import kr.sdbk.bodyplan.core.data.mapper.toDomain
 import kr.sdbk.bodyplan.core.data.mapper.toEntities
+import kr.sdbk.bodyplan.core.data.mapper.toEntityWithSets
 import kr.sdbk.bodyplan.core.data.mapper.toEntriesByDate
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
@@ -47,6 +48,13 @@ constructor(
     override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long {
         val entity = newEntryEntity(date, exercise, System.currentTimeMillis())
         return workoutEntryDao.insertWithSets(entity, sets.toEntities(entryId = 0L))
+    }
+
+    override suspend fun addEntries(date: LocalDate, entries: List<WorkoutEntry>) {
+        if (entries.isEmpty()) return
+        // 생성 시각이 같아도 id가 오름차순이라 목록 순서가 지켜진다.
+        val now = System.currentTimeMillis()
+        workoutEntryDao.insertAllWithSets(entries.map { it.toEntityWithSets(date, now) })
     }
 
     override suspend fun updateEntry(entryId: Long, exercise: Exercise, sets: List<WorkoutSet>) {

@@ -135,3 +135,48 @@ internal val MIGRATION_8_9 = object : Migration(8, 9) {
         )
     }
 }
+
+/**
+ * 루틴 표 세 개를 더한다. 기존 기록은 건드리지 않는다.
+ *
+ * SQL은 10.json이 적어 둔 것을 옮긴 것이다 — `workout_entry`·`workout_set`과 같은 모양에서 표·컬럼 이름만 다르다.
+ */
+internal val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routine` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`bodyPart` TEXT NOT NULL, " +
+                "`createdAtMillis` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routine_entry` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`routineId` INTEGER NOT NULL, " +
+                "`exerciseId` INTEGER NOT NULL, " +
+                "`exerciseName` TEXT NOT NULL, " +
+                "`bodyPart` TEXT NOT NULL, " +
+                "`intensityType` TEXT NOT NULL, " +
+                "`createdAtMillis` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`routineId`) REFERENCES `routine`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_routine_entry_routineId` " +
+                "ON `routine_entry` (`routineId`)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routine_set` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`entryId` INTEGER NOT NULL, " +
+                "`setNumber` INTEGER NOT NULL, " +
+                "`repeatCount` INTEGER NOT NULL, " +
+                "`intensityValue` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`entryId`) REFERENCES `routine_entry`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_routine_set_entryId` " +
+                "ON `routine_set` (`entryId`)",
+        )
+    }
+}

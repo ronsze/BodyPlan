@@ -11,6 +11,7 @@ import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
+import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.local.entity.ExerciseEntity
 import org.junit.Assert.assertEquals
@@ -263,5 +264,57 @@ class WorkoutLogRepositoryImplTest {
         val sets = repository.observeEntriesInRange(date, date).first().getValue(date).first().sets
 
         assertEquals(listOf(10, 20, 30), sets.map { it.intensity.value })
+    }
+
+    @Test
+    fun `addEntries는 목록 순서 그대로 저장한다`() = runTest {
+        val entries = listOf(
+            WorkoutEntry(
+                id = 100L,
+                exerciseId = exercise.id,
+                exerciseName = "스쿼트",
+                bodyPart = BodyPart.LEG,
+                intensityType = IntensityType.WEIGHT,
+                sets = listOf(WorkoutSet(repeatCount = 12, intensity = Intensity.Weight(40))),
+            ),
+            WorkoutEntry(
+                id = 200L,
+                exerciseId = 2L,
+                exerciseName = "런지",
+                bodyPart = BodyPart.LEG,
+                intensityType = IntensityType.WEIGHT,
+                sets = listOf(WorkoutSet(repeatCount = 10, intensity = Intensity.Weight(20))),
+            ),
+        )
+
+        repository.addEntries(date, entries)
+
+        val stored = repository.observeLog(date).first().entries
+        assertEquals(listOf("스쿼트", "런지"), stored.map { it.exerciseName })
+    }
+
+    @Test
+    fun `addEntries는 항목의 id를 무시하고 새 id로 저장한다`() = runTest {
+        val entry = WorkoutEntry(
+            id = 999L,
+            exerciseId = exercise.id,
+            exerciseName = "스쿼트",
+            bodyPart = BodyPart.LEG,
+            intensityType = IntensityType.WEIGHT,
+            sets = listOf(WorkoutSet(repeatCount = 12, intensity = Intensity.Weight(40))),
+        )
+
+        repository.addEntries(date, listOf(entry))
+
+        val stored = repository.observeLog(date).first().entries.single()
+        assertTrue(stored.id != 999L)
+    }
+
+    @Test
+    fun `addEntries에 빈 목록을 주면 아무 일도 하지 않는다`() = runTest {
+        repository.addEntries(date, emptyList())
+
+        val stored = repository.observeLog(date).first().entries
+        assertTrue(stored.isEmpty())
     }
 }

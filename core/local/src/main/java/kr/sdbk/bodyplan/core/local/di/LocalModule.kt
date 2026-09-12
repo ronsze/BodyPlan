@@ -15,6 +15,7 @@ import kr.sdbk.bodyplan.core.local.DefaultExercises
 import kr.sdbk.bodyplan.core.local.dao.AnalysisResultDao
 import kr.sdbk.bodyplan.core.local.dao.DietEntryDao
 import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
+import kr.sdbk.bodyplan.core.local.dao.RoutineDao
 import kr.sdbk.bodyplan.core.local.dao.UserProfileDao
 import kr.sdbk.bodyplan.core.local.dao.WeightRecordDao
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
@@ -28,6 +29,7 @@ import kr.sdbk.bodyplan.core.local.migration.MIGRATION_5_6
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_6_7
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_7_8
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_8_9
+import kr.sdbk.bodyplan.core.local.migration.MIGRATION_9_10
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -47,6 +49,7 @@ object LocalModule {
                 MIGRATION_6_7,
                 MIGRATION_7_8,
                 MIGRATION_8_9,
+                MIGRATION_9_10,
             )
             .build()
 
@@ -70,6 +73,9 @@ object LocalModule {
 
     @Provides
     fun provideWorkoutMemoDao(database: BodyPlanDatabase): WorkoutMemoDao = database.workoutMemoDao()
+
+    @Provides
+    fun provideRoutineDao(database: BodyPlanDatabase): RoutineDao = database.routineDao()
 
     @Provides
     @Singleton

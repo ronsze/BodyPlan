@@ -64,6 +64,12 @@ interface WorkoutEntryDao {
         return entryId
     }
 
+    /** 루틴 불러오기처럼 여러 건을 한 번에 넣을 때 쓴다. 하나라도 실패하면 아무것도 남지 않는다. */
+    @Transaction
+    suspend fun insertAllWithSets(items: List<WorkoutEntryWithSets>) {
+        items.forEach { insertWithSets(it.entry, it.sets) }
+    }
+
     @Transaction
     suspend fun updateWithSets(entity: WorkoutEntryEntity, sets: List<WorkoutSetEntity>) {
         update(entity)
