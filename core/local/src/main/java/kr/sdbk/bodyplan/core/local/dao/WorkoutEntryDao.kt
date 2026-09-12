@@ -75,4 +75,18 @@ interface WorkoutEntryDao {
         update(entity)
         replaceSets(entity.id, sets)
     }
+
+    // 백업 스냅샷용. 표 전체를 읽고 통째로 바꾼다 — SnapshotStore만 부른다.
+    @Query("SELECT * FROM workout_entry")
+    suspend fun getAll(): List<WorkoutEntryEntity>
+
+    @Query("SELECT * FROM workout_set")
+    suspend fun getAllSets(): List<WorkoutSetEntity>
+
+    @Insert
+    suspend fun insertAll(entities: List<WorkoutEntryEntity>)
+
+    /** 세트는 외래 키 CASCADE가 함께 지운다. */
+    @Query("DELETE FROM workout_entry")
+    suspend fun deleteAll()
 }

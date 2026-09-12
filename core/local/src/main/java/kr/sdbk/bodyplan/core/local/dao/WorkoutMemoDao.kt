@@ -18,4 +18,14 @@ interface WorkoutMemoDao {
 
     @Query("DELETE FROM workout_memo WHERE dateEpochDay = :dateEpochDay")
     suspend fun deleteByDate(dateEpochDay: Long)
+
+    // 백업 스냅샷용. 표 전체를 읽고 통째로 바꾼다 — SnapshotStore만 부른다.
+    @Query("SELECT * FROM workout_memo")
+    suspend fun getAll(): List<WorkoutMemoEntity>
+
+    @Insert
+    suspend fun insertAll(entities: List<WorkoutMemoEntity>)
+
+    @Query("DELETE FROM workout_memo")
+    suspend fun deleteAll()
 }

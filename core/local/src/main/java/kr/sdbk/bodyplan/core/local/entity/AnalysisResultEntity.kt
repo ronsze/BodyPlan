@@ -3,6 +3,7 @@ package kr.sdbk.bodyplan.core.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * 저장된 분석 결과.
@@ -13,6 +14,7 @@ import androidx.room.PrimaryKey
  * [sections]는 묶음 목록을 담은 JSON 배열이다. 묶음만 따로 조회하거나 정렬할 일이 없어
  * 표를 나누지 않는다.
  */
+@Serializable
 @Entity(
     tableName = "analysis_result",
     indices = [Index(value = ["kind", "scopeKey"])],

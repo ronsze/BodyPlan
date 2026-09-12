@@ -25,4 +25,14 @@ interface AnalysisResultDao {
 
     @Insert
     suspend fun insert(entity: AnalysisResultEntity): Long
+
+    // 백업 스냅샷용. 표 전체를 읽고 통째로 바꾼다 — SnapshotStore만 부른다.
+    @Query("SELECT * FROM analysis_result")
+    suspend fun getAll(): List<AnalysisResultEntity>
+
+    @Insert
+    suspend fun insertAll(entities: List<AnalysisResultEntity>)
+
+    @Query("DELETE FROM analysis_result")
+    suspend fun deleteAll()
 }

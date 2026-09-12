@@ -80,4 +80,18 @@ internal class FakeWorkoutEntryDao : WorkoutEntryDao {
     override suspend fun deleteSetsByEntryId(entryId: Long) {
         sets.value = sets.value.filterValues { it.entryId != entryId }
     }
+
+    // 백업 스냅샷용. 이 페이크의 대상 테스트는 스냅샷을 쓰지 않아 최소 동작만 둔다.
+    override suspend fun getAll(): List<WorkoutEntryEntity> = entries.value.values.sortedBy { it.id }
+
+    override suspend fun getAllSets(): List<WorkoutSetEntity> = sets.value.values.sortedBy { it.id }
+
+    override suspend fun insertAll(entities: List<WorkoutEntryEntity>) {
+        entities.forEach { insert(it) }
+    }
+
+    override suspend fun deleteAll() {
+        entries.value = emptyMap()
+        sets.value = emptyMap()
+    }
 }

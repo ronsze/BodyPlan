@@ -27,4 +27,15 @@ internal class FakeWeightRecordDao : WeightRecordDao {
         // 날짜가 기본 키라 같은 날짜는 덮인다. Room의 REPLACE와 같은 결과다.
         state.value = state.value + (entity.dateEpochDay to entity)
     }
+
+    // 백업 스냅샷용. 이 페이크의 대상 테스트는 스냅샷을 쓰지 않아 최소 동작만 둔다.
+    override suspend fun getAll(): List<WeightRecordEntity> = stored
+
+    override suspend fun insertAll(entities: List<WeightRecordEntity>) {
+        entities.forEach { seed(it) }
+    }
+
+    override suspend fun deleteAll() {
+        state.value = emptyMap()
+    }
 }

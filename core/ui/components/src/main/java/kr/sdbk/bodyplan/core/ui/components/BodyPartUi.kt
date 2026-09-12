@@ -98,7 +98,6 @@ private fun BodyPartLabels(bodyParts: Set<BodyPart>, modifier: Modifier = Modifi
         BodyPartLabel(text = ordered.first().label, color = ordered.first().color)
         when {
             ordered.size == 2 -> BodyPartLabel(text = ordered[1].label, color = ordered[1].color)
-
             ordered.size > 2 -> BodyPartLabel(text = "외 ${ordered.size - 1}", color = TextTertiary)
         }
     }

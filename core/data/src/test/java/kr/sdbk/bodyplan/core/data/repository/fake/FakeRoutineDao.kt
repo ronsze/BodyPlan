@@ -97,4 +97,25 @@ internal class FakeRoutineDao : RoutineDao {
     override suspend fun deleteSetsByEntryId(entryId: Long) {
         sets.value = sets.value.filterValues { it.entryId != entryId }
     }
+
+    // 백업 스냅샷용. 이 페이크의 대상 테스트는 스냅샷을 쓰지 않아 최소 동작만 둔다.
+    override suspend fun getAll(): List<RoutineEntity> = routines.value.values.sortedBy { it.id }
+
+    override suspend fun getAllEntries(): List<RoutineEntryEntity> = entries.value.values.sortedBy { it.id }
+
+    override suspend fun getAllSets(): List<RoutineSetEntity> = sets.value.values.sortedBy { it.id }
+
+    override suspend fun insertAll(entities: List<RoutineEntity>) {
+        entities.forEach { insert(it) }
+    }
+
+    override suspend fun insertEntries(entities: List<RoutineEntryEntity>) {
+        entities.forEach { insertEntry(it) }
+    }
+
+    override suspend fun deleteAll() {
+        routines.value = emptyMap()
+        entries.value = emptyMap()
+        sets.value = emptyMap()
+    }
 }

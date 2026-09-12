@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.bodyplan.android.library)
     alias(libs.plugins.bodyplan.android.hilt)
+    // 백업 스냅샷이 Entity를 그대로 JSON으로 담는다.
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -17,5 +19,6 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(libs.room.runtime)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.kotlinx.serialization.json)
     ksp(libs.room.compiler)
 }

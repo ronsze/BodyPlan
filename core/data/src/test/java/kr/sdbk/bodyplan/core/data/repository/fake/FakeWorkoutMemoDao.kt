@@ -29,4 +29,15 @@ internal class FakeWorkoutMemoDao : WorkoutMemoDao {
     override suspend fun deleteByDate(dateEpochDay: Long) {
         state.value = state.value - dateEpochDay
     }
+
+    // 백업 스냅샷용. 이 페이크의 대상 테스트는 스냅샷을 쓰지 않아 최소 동작만 둔다.
+    override suspend fun getAll(): List<WorkoutMemoEntity> = stored
+
+    override suspend fun insertAll(entities: List<WorkoutMemoEntity>) {
+        entities.forEach { seed(it) }
+    }
+
+    override suspend fun deleteAll() {
+        state.value = emptyMap()
+    }
 }

@@ -200,6 +200,21 @@ internal class MyViewModelTest {
         assertTrue(effects.any { it is MyEffect.NavigateToRoutine })
     }
 
+    @Test
+    fun `백업 줄을 누르면 백업 화면으로 이동한다`() = runTest {
+        val viewModel = viewModel()
+        val effects = mutableListOf<MyEffect>()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            viewModel.effect.collect { effects += it }
+        }
+        subscribe(viewModel)
+
+        viewModel.handleIntent(MyIntent.ClickBackup)
+        advanceUntilIdle()
+
+        assertTrue(effects.any { it is MyEffect.NavigateToBackup })
+    }
+
     private fun kotlinx.coroutines.test.TestScope.subscribe(viewModel: MyViewModel) {
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         advanceUntilIdle()

@@ -54,4 +54,15 @@ internal class FakeDietEntryDao : DietEntryDao {
     override suspend fun deleteById(id: Long) {
         state.value = state.value - id
     }
+
+    // 백업 스냅샷용. 이 페이크의 대상 테스트는 스냅샷을 쓰지 않아 최소 동작만 둔다.
+    override suspend fun getAll(): List<DietEntryEntity> = stored
+
+    override suspend fun insertAll(entities: List<DietEntryEntity>) {
+        entities.forEach { seed(it) }
+    }
+
+    override suspend fun deleteAll() {
+        state.value = emptyMap()
+    }
 }

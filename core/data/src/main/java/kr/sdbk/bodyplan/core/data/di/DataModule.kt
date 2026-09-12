@@ -19,6 +19,7 @@ import kr.sdbk.bodyplan.core.data.image.LocalImageStoreImpl
 import kr.sdbk.bodyplan.core.data.repository.AiAnalysisRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.AiCredentialRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.AnalysisResultRepositoryImpl
+import kr.sdbk.bodyplan.core.data.repository.BackupRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.DietLogRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.ExerciseRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.InbodyImageRepositoryImpl
@@ -32,6 +33,7 @@ import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisRunner
+import kr.sdbk.bodyplan.core.domain.repository.BackupRepository
 import kr.sdbk.bodyplan.core.domain.repository.DietLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.ExerciseRepository
 import kr.sdbk.bodyplan.core.domain.repository.InbodyImageRepository
@@ -91,6 +93,10 @@ internal abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindAnalysisRunner(impl: AnalysisRunnerImpl): AnalysisRunner
+
+    @Binds
+    @Singleton
+    abstract fun bindBackupRepository(impl: BackupRepositoryImpl): BackupRepository
 
     companion object {
         /** 날짜 판정 UseCase가 오늘을 읽는 창구. 테스트가 고정 시각을 넣을 수 있게 주입한다. */

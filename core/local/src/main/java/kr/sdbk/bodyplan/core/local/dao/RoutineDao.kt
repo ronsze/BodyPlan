@@ -66,4 +66,24 @@ interface RoutineDao {
         deleteSetsByEntryId(entity.id)
         insertSets(sets.map { it.copy(entryId = entity.id) })
     }
+
+    // 백업 스냅샷용. 표 전체를 읽고 통째로 바꾼다 — SnapshotStore만 부른다.
+    @Query("SELECT * FROM routine")
+    suspend fun getAll(): List<RoutineEntity>
+
+    @Query("SELECT * FROM routine_entry")
+    suspend fun getAllEntries(): List<RoutineEntryEntity>
+
+    @Query("SELECT * FROM routine_set")
+    suspend fun getAllSets(): List<RoutineSetEntity>
+
+    @Insert
+    suspend fun insertAll(entities: List<RoutineEntity>)
+
+    @Insert
+    suspend fun insertEntries(entities: List<RoutineEntryEntity>)
+
+    /** 항목과 세트는 외래 키 CASCADE가 함께 지운다. */
+    @Query("DELETE FROM routine")
+    suspend fun deleteAll()
 }

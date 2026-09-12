@@ -36,4 +36,14 @@ interface DietEntryDao {
 
     @Query("DELETE FROM diet_entry WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    // 백업 스냅샷용. 표 전체를 읽고 통째로 바꾼다 — SnapshotStore만 부른다.
+    @Query("SELECT * FROM diet_entry")
+    suspend fun getAll(): List<DietEntryEntity>
+
+    @Insert
+    suspend fun insertAll(entities: List<DietEntryEntity>)
+
+    @Query("DELETE FROM diet_entry")
+    suspend fun deleteAll()
 }

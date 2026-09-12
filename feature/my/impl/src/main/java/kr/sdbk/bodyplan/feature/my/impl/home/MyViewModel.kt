@@ -73,6 +73,7 @@ constructor(
             is MyIntent.ClickInbody -> updateEffect(MyEffect.NavigateToInbody)
             is MyIntent.ClickWeight -> updateEffect(MyEffect.NavigateToWeight)
             is MyIntent.ClickRoutine -> updateEffect(MyEffect.NavigateToRoutine)
+            is MyIntent.ClickBackup -> updateEffect(MyEffect.NavigateToBackup)
         }
     }
 }

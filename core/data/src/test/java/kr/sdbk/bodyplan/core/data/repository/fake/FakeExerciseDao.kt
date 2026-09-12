@@ -46,4 +46,15 @@ internal class FakeExerciseDao : ExerciseDao {
         val existing = state.value[id] ?: return
         state.value = state.value + (id to existing.copy(isDeleted = true))
     }
+
+    // 백업 스냅샷용. 이 페이크의 대상 테스트는 스냅샷을 쓰지 않아 최소 동작만 둔다.
+    override suspend fun getAll(): List<ExerciseEntity> = state.value.values.sortedBy { it.id }
+
+    override suspend fun insertAll(entities: List<ExerciseEntity>) {
+        entities.forEach { seed(it) }
+    }
+
+    override suspend fun deleteAll() {
+        state.value = emptyMap()
+    }
 }

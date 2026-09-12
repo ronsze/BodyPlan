@@ -26,6 +26,12 @@ internal interface LocalImageStore {
 
     /** 앱 밖의 갤러리로 사진을 복사한다. 실패하면 던진다. */
     fun exportToGallery(fileName: String)
+
+    /**
+     * 보관 중인 사진을 전부 지우고 [sourceDirectory]의 파일로 바꾼다. 백업 복원용이다.
+     * [sourceDirectory]가 null이면 비우기만 한다. 실패하면 던진다.
+     */
+    fun replaceAll(sourceDirectory: File?)
 }
 
 /**
@@ -58,6 +64,15 @@ internal class LocalImageStoreImpl(private val context: Context, private val dir
     }
 
     override fun pathOf(fileName: String): String = File(directory, fileName).absolutePath
+
+    override fun replaceAll(sourceDirectory: File?) {
+        directory.listFiles()?.forEach { it.delete() }
+        sourceDirectory?.listFiles()?.forEach { source ->
+            val target = File(directory, source.name)
+            // 같은 파티션(앱 데이터)이라 보통 이름만 바뀐다. 안 되면 복사한다.
+            if (!source.renameTo(target)) source.copyTo(target, overwrite = true)
+        }
+    }
 
     override fun exportToGallery(fileName: String) {
         val source = File(directory, fileName)
