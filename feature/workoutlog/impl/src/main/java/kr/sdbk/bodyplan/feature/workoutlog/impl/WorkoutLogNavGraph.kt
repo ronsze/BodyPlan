@@ -8,13 +8,17 @@ import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.my.api.navigateToAiToken
 import kr.sdbk.bodyplan.feature.workoutlog.api.ExerciseManageNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.ExerciseTrendNavKey
+import kr.sdbk.bodyplan.feature.workoutlog.api.RoutineDetailNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.RoutineEntryEditNavKey
+import kr.sdbk.bodyplan.feature.workoutlog.api.RoutineListNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutCalendarNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutEntryEditNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToExerciseManage
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToExerciseTrend
+import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToRoutineDetail
+import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToRoutineEntryEdit
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutAnalysis
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutEntryEdit
 import kr.sdbk.bodyplan.feature.workoutlog.api.navigateToWorkoutLog
@@ -34,6 +38,11 @@ import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisetrend.composable.Exercis
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogViewModel
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.composable.WorkoutLogEvents
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.composable.WorkoutLogView
+import kr.sdbk.bodyplan.feature.workoutlog.impl.routinedetail.RoutineDetailViewModel
+import kr.sdbk.bodyplan.feature.workoutlog.impl.routinedetail.composable.RoutineDetailEvents
+import kr.sdbk.bodyplan.feature.workoutlog.impl.routinedetail.composable.RoutineDetailView
+import kr.sdbk.bodyplan.feature.workoutlog.impl.routinelist.composable.RoutineListEvents
+import kr.sdbk.bodyplan.feature.workoutlog.impl.routinelist.composable.RoutineListView
 
 fun BodyPlanEntryProviderScope.workoutLogNavGraph(navigator: BodyPlanNavigator) {
     entry<WorkoutCalendarNavKey> {
@@ -95,6 +104,31 @@ fun BodyPlanEntryProviderScope.workoutLogNavGraph(navigator: BodyPlanNavigator) 
             events = events,
             viewModel = hiltViewModel<WorkoutEntryEditViewModel, WorkoutEntryEditViewModel.Factory> {
                 it.create(WorkoutEntryEditTarget.Log(LocalDate.ofEpochDay(navKey.dateEpochDay)), navKey.entryId)
+            },
+        )
+    }
+
+    entry<RoutineListNavKey> {
+        val events = remember {
+            RoutineListEvents(
+                goBack = navigator::goBack,
+                goToRoutineDetail = navigator::navigateToRoutineDetail,
+            )
+        }
+        RoutineListView(events = events, viewModel = hiltViewModel())
+    }
+
+    entry<RoutineDetailNavKey> { navKey ->
+        val events = remember {
+            RoutineDetailEvents(
+                goBack = navigator::goBack,
+                goToEntryEdit = navigator::navigateToRoutineEntryEdit,
+            )
+        }
+        RoutineDetailView(
+            events = events,
+            viewModel = hiltViewModel<RoutineDetailViewModel, RoutineDetailViewModel.Factory> {
+                it.create(navKey)
             },
         )
     }

@@ -185,6 +185,21 @@ internal class MyViewModelTest {
         assertTrue(effects.any { it is MyEffect.NavigateToWeight })
     }
 
+    @Test
+    fun `루틴 관리 줄을 누르면 루틴 관리 화면으로 이동한다`() = runTest {
+        val viewModel = viewModel()
+        val effects = mutableListOf<MyEffect>()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            viewModel.effect.collect { effects += it }
+        }
+        subscribe(viewModel)
+
+        viewModel.handleIntent(MyIntent.ClickRoutine)
+        advanceUntilIdle()
+
+        assertTrue(effects.any { it is MyEffect.NavigateToRoutine })
+    }
+
     private fun kotlinx.coroutines.test.TestScope.subscribe(viewModel: MyViewModel) {
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         advanceUntilIdle()
