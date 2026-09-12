@@ -15,4 +15,14 @@ interface WeightRecordDao {
     /** 날짜마다 한 행만 두므로 덮어쓴다. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: WeightRecordEntity)
+
+    // 백업 스냅샷용. 표 전체를 읽고 통째로 바꾼다 — SnapshotStore만 부른다.
+    @Query("SELECT * FROM weight_record")
+    suspend fun getAll(): List<WeightRecordEntity>
+
+    @Insert
+    suspend fun insertAll(entities: List<WeightRecordEntity>)
+
+    @Query("DELETE FROM weight_record")
+    suspend fun deleteAll()
 }

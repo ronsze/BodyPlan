@@ -2,11 +2,13 @@ package kr.sdbk.bodyplan.core.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * 사용자 정보는 한 벌뿐이라 [id]를 0으로 고정해 항상 한 행만 둔다.
  * 저장은 덮어쓰기로 하고 행을 늘리지 않는다.
  */
+@Serializable
 @Entity(tableName = "user_profile")
 data class UserProfileEntity(
     @PrimaryKey val id: Int = SINGLE_ROW_ID,

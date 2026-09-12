@@ -29,4 +29,14 @@ interface ExerciseDao {
 
     @Query("UPDATE exercise SET isDeleted = 1 WHERE id = :id")
     suspend fun markDeleted(id: Long)
+
+    // 백업 스냅샷용. 표 전체를 읽고 통째로 바꾼다 — SnapshotStore만 부른다.
+    @Query("SELECT * FROM exercise")
+    suspend fun getAll(): List<ExerciseEntity>
+
+    @Insert
+    suspend fun insertAll(entities: List<ExerciseEntity>)
+
+    @Query("DELETE FROM exercise")
+    suspend fun deleteAll()
 }

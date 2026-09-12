@@ -3,8 +3,10 @@ package kr.sdbk.bodyplan.core.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /** [exerciseName]·[bodyPart]·[intensityType]은 작성 시점 종목의 스냅샷이다. */
+@Serializable
 @Entity(tableName = "workout_entry", indices = [Index("dateEpochDay")])
 data class WorkoutEntryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
