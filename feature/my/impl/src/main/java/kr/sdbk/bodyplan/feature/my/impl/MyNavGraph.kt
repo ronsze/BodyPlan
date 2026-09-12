@@ -5,17 +5,21 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kr.sdbk.bodyplan.core.navigation.BodyPlanEntryProviderScope
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.my.api.AiTokenNavKey
+import kr.sdbk.bodyplan.feature.my.api.BackupNavKey
 import kr.sdbk.bodyplan.feature.my.api.InbodyNavKey
 import kr.sdbk.bodyplan.feature.my.api.MyNavKey
 import kr.sdbk.bodyplan.feature.my.api.OnboardingNavKey
 import kr.sdbk.bodyplan.feature.my.api.ProfileNavKey
 import kr.sdbk.bodyplan.feature.my.api.WeightNavKey
 import kr.sdbk.bodyplan.feature.my.api.navigateToAiToken
+import kr.sdbk.bodyplan.feature.my.api.navigateToBackup
 import kr.sdbk.bodyplan.feature.my.api.navigateToInbody
 import kr.sdbk.bodyplan.feature.my.api.navigateToProfile
 import kr.sdbk.bodyplan.feature.my.api.navigateToWeight
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.composable.AiTokenEvents
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.composable.AiTokenView
+import kr.sdbk.bodyplan.feature.my.impl.backup.composable.BackupEvents
+import kr.sdbk.bodyplan.feature.my.impl.backup.composable.BackupView
 import kr.sdbk.bodyplan.feature.my.impl.home.composable.MyEvents
 import kr.sdbk.bodyplan.feature.my.impl.home.composable.MyView
 import kr.sdbk.bodyplan.feature.my.impl.inbody.composable.InbodyEvents
@@ -41,6 +45,7 @@ fun BodyPlanEntryProviderScope.myNavGraph(navigator: BodyPlanNavigator) {
                 goToInbody = navigator::navigateToInbody,
                 goToWeight = navigator::navigateToWeight,
                 goToRoutine = navigator::navigateToRoutineList,
+                goToBackup = navigator::navigateToBackup,
             )
         }
         MyView(events = events, viewModel = hiltViewModel())
@@ -69,5 +74,10 @@ fun BodyPlanEntryProviderScope.myNavGraph(navigator: BodyPlanNavigator) {
     entry<AiTokenNavKey> {
         val events = remember { AiTokenEvents(goBack = navigator::goBack) }
         AiTokenView(events = events, viewModel = hiltViewModel())
+    }
+
+    entry<BackupNavKey> {
+        val events = remember { BackupEvents(goBack = navigator::goBack) }
+        BackupView(events = events, viewModel = hiltViewModel())
     }
 }

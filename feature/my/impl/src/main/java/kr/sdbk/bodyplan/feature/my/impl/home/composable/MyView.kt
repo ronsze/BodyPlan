@@ -33,6 +33,7 @@ internal data class MyEvents(
     val goToInbody: () -> Unit,
     val goToWeight: () -> Unit,
     val goToRoutine: () -> Unit,
+    val goToBackup: () -> Unit,
 )
 
 internal data class MyUiEvents(
@@ -41,6 +42,7 @@ internal data class MyUiEvents(
     val onClickInbody: () -> Unit,
     val onClickWeight: () -> Unit,
     val onClickRoutine: () -> Unit,
+    val onClickBackup: () -> Unit,
 )
 
 @Composable
@@ -60,6 +62,7 @@ internal fun MyView(events: MyEvents, viewModel: MyViewModel) {
             is MyEffect.NavigateToInbody -> events.goToInbody()
             is MyEffect.NavigateToWeight -> events.goToWeight()
             is MyEffect.NavigateToRoutine -> events.goToRoutine()
+            is MyEffect.NavigateToBackup -> events.goToBackup()
         }
     }
 }
@@ -72,6 +75,7 @@ private fun rememberUiEvents(viewModel: MyViewModel): MyUiEvents = remember {
         onClickInbody = { viewModel.handleIntent(MyIntent.ClickInbody) },
         onClickWeight = { viewModel.handleIntent(MyIntent.ClickWeight) },
         onClickRoutine = { viewModel.handleIntent(MyIntent.ClickRoutine) },
+        onClickBackup = { viewModel.handleIntent(MyIntent.ClickBackup) },
     )
 }
 
@@ -116,6 +120,11 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
                 onClick = uiEvents.onClickRoutine,
                 description = "부위별 루틴을 만들어 일지에 불러와요",
             )
+            SectionRow(
+                title = "백업",
+                onClick = uiEvents.onClickBackup,
+                description = "파일로 내보내기·가져오기",
+            )
         }
     }
 }
@@ -126,6 +135,7 @@ private val previewUiEvents = MyUiEvents(
     onClickInbody = {},
     onClickWeight = {},
     onClickRoutine = {},
+    onClickBackup = {},
 )
 
 @Preview(showBackground = true, heightDp = 780)
