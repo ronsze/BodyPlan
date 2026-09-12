@@ -71,7 +71,7 @@ Room Entity 11개에 `@Serializable`을 붙인다 — 스냅샷은 스키마의 
 
 **`SnapshotStore` (`core/local/.../snapshot/SnapshotStore.kt`, 신규, `@Singleton`, `BodyPlanDatabase` 주입)**
 
-- `suspend fun export(): BodyPlanSnapshot` — `database.withTransaction { }` 안에서 8개 DAO의 `getAll*`을 읽는다. `dbVersion = database.openHelper.readableDatabase.version`.
+- `suspend fun export(exportedAtMillis: Long): BodyPlanSnapshot` — `database.withTransaction { }` 안에서 8개 DAO의 `getAll*`을 읽는다. `dbVersion = database.openHelper.readableDatabase.version`. 시각은 호출부(`Clock`을 가진 Repository)가 넘긴다.
 - `suspend fun import(snapshot: BodyPlanSnapshot)` — `snapshot.dbVersion != 현재 버전`이면 `UnsupportedBackupVersionException(snapshot.dbVersion)`을 던진다. `withTransaction` 안에서 부모 표 8개를 `deleteAll`(자식은 CASCADE)한 뒤 부모 → 자식 순으로 `insertAll`. id는 스냅샷 값 그대로 들어간다(`@Insert`는 0이 아닌 id를 그대로 쓴다).
 
 **DAO 추가** (전부 `suspend`)
@@ -120,7 +120,7 @@ interface BackupRepository {
 
 **구현 `BackupRepositoryImpl` (`core/data/.../repository/BackupRepositoryImpl.kt`, 신규, `internal`)** — 주입: `@ApplicationContext context`, `SnapshotStore`, `Json`, `@DietImages LocalImageStore`, `@InbodyImages LocalImageStore`, `Clock`.
 
-- `exportTo`: `snapshotStore.export()` → `exportedAtMillis = clock.millis()` → 사진 목록 = `dietEntries.map { imageFileName }` + `analysisResults.mapNotNull { imageFileName }` → 존재하는 파일만 `ImageEntry`로 → `contentResolver.openOutputStream(uri)`(null이면 `error`)에 `BackupArchive.write`. `Dispatchers.IO`.
+- `exportTo`: `snapshotStore.export(exportedAtMillis = clock.millis())` → 사진 목록 = `dietEntries.map { imageFileName }` + `analysisResults.mapNotNull { imageFileName }` → 존재하는 파일만 `ImageEntry`로 → `contentResolver.openOutputStream(uri)`(null이면 `error`)에 `BackupArchive.write`. `Dispatchers.IO`.
 - `importFrom`: `contentResolver.openInputStream(uri)` → `BackupArchive.read(input, context.cacheDir/backup_import)` → `json.decodeFromString<BodyPlanSnapshot>`(`SerializationException`·`IllegalArgumentException`은 `InvalidBackupFileException`) → `snapshotStore.import(snapshot)` → `dietImageStore.replaceAll(imageDirs["diet_images"])`, `inbodyImageStore.replaceAll(imageDirs["inbody_images"])` → `finally`에서 `backup_import` 삭제. DB 트랜잭션이 사진 교체보다 먼저다 — 트랜잭션이 실패하면 사진도 그대로다.
 
 DI: `DataModule`에 `@Binds @Singleton bindBackupRepository(impl: BackupRepositoryImpl): BackupRepository`. `SnapshotStore`는 `@Singleton @Inject constructor`라 별도 provides 없음.
@@ -218,6 +218,7 @@ Column(fillMaxSize().background(Background))
 | `core/data/.../backup/BackupArchive.kt` | 신규 | zip 쓰기·읽기 |
 | `core/data/.../image/LocalImageStore.kt` | 수정 | `replaceAll(sourceDirectory: File)` |
 | `core/data/src/test/.../repository/fake/FakeDietImageStore.kt` | 수정 | `replaceAll` 구현 |
+| `core/data/src/test/.../repository/fake/Fake{DietEntry,Exercise,Routine,WeightRecord,WorkoutEntry,WorkoutMemo}Dao.kt` | 수정 | DAO 추가 메서드 구현(인메모리) |
 | `core/data/.../repository/BackupRepositoryImpl.kt` | 신규 | 내보내기·가져오기 |
 | `core/data/.../di/DataModule.kt` | 수정 | `bindBackupRepository` |
 | `feature/my/api/.../MyNavKey.kt` | 수정 | `BackupNavKey`, `navigateToBackup` |
@@ -245,6 +246,7 @@ Column(fillMaxSize().background(Background))
 | 고치는 것 | 확인할 기존 화면 |
 |---|---|
 | `LocalImageStore` 인터페이스(`replaceAll` 추가) | `DietLogRepositoryImpl`·`InbodyImageRepositoryImpl`·`AnalysisResultRepositoryImpl` 컴파일, `FakeDietImageStore` 테스트 |
+| DAO 인터페이스에 메서드 추가 | `core/data/src/test/.../fake/Fake*Dao.kt` 6개가 구현해야 컴파일된다 |
 | Room Entity에 `@Serializable` | 스키마 JSON(`10.json`) 불변 |
 | `MyContracts`·`MyView` 확장 | 마이 탭 기존 4개 행 동작, `MyViewModelTest` |
 | `core:local` 빌드 스크립트 | `:app:assembleDebug` |

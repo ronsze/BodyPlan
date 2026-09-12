@@ -21,7 +21,8 @@ import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
  */
 @Serializable
 data class BodyPlanSnapshot(
-    val formatVersion: Int = FORMAT_VERSION,
+    /** 기본값을 두지 않는다 — 기본값은 JSON에 쓰이지 않아 파일에서 형식을 알아볼 수 없게 된다. */
+    val formatVersion: Int,
     val dbVersion: Int,
     val exportedAtMillis: Long,
     val exercises: List<ExerciseEntity>,

@@ -18,6 +18,7 @@ class SnapshotStore
 constructor(private val database: BodyPlanDatabase) {
     suspend fun export(exportedAtMillis: Long): BodyPlanSnapshot = database.withTransaction {
         BodyPlanSnapshot(
+            formatVersion = BodyPlanSnapshot.FORMAT_VERSION,
             dbVersion = currentDbVersion(),
             exportedAtMillis = exportedAtMillis,
             exercises = database.exerciseDao().getAll(),
