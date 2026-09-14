@@ -87,10 +87,7 @@ fun BodyPlanCalendar(
     }
 }
 
-/**
- * [canChangeMonth]가 아니면 화살표를 그리지 않는다. 비활성으로 남기면 눌러도 안 되는 이유가 보이지 않는다.
- * 격자 줄이 펼쳐지는 동안 화살표도 함께 스며들게 한다.
- */
+/** [canChangeMonth]가 아니면 화살표를 그리지 않는다. 비활성으로 남기면 눌러도 안 되는 이유가 보이지 않는다. */
 @Composable
 private fun MonthHeader(yearMonth: YearMonth, canChangeMonth: Boolean, onChangeMonth: (YearMonth) -> Unit) {
     Row(
@@ -169,7 +166,7 @@ private fun WeekdayHeader() {
             BaseText(
                 text = label,
                 modifier = Modifier.weight(1f),
-                // 주말만 색으로 구분한다. 일요일은 붉게, 토요일은 강조색으로.
+                // 주말만 색으로 가른다 — 평일은 구분할 이유가 없다.
                 color = when (index) {
                     0 -> Danger
                     DAYS_IN_WEEK - 1 -> Accent

@@ -65,7 +65,6 @@ internal fun ProfileForm(input: ProfileInput, onChange: (ProfileInput) -> Unit, 
                 PillChip(
                     text = gender.label,
                     selected = input.gender == gender,
-                    // 다시 누르면 고르지 않은 상태로 돌아간다.
                     onClick = {
                         onChange(input.copy(gender = if (input.gender == gender) null else gender))
                     },

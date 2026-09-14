@@ -7,7 +7,7 @@ val Background = Color(0xFFF2F4F6)
 val Surface = Color(0xFFFFFFFF)
 val SurfaceMuted = Color(0xFFF9FAFC)
 
-// 강조. Accent는 강조색 위에 얹는 옅은 배경이다.
+// 강조. AccentSurface는 강조색 위에 얹는 옅은 배경이다.
 val Accent = Color(0xFF3182F6)
 val AccentSurface = Color(0xFFE8F3FF)
 val OnAccent = Color(0xFFFFFFFF)

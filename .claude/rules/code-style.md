@@ -11,7 +11,7 @@ paths:
 
 - 포맷·import·줄바꿈은 ktlint(spotless)가 강제한다 — `.kt` 편집 후 훅이 `./gradlew spotlessApply`를 실행한다. 규칙 값은 루트 `build.gradle.kts`의 `ktlintSettings`와 `.editorconfig`에 있고, 기준은 [Kotlin 공식 코딩 컨벤션](https://kotlinlang.org/docs/coding-conventions.html)과 [Android Kotlin 스타일 가이드](https://developer.android.com/kotlin/style-guide)다. 아래는 도구가 판정하지 못하는 항목이다.
 - 이름은 축약하지 않는다 — `vm`이 아니라 `viewModel`. 널리 쓰이는 축약(`id`, `url`, `db`)은 예외다.
-- 주석은 "어떻게"가 아니라 "왜"를 적는다. 코드가 어떻게 동작하는지가 아니라, 이 코드가 왜 존재하는지를 적는다. 코드를 읽으면 알 수 있는 것은 주석으로 반복하지 않는다.
+- 주석은 "어떻게"가 아니라 "왜"를 적는다 — 이 코드가 왜 존재하는지, 왜 이 방식인지. 판정: 주석을 지우고 코드만 읽어도 같은 것을 알 수 있으면 "어떻게"다 — 지운다. 남기는 것은 코드에 없는 것뿐이다: 선택의 이유, 버린 대안, 전제·제약, 겉보기와 다른 결과. 선언의 KDoc 첫 문장은 역할(무엇을 위해 있는지)까지만 적고 동작을 풀어 쓰지 않는다.
 
 ## Compose
 

@@ -17,7 +17,6 @@ internal data class DietEntryEditState(
     val isSaving: Boolean = false,
     val errorMessage: String? = null,
 ) : State {
-    /** 새로 고른 것이 있으면 그것을, 없으면 저장된 것을 그린다. */
     val previewImage: String? get() = pickedImageUri ?: storedImagePath
 
     val canSave: Boolean get() = previewImage != null && !isSaving

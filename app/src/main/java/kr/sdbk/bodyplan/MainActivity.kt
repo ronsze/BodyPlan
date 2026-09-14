@@ -20,7 +20,6 @@ class MainActivity : ComponentActivity() {
             BodyPlanTheme {
                 BodyPlanMainScreen(
                     modifier = Modifier.fillMaxSize(),
-                    // 알림을 눌러 들어왔으면 그 분석 화면까지 연다.
                     startNavKey = intent?.analysisNavKey(),
                 )
             }

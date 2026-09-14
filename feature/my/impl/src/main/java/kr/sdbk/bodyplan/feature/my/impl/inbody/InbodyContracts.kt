@@ -42,7 +42,7 @@ internal data class InbodyState(
             return history.firstOrNull { it.id == selectedResultId } ?: history.firstOrNull()
         }
 
-    /** 사진 자리에 그릴 것. 고르던 사진이 먼저고, 없으면 보고 있는 결과의 사진이다. */
+    /** 사진 자리에 그릴 것. */
     val shownImage: String? get() = pickedImageUri ?: result?.imagePath
 }
 

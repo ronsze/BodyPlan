@@ -29,7 +29,6 @@ fun Project.configureAndroid(extension: CommonExtension) {
     }
 }
 
-/** Compose 컴파일러 플러그인과 빌드 피처를 켠다. */
 fun Project.configureCompose(extension: CommonExtension) {
     pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
     extension.buildFeatures.compose = true
