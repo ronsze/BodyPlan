@@ -1,5 +1,11 @@
 package kr.sdbk.bodyplan.core.designsystem.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,7 +87,10 @@ fun BodyPlanCalendar(
     }
 }
 
-/** [canChangeMonth]가 아니면 화살표를 그리지 않는다. 비활성으로 남기면 눌러도 안 되는 이유가 보이지 않는다. */
+/**
+ * [canChangeMonth]가 아니면 화살표를 그리지 않는다. 비활성으로 남기면 눌러도 안 되는 이유가 보이지 않는다.
+ * 격자 줄이 펼쳐지는 동안 화살표도 함께 스며들게 한다.
+ */
 @Composable
 private fun MonthHeader(yearMonth: YearMonth, canChangeMonth: Boolean, onChangeMonth: (YearMonth) -> Unit) {
     Row(
@@ -90,7 +100,7 @@ private fun MonthHeader(yearMonth: YearMonth, canChangeMonth: Boolean, onChangeM
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        if (canChangeMonth) {
+        AnimatedVisibility(visible = canChangeMonth, enter = fadeIn(), exit = fadeOut()) {
             BodyPlanIcon(
                 painter = BodyPlanIcons.ChevronLeft,
                 contentDescription = "이전 달",
@@ -106,7 +116,7 @@ private fun MonthHeader(yearMonth: YearMonth, canChangeMonth: Boolean, onChangeM
             style = MaterialTheme.typography.titleMedium,
             color = TextPrimary,
         )
-        if (canChangeMonth) {
+        AnimatedVisibility(visible = canChangeMonth, enter = fadeIn(), exit = fadeOut()) {
             BodyPlanIcon(
                 painter = BodyPlanIcons.ChevronRight,
                 contentDescription = "다음 달",
@@ -121,6 +131,7 @@ private fun MonthHeader(yearMonth: YearMonth, canChangeMonth: Boolean, onChangeM
 
 @Composable
 private fun ExpandToggle(isExpanded: Boolean, onClick: () -> Unit) {
+    val rotation by animateFloatAsState(targetValue = if (isExpanded) -90f else 90f, label = "expandToggleRotation")
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -140,7 +151,7 @@ private fun ExpandToggle(isExpanded: Boolean, onClick: () -> Unit) {
             boxSize = 20.dp,
             iconSize = 14.dp,
             tint = TextTertiary,
-            modifier = Modifier.rotate(if (isExpanded) -90f else 90f),
+            modifier = Modifier.rotate(rotation),
         )
     }
 }
@@ -172,8 +183,10 @@ private fun WeekdayHeader() {
 }
 
 /**
- * [onlyWeekOf]가 있으면 그 날짜가 든 줄 하나만 그린다. 다른 달의 날짜면 아무 줄도 그리지 않는다 —
+ * [onlyWeekOf]가 있으면 그 날짜가 든 줄 하나만 보인다. 다른 달의 날짜면 아무 줄도 보이지 않는다 —
  * 그 주는 이 달의 격자에 없다.
+ *
+ * 줄을 빼고 그리는 대신 전부 그려 두고 가리는 것은 접고 펼 때 줄이 밀려 나오고 들어가게 하기 위해서다.
  */
 @Composable
 private fun MonthGrid(
@@ -190,42 +203,65 @@ private fun MonthGrid(
     val lengthOfMonth = yearMonth.lengthOfMonth()
     // 달마다 필요한 주 수가 다르다. 6줄로 고정하면 5주로 끝나는 달에 빈 줄만큼 여백이 남는다.
     val weekRows = ceil((leadingBlanks + lengthOfMonth) / DAYS_IN_WEEK.toFloat()).toInt()
-    val rows = if (onlyWeekOf == null) {
-        0 until weekRows
-    } else if (YearMonth.from(onlyWeekOf) == yearMonth) {
-        val row = (leadingBlanks + onlyWeekOf.dayOfMonth - 1) / DAYS_IN_WEEK
-        row..row
-    } else {
-        IntRange.EMPTY
-    }
+    val keptRow = onlyWeekOf?.takeIf { YearMonth.from(it) == yearMonth }
+        ?.let { (leadingBlanks + it.dayOfMonth - 1) / DAYS_IN_WEEK }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        rows.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        repeat(weekRows) { row ->
+            AnimatedVisibility(
+                visible = onlyWeekOf == null || row == keptRow,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut(),
             ) {
-                repeat(DAYS_IN_WEEK) { column ->
-                    val dayNumber = row * DAYS_IN_WEEK + column - leadingBlanks + 1
-                    if (dayNumber in 1..lengthOfMonth) {
-                        DayCell(
-                            date = firstDay.withDayOfMonth(dayNumber),
-                            selectedDate = selectedDate,
-                            onSelectDate = onSelectDate,
-                            cellHeight = cellHeight,
-                            dayContent = dayContent,
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(cellHeight),
-                        )
-                    }
-                }
+                WeekRow(
+                    row = row,
+                    firstDay = firstDay,
+                    leadingBlanks = leadingBlanks,
+                    lengthOfMonth = lengthOfMonth,
+                    selectedDate = selectedDate,
+                    onSelectDate = onSelectDate,
+                    cellHeight = cellHeight,
+                    dayContent = dayContent,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeekRow(
+    row: Int,
+    firstDay: LocalDate,
+    leadingBlanks: Int,
+    lengthOfMonth: Int,
+    selectedDate: LocalDate?,
+    onSelectDate: (LocalDate) -> Unit,
+    cellHeight: Dp,
+    dayContent: @Composable (LocalDate) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        repeat(DAYS_IN_WEEK) { column ->
+            val dayNumber = row * DAYS_IN_WEEK + column - leadingBlanks + 1
+            if (dayNumber in 1..lengthOfMonth) {
+                DayCell(
+                    date = firstDay.withDayOfMonth(dayNumber),
+                    selectedDate = selectedDate,
+                    onSelectDate = onSelectDate,
+                    cellHeight = cellHeight,
+                    dayContent = dayContent,
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(cellHeight),
+                )
             }
         }
     }
