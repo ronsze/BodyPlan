@@ -317,4 +317,102 @@ class WorkoutLogRepositoryImplTest {
         val stored = repository.observeLog(date).first().entries
         assertTrue(stored.isEmpty())
     }
+
+    @Test
+    fun `observeBestBefore는 그 날짜 이전 기록에서 종목별 최고값을 낸다`() = runTest {
+        repository.addEntry(
+            date.minusDays(2),
+            exercise,
+            listOf(WorkoutSet(repeatCount = 12, intensity = Intensity.Weight(40))),
+        )
+        repository.addEntry(
+            date.minusDays(1),
+            exercise,
+            listOf(WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(60))),
+        )
+
+        val best = repository.observeBestBefore(date).first()
+
+        assertEquals(60, best.single { it.exerciseId == exercise.id }.maxIntensityValue)
+    }
+
+    @Test
+    fun `observeBestBefore는 조회 날짜 당일 기록은 포함하지 않는다`() = runTest {
+        repository.addEntry(date, exercise, listOf(WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(60))))
+
+        val best = repository.observeBestBefore(date).first()
+
+        assertTrue(best.none { it.exerciseId == exercise.id })
+    }
+
+    @Test
+    fun `observeBestBefore는 기록이 없는 종목을 목록에 담지 않는다`() = runTest {
+        val best = repository.observeBestBefore(date).first()
+
+        assertTrue(best.isEmpty())
+    }
+
+    @Test
+    fun `observeBestBefore는 종목의 축을 그대로 담아 낸다`() = runTest {
+        val angleExercise = exercise.copy(id = 2L, intensityType = IntensityType.ANGLE)
+        repository.addEntry(
+            date.minusDays(1),
+            angleExercise,
+            listOf(WorkoutSet(repeatCount = 20, intensity = Intensity.Angle(30))),
+        )
+
+        val best = repository.observeBestBefore(date).first().single()
+
+        assertEquals(IntensityType.ANGLE, best.intensityType)
+        assertEquals(20, best.maxRepeatCount)
+    }
+
+    @Test
+    fun `observeBestBefore는 같은 종목을 다른 축으로 잰 기록을 축별로 따로 낸다`() = runTest {
+        // 무게로 재다가 각도로 바꾼 종목. 축을 바꾸기 전과 후의 최고값은 서로 섞이면 안 된다.
+        repository.addEntry(
+            date.minusDays(3),
+            exercise,
+            listOf(WorkoutSet(repeatCount = 12, intensity = Intensity.Weight(40))),
+        )
+        val angleExercise = exercise.copy(intensityType = IntensityType.ANGLE)
+        repository.addEntry(
+            date.minusDays(1),
+            angleExercise,
+            listOf(WorkoutSet(repeatCount = 20, intensity = Intensity.Angle(30))),
+        )
+
+        val best = repository.observeBestBefore(date).first()
+
+        assertEquals(2, best.size)
+        val weightRow = best.single { it.intensityType == IntensityType.WEIGHT }
+        val angleRow = best.single { it.intensityType == IntensityType.ANGLE }
+        assertEquals(40, weightRow.maxIntensityValue)
+        assertEquals(20, angleRow.maxRepeatCount)
+    }
+
+    @Test
+    fun `getLatestEntry는 그 종목의 가장 최근 기록의 세트를 낸다`() = runTest {
+        repository.addEntry(
+            date.minusDays(2),
+            exercise,
+            listOf(WorkoutSet(repeatCount = 12, intensity = Intensity.Weight(40))),
+        )
+        repository.addEntry(
+            date.minusDays(1),
+            exercise,
+            listOf(WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(60))),
+        )
+
+        val latest = repository.getLatestEntry(exercise.id, date)
+
+        assertEquals(listOf(WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(60))), latest?.sets)
+    }
+
+    @Test
+    fun `getLatestEntry는 기록이 없으면 null이다`() = runTest {
+        val latest = repository.getLatestEntry(exercise.id, date)
+
+        assertNull(latest)
+    }
 }

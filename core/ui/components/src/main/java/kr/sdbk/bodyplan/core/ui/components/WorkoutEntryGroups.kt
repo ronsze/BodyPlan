@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kr.sdbk.bodyplan.core.designsystem.component.Badge
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanIcon
@@ -81,6 +82,7 @@ fun LazyListScope.workoutEntryGroups(
     expansion: WorkoutEntryGroupExpansion,
     onClickEntry: (Long) -> Unit,
     onClickDeleteEntry: (Long) -> Unit,
+    personalRecordExerciseIds: Set<Long> = emptySet(),
 ) {
     val byBodyPart = entries.groupBy { it.bodyPart }
     BodyPart.entries.forEach { bodyPart ->
@@ -103,6 +105,7 @@ fun LazyListScope.workoutEntryGroups(
             ExerciseGroupCard(
                 entries = group,
                 isEditable = isEditable,
+                isPersonalRecord = group.first().exerciseId in personalRecordExerciseIds,
                 expanded = expansion.isExpanded(exerciseKey),
                 onClickHeader = { expansion.toggle(exerciseKey) },
                 onClickEntry = onClickEntry,
@@ -143,6 +146,7 @@ private fun BodyPartGroupHeader(bodyPart: BodyPart, exerciseCount: Int, expanded
 private fun ExerciseGroupCard(
     entries: List<WorkoutEntry>,
     isEditable: Boolean,
+    isPersonalRecord: Boolean,
     expanded: Boolean,
     onClickHeader: () -> Unit,
     onClickEntry: (Long) -> Unit,
@@ -164,6 +168,9 @@ private fun ExerciseGroupCard(
                 style = MaterialTheme.typography.titleSmall,
                 color = TextPrimary,
             )
+            if (isPersonalRecord) {
+                Badge(text = "PR", modifier = Modifier.padding(start = 8.dp))
+            }
             BaseText(
                 text = "세트 ${setCount}개",
                 modifier = Modifier.padding(horizontal = 8.dp),
@@ -304,6 +311,7 @@ private fun WorkoutEntryGroupsPreview() {
                 expansion = expansion,
                 onClickEntry = {},
                 onClickDeleteEntry = {},
+                personalRecordExerciseIds = setOf(1L),
             )
         }
     }

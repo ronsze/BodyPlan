@@ -200,6 +200,7 @@ private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
             expansion = expansion,
             onClickEntry = uiEvents.onClickEntry,
             onClickDeleteEntry = uiEvents.onClickDeleteEntry,
+            personalRecordExerciseIds = state.personalRecordExerciseIds,
         )
     }
 }
@@ -294,6 +295,7 @@ private fun WorkoutLogViewImplPreview() {
                     BodyPartVolume(BodyPart.CHEST, 160),
                     BodyPartVolume(BodyPart.SHOULDER, 40),
                 ),
+                personalRecordExerciseIds = setOf(1L),
                 memo = "어깨가 뻐근해서 무게를 내렸다",
             ),
             uiEvents = previewUiEvents,

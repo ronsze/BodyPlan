@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kr.sdbk.bodyplan.core.domain.repository.RoutineRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 import kr.sdbk.bodyplan.core.domain.usecase.IsEditableDateUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.ObserveWorkoutLogUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeUseCase
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
@@ -23,6 +24,7 @@ constructor(
     private val workoutLogRepository: WorkoutLogRepository,
     private val routineRepository: RoutineRepository,
     private val isEditableDate: IsEditableDateUseCase,
+    private val observeWorkoutLog: ObserveWorkoutLogUseCase,
     private val summarizeBodyPartVolume: SummarizeBodyPartVolumeUseCase,
     @Assisted navKey: WorkoutLogNavKey,
 ) : BaseViewModel<WorkoutLogState, WorkoutLogIntent, WorkoutLogEffect>(
@@ -73,15 +75,17 @@ constructor(
         loadJob?.cancel()
         updateState { it.copy(isLoading = true, errorMessage = null) }
         loadJob = viewModelScope.launch {
-            workoutLogRepository.observeLog(state.value.date)
+            observeWorkoutLog(state.value.date)
                 .catch { updateState { it.copy(isLoading = false, errorMessage = LOAD_ERROR) } }
-                .collect { log ->
+                .collect { (log, personalRecordExerciseIds) ->
+                    val bodyPartVolumes = summarizeBodyPartVolume(log.entries)
                     updateState {
                         it.copy(
                             isLoading = false,
                             errorMessage = null,
                             entries = log.entries,
-                            bodyPartVolumes = summarizeBodyPartVolume(log.entries),
+                            bodyPartVolumes = bodyPartVolumes,
+                            personalRecordExerciseIds = personalRecordExerciseIds,
                             memo = log.memo,
                         )
                     }

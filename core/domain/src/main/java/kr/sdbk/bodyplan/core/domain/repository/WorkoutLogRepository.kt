@@ -4,6 +4,7 @@ import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
@@ -23,6 +24,12 @@ interface WorkoutLogRepository {
     fun observeEntriesInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<WorkoutEntry>>>
 
     suspend fun getEntry(id: Long): WorkoutEntry?
+
+    /** 종목·축마다 [date] 이전 기록의 최고값. 기록이 없는 종목은 담기지 않는다. */
+    fun observeBestBefore(date: LocalDate): Flow<List<ExerciseBest>>
+
+    /** 그 종목의 [until] 이하 가장 최근 기록. 없으면 `null`. 작성 화면이 지난 세트를 미리 채우는 데 쓴다. */
+    suspend fun getLatestEntry(exerciseId: Long, until: LocalDate): WorkoutEntry?
 
     suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long
 

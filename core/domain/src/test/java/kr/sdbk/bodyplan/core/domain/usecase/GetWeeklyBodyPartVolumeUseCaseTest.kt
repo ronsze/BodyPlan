@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
@@ -102,6 +103,10 @@ class GetWeeklyBodyPartVolumeUseCaseTest {
 
         override suspend fun getEntry(id: Long): WorkoutEntry? = error("사용하지 않음")
 
+        override fun observeBestBefore(date: LocalDate): Flow<List<ExerciseBest>> = error("사용하지 않음")
+
+        override suspend fun getLatestEntry(exerciseId: Long, until: LocalDate): WorkoutEntry? = error("사용하지 않음")
+
         override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long =
             error("사용하지 않음")
 
@@ -132,6 +137,10 @@ class GetWeeklyBodyPartVolumeUseCaseTest {
             throw IllegalStateException("조회 실패")
 
         override suspend fun getEntry(id: Long): WorkoutEntry? = error("사용하지 않음")
+
+        override fun observeBestBefore(date: LocalDate): Flow<List<ExerciseBest>> = error("사용하지 않음")
+
+        override suspend fun getLatestEntry(exerciseId: Long, until: LocalDate): WorkoutEntry? = error("사용하지 않음")
 
         override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long =
             error("사용하지 않음")

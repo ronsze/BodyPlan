@@ -7,6 +7,7 @@ import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import kr.sdbk.bodyplan.core.local.entity.DateBodyPart
+import kr.sdbk.bodyplan.core.local.entity.ExerciseBestRow
 import kr.sdbk.bodyplan.core.local.entity.WorkoutEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.WorkoutEntryWithSets
 import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
@@ -34,6 +35,27 @@ interface WorkoutEntryDao {
     @Transaction
     @Query("SELECT * FROM workout_entry WHERE id = :id")
     suspend fun getWithSets(id: Long): WorkoutEntryWithSets?
+
+    /**
+     * 종목·축마다 그 날짜 이전 세트의 최고 강도값·최고 횟수. 기록이 없는 종목은 행이 없다.
+     *
+     * 축까지 갈라 세는 것은 종목의 축을 바꿀 수 있어서다 — 무게로 재던 시절의 80이 각도 종목의 최고값으로 남으면 안 된다.
+     */
+    @Query(
+        "SELECT e.exerciseId AS exerciseId, e.intensityType AS intensityType, " +
+            "MAX(s.intensityValue) AS maxIntensityValue, MAX(s.repeatCount) AS maxRepeatCount " +
+            "FROM workout_entry e JOIN workout_set s ON s.entryId = e.id " +
+            "WHERE e.dateEpochDay < :beforeEpochDay GROUP BY e.exerciseId, e.intensityType",
+    )
+    fun observeBestBefore(beforeEpochDay: Long): Flow<List<ExerciseBestRow>>
+
+    /** 그 종목의 가장 최근 기록 하나. 같은 날이면 나중에 만든 것. */
+    @Transaction
+    @Query(
+        "SELECT * FROM workout_entry WHERE exerciseId = :exerciseId AND dateEpochDay <= :untilEpochDay " +
+            "ORDER BY dateEpochDay DESC, createdAtMillis DESC, id DESC LIMIT 1",
+    )
+    suspend fun getLatestByExercise(exerciseId: Long, untilEpochDay: Long): WorkoutEntryWithSets?
 
     @Insert
     suspend fun insert(entity: WorkoutEntryEntity): Long

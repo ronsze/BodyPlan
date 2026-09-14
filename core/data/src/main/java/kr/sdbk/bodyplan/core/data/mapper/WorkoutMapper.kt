@@ -3,11 +3,13 @@ package kr.sdbk.bodyplan.core.data.mapper
 import java.time.LocalDate
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.local.entity.DateBodyPart
+import kr.sdbk.bodyplan.core.local.entity.ExerciseBestRow
 import kr.sdbk.bodyplan.core.local.entity.ExerciseEntity
 import kr.sdbk.bodyplan.core.local.entity.WorkoutEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.WorkoutEntryWithSets
@@ -34,6 +36,13 @@ internal fun WorkoutEntryWithSets.toDomain(): WorkoutEntry {
         sets = sets.sortedBy { it.setNumber }.map { it.toDomain(intensityType) },
     )
 }
+
+internal fun ExerciseBestRow.toDomain(): ExerciseBest = ExerciseBest(
+    exerciseId = exerciseId,
+    intensityType = IntensityType.valueOf(intensityType),
+    maxIntensityValue = maxIntensityValue,
+    maxRepeatCount = maxRepeatCount,
+)
 
 internal fun WorkoutSetEntity.toDomain(intensityType: IntensityType): WorkoutSet = WorkoutSet(
     repeatCount = repeatCount,

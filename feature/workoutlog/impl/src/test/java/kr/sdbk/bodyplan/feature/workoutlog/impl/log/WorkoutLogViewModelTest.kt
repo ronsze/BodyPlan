@@ -8,12 +8,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
+import kr.sdbk.bodyplan.core.domain.usecase.FindPersonalRecordsUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.IsEditableDateUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.ObserveWorkoutLogUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeUseCase
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.impl.MainDispatcherRule
@@ -42,6 +45,7 @@ internal class WorkoutLogViewModelTest {
         workoutLogRepository = repository,
         routineRepository = routineRepository,
         isEditableDate = IsEditableDateUseCase(clock),
+        observeWorkoutLog = ObserveWorkoutLogUseCase(repository, FindPersonalRecordsUseCase()),
         summarizeBodyPartVolume = SummarizeBodyPartVolumeUseCase(),
         navKey = WorkoutLogNavKey(date.toEpochDay()),
     )
@@ -101,6 +105,52 @@ internal class WorkoutLogViewModelTest {
             viewModel.uiState.value.bodyPartVolumes.map { it.bodyPart },
         )
         assertEquals(12 * 40, viewModel.uiState.value.bodyPartVolumes.single().weightVolumeKg)
+    }
+
+    @Test
+    fun `그날 최고값이 지난 최고값을 넘긴 종목은 PR 집합에 담긴다`() = runTest {
+        val repository = FakeWorkoutLogRepository(
+            listOf(entry(id = 1L)),
+            bestBeforeByDate = mapOf(
+                today to listOf(
+                    ExerciseBest(
+                        exerciseId = 1L,
+                        intensityType = IntensityType.WEIGHT,
+                        maxIntensityValue = 20,
+                        maxRepeatCount = 0,
+                    ),
+                ),
+            ),
+        )
+        val viewModel = viewModel(repository = repository)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertEquals(setOf(1L), viewModel.uiState.value.personalRecordExerciseIds)
+    }
+
+    @Test
+    fun `이전 최고값을 넘기지 못하면 PR 집합이 비어 있다`() = runTest {
+        val repository = FakeWorkoutLogRepository(
+            listOf(entry(id = 1L)),
+            bestBeforeByDate = mapOf(
+                today to listOf(
+                    ExerciseBest(
+                        exerciseId = 1L,
+                        intensityType = IntensityType.WEIGHT,
+                        maxIntensityValue = 100,
+                        maxRepeatCount = 0,
+                    ),
+                ),
+            ),
+        )
+        val viewModel = viewModel(repository = repository)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.personalRecordExerciseIds.isEmpty())
     }
 
     @Test

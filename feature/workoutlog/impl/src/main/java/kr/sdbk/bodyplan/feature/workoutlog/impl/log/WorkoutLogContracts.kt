@@ -15,6 +15,8 @@ internal data class WorkoutLogState(
     val entries: List<WorkoutEntry> = emptyList(),
     /** [entries]에서 센 부위별 무게 볼륨. 셈이 UseCase에 있어 파생 getter가 아니라 필드다. */
     val bodyPartVolumes: List<BodyPartVolume> = emptyList(),
+    /** 그날 최고값을 갱신한 종목. 저장하지 않고 볼 때마다 판정한다. */
+    val personalRecordExerciseIds: Set<Long> = emptySet(),
     val isEditable: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
