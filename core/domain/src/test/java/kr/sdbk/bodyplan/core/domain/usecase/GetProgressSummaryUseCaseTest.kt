@@ -51,6 +51,7 @@ class GetProgressSummaryUseCaseTest {
         analysisResultRepository = FakeAnalysisResultRepository(inbodyHistory),
         getWeightTrend = GetWeightTrendUseCase(),
         summarizeWorkoutVolume = SummarizeWorkoutVolumeUseCase(),
+        summarizeBodyPartVolumeTrend = SummarizeBodyPartVolumeTrendUseCase(SummarizeBodyPartVolumeUseCase()),
         clock = clock,
     )
 
@@ -292,6 +293,28 @@ class GetProgressSummaryUseCaseTest {
 
         assertEquals(0.0, metric.changeValue!!, 0.0001)
         assertEquals(ProgressDirection.STEADY, metric.direction)
+    }
+
+    @Test
+    fun `14일 구간 기록이 최근 7일과 그 앞 7일로 갈려 bodyPartVolumeTrends에 담긴다`() = runTest {
+        val entriesByDate = mapOf(
+            recentDay to listOf(weightEntry(100)),
+            previousDay to listOf(weightEntry(40)),
+        )
+
+        val trends = useCaseWith(entriesByDate = entriesByDate)().first().bodyPartVolumeTrends
+
+        assertEquals(listOf(BodyPart.CHEST), trends.map { it.bodyPart })
+        assertEquals(100, trends[0].recentVolumeKg)
+        assertEquals(60, trends[0].changeKg)
+        assertEquals(ProgressDirection.IMPROVING, trends[0].direction)
+    }
+
+    @Test
+    fun `두 구간 모두 무게 기록이 없으면 bodyPartVolumeTrends가 빈 목록이다`() = runTest {
+        val summary = useCaseWith()().first()
+
+        assertEquals(emptyList<Any>(), summary.bodyPartVolumeTrends)
     }
 
     private class FakeWeightLogRepository(private val records: List<WeightRecord>) : WeightLogRepository {

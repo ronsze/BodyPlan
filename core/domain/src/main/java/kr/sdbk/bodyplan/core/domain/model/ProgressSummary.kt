@@ -46,9 +46,13 @@ data class ProgressMetric(val key: ProgressMetricKey, val changeValue: Double?, 
  * [recentMetrics]는 최근 7일과 그 앞 7일을 견준 것이고, [bodyCompositionMetrics]는 인바디 최근
  * 두 건을 견준 것이다 — 인바디는 매일 찍지 않아 같은 기간으로 묶을 수 없다.
  * 값이 없는 축도 빼지 않고 담는다. 화면이 `-`로 보여야 하기 때문이다.
+ *
+ * [bodyPartVolumeTrends]는 [recentMetrics]와 같은 두 구간을 부위별로 가른 것이다. 헤드라인에는 넣지 않는다 —
+ * 부위 수만큼 표가 늘어 헤드라인이 볼륨에 치우친다.
  */
 data class ProgressSummary(
     val headline: ProgressHeadline = ProgressHeadline.NOT_ENOUGH_DATA,
     val recentMetrics: List<ProgressMetric> = emptyList(),
     val bodyCompositionMetrics: List<ProgressMetric> = emptyList(),
+    val bodyPartVolumeTrends: List<BodyPartVolumeTrend> = emptyList(),
 )

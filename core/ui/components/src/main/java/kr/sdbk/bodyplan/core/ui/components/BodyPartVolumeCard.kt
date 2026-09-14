@@ -123,8 +123,8 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
     }
 }
 
-/** `1,240kg` 꼴. 천 단위 구분은 로케일과 무관하게 쉼표로 고정한다. */
-internal fun volumeText(kg: Int): String = String.format(Locale.US, "%,dkg", kg)
+/** `1,240kg` 꼴. 천 단위 구분은 로케일과 무관하게 쉼표로 고정한다. 홈의 추이 카드도 같은 표기를 쓴다. */
+fun volumeText(kg: Int): String = String.format(Locale.US, "%,dkg", kg)
 
 private val previewVolumes = listOf(
     BodyPartVolume(BodyPart.CHEST, 1240),

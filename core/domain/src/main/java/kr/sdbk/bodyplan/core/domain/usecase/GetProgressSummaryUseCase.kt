@@ -40,6 +40,7 @@ constructor(
     private val analysisResultRepository: AnalysisResultRepository,
     private val getWeightTrend: GetWeightTrendUseCase,
     private val summarizeWorkoutVolume: SummarizeWorkoutVolumeUseCase,
+    private val summarizeBodyPartVolumeTrend: SummarizeBodyPartVolumeTrendUseCase,
     private val clock: Clock,
 ) {
     operator fun invoke(): Flow<ProgressSummary> {
@@ -64,6 +65,10 @@ constructor(
                 headline = headlineOf(recent + bodyComposition),
                 recentMetrics = recent,
                 bodyCompositionMetrics = bodyComposition,
+                bodyPartVolumeTrends = summarizeBodyPartVolumeTrend(
+                    recent = entriesByDate.between(recentFrom, today).values.flatten(),
+                    previous = entriesByDate.between(previousFrom, recentFrom.minusDays(1)).values.flatten(),
+                ),
             )
         }
     }
