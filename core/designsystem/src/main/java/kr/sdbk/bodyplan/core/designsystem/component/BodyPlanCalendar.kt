@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -41,6 +42,9 @@ import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
  * 이 컴포넌트는 날짜 배치와 이동만 맡는다. [selectedDate]는 강조 원으로 그린다.
  *
  * [cellHeight]도 호출부가 정한다. 점 몇 개를 찍는 화면과 사진을 보여주는 화면은 필요한 높이가 다르다.
+ *
+ * [collapsedWeekOf]를 주면 접었다 펼 수 있다 — 접힌 동안은 그 날짜가 든 한 주만 그리고 달 이동을 막는다.
+ * 접힘 상태를 호출부가 드는 것은 접을 때 보던 달을 되돌려야 해서다. 그 판단은 이 컴포넌트가 할 수 없다.
  */
 @Composable
 fun BodyPlanCalendar(
@@ -50,10 +54,15 @@ fun BodyPlanCalendar(
     onChangeMonth: (YearMonth) -> Unit,
     modifier: Modifier = Modifier,
     cellHeight: Dp = DEFAULT_CELL_HEIGHT,
+    collapsedWeekOf: LocalDate? = null,
+    isExpanded: Boolean = true,
+    onToggleExpanded: () -> Unit = {},
     dayContent: @Composable (LocalDate) -> Unit = {},
 ) {
+    val isCollapsible = collapsedWeekOf != null
+    val isCollapsed = isCollapsible && !isExpanded
     Column(modifier = modifier.fillMaxWidth()) {
-        MonthHeader(yearMonth = yearMonth, onChangeMonth = onChangeMonth)
+        MonthHeader(yearMonth = yearMonth, canChangeMonth = !isCollapsed, onChangeMonth = onChangeMonth)
         BodyPlanCard(cornerRadius = 20.dp) {
             WeekdayHeader()
             MonthGrid(
@@ -61,14 +70,19 @@ fun BodyPlanCalendar(
                 selectedDate = selectedDate,
                 onSelectDate = onSelectDate,
                 cellHeight = cellHeight,
+                onlyWeekOf = collapsedWeekOf.takeIf { isCollapsed },
                 dayContent = dayContent,
             )
+            if (isCollapsible) {
+                ExpandToggle(isExpanded = isExpanded, onClick = onToggleExpanded)
+            }
         }
     }
 }
 
+/** [canChangeMonth]가 아니면 화살표를 그리지 않는다. 비활성으로 남기면 눌러도 안 되는 이유가 보이지 않는다. */
 @Composable
-private fun MonthHeader(yearMonth: YearMonth, onChangeMonth: (YearMonth) -> Unit) {
+private fun MonthHeader(yearMonth: YearMonth, canChangeMonth: Boolean, onChangeMonth: (YearMonth) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -76,27 +90,57 @@ private fun MonthHeader(yearMonth: YearMonth, onChangeMonth: (YearMonth) -> Unit
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        BodyPlanIcon(
-            painter = BodyPlanIcons.ChevronLeft,
-            contentDescription = "이전 달",
-            boxSize = 20.dp,
-            iconSize = 16.dp,
-            tint = TextSecondary,
-            modifier = Modifier.clickable { onChangeMonth(yearMonth.minusMonths(1)) },
-        )
+        if (canChangeMonth) {
+            BodyPlanIcon(
+                painter = BodyPlanIcons.ChevronLeft,
+                contentDescription = "이전 달",
+                boxSize = 20.dp,
+                iconSize = 16.dp,
+                tint = TextSecondary,
+                modifier = Modifier.clickable { onChangeMonth(yearMonth.minusMonths(1)) },
+            )
+        }
         BaseText(
             text = yearMonth.atDay(1).format(MONTH_FORMAT),
             modifier = Modifier.padding(horizontal = 16.dp),
             style = MaterialTheme.typography.titleMedium,
             color = TextPrimary,
         )
+        if (canChangeMonth) {
+            BodyPlanIcon(
+                painter = BodyPlanIcons.ChevronRight,
+                contentDescription = "다음 달",
+                boxSize = 20.dp,
+                iconSize = 16.dp,
+                tint = TextSecondary,
+                modifier = Modifier.clickable { onChangeMonth(yearMonth.plusMonths(1)) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpandToggle(isExpanded: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BaseText(
+            text = if (isExpanded) "접기" else "펼치기",
+            style = MaterialTheme.typography.labelMedium,
+            color = TextTertiary,
+        )
         BodyPlanIcon(
             painter = BodyPlanIcons.ChevronRight,
-            contentDescription = "다음 달",
+            contentDescription = null,
             boxSize = 20.dp,
-            iconSize = 16.dp,
-            tint = TextSecondary,
-            modifier = Modifier.clickable { onChangeMonth(yearMonth.plusMonths(1)) },
+            iconSize = 14.dp,
+            tint = TextTertiary,
+            modifier = Modifier.rotate(if (isExpanded) -90f else 90f),
         )
     }
 }
@@ -127,12 +171,17 @@ private fun WeekdayHeader() {
     }
 }
 
+/**
+ * [onlyWeekOf]가 있으면 그 날짜가 든 줄 하나만 그린다. 다른 달의 날짜면 아무 줄도 그리지 않는다 —
+ * 그 주는 이 달의 격자에 없다.
+ */
 @Composable
 private fun MonthGrid(
     yearMonth: YearMonth,
     selectedDate: LocalDate?,
     onSelectDate: (LocalDate) -> Unit,
     cellHeight: Dp,
+    onlyWeekOf: LocalDate?,
     dayContent: @Composable (LocalDate) -> Unit,
 ) {
     val firstDay = yearMonth.atDay(1)
@@ -141,12 +190,20 @@ private fun MonthGrid(
     val lengthOfMonth = yearMonth.lengthOfMonth()
     // 달마다 필요한 주 수가 다르다. 6줄로 고정하면 5주로 끝나는 달에 빈 줄만큼 여백이 남는다.
     val weekRows = ceil((leadingBlanks + lengthOfMonth) / DAYS_IN_WEEK.toFloat()).toInt()
+    val rows = if (onlyWeekOf == null) {
+        0 until weekRows
+    } else if (YearMonth.from(onlyWeekOf) == yearMonth) {
+        val row = (leadingBlanks + onlyWeekOf.dayOfMonth - 1) / DAYS_IN_WEEK
+        row..row
+    } else {
+        IntRange.EMPTY
+    }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        repeat(weekRows) { row ->
+        rows.forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -225,6 +282,22 @@ private fun BodyPlanCalendarPreview() {
             onSelectDate = {},
             onChangeMonth = {},
             modifier = Modifier.padding(16.dp),
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFFF2F4F6)
+@Composable
+private fun BodyPlanCalendarCollapsedPreview() {
+    BodyPlanTheme {
+        BodyPlanCalendar(
+            yearMonth = YearMonth.of(2026, 9),
+            selectedDate = LocalDate.of(2026, 9, 8),
+            onSelectDate = {},
+            onChangeMonth = {},
+            modifier = Modifier.padding(16.dp),
+            collapsedWeekOf = LocalDate.of(2026, 9, 8),
+            isExpanded = false,
         )
     }
 }

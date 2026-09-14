@@ -156,6 +156,67 @@ internal class WorkoutCalendarViewModelTest {
     }
 
     @Test
+    fun `진입 시 펼침 상태는 접혀 있다`() = runTest {
+        val viewModel = viewModel(FakeWorkoutLogRepository())
+
+        subscribe(viewModel)
+
+        assertFalse(viewModel.uiState.value.isCalendarExpanded)
+    }
+
+    @Test
+    fun `토글을 한 번 하면 펼쳐지고 두 번 하면 다시 접힌다`() = runTest {
+        val viewModel = viewModel(FakeWorkoutLogRepository())
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isCalendarExpanded)
+
+        viewModel.handleIntent(WorkoutCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isCalendarExpanded)
+    }
+
+    @Test
+    fun `다른 달을 보다가 펼친 뒤 접으면 이번 달로 돌아오고 다시 읽는다`() = runTest {
+        val repository = FakeWorkoutLogRepository()
+        val viewModel = viewModel(repository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutCalendarIntent.ChangeMonth(YearMonth.of(2026, 8)))
+        advanceUntilIdle()
+        viewModel.handleIntent(WorkoutCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+        val callCountBeforeCollapse = repository.observeBodyPartsInRangeCallCount
+
+        viewModel.handleIntent(WorkoutCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isCalendarExpanded)
+        assertEquals(YearMonth.of(2026, 9), viewModel.uiState.value.yearMonth)
+        assertTrue(repository.observeBodyPartsInRangeCallCount > callCountBeforeCollapse)
+    }
+
+    @Test
+    fun `이번 달을 보는 채로 접으면 다시 읽지 않는다`() = runTest {
+        val repository = FakeWorkoutLogRepository()
+        val viewModel = viewModel(repository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+        val callCountBeforeCollapse = repository.observeBodyPartsInRangeCallCount
+
+        viewModel.handleIntent(WorkoutCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isCalendarExpanded)
+        assertEquals(YearMonth.of(2026, 9), viewModel.uiState.value.yearMonth)
+        assertEquals(callCountBeforeCollapse, repository.observeBodyPartsInRangeCallCount)
+    }
+
+    @Test
     fun `조회가 실패하면 에러가 실리고 재시도가 다시 읽는다`() = runTest {
         val repository = FakeWorkoutLogRepository(
             bodyPartsByDate = mapOf(LocalDate.of(2026, 9, 3) to setOf(BodyPart.LEG)),

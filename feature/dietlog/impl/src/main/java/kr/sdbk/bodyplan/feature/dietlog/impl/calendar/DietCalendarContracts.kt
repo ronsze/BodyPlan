@@ -13,6 +13,8 @@ internal data class DietCalendarState(
     val dayStatuses: Map<LocalDate, DietDayStatus> = emptyMap(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    /** 캘린더를 달 전체로 펼쳤는지. 처음엔 이번 주만 보인다. */
+    val isCalendarExpanded: Boolean = false,
 ) : State
 
 internal sealed interface DietCalendarIntent : Intent {
@@ -20,6 +22,8 @@ internal sealed interface DietCalendarIntent : Intent {
     data class ChangeMonth(val yearMonth: YearMonth) : DietCalendarIntent
 
     data class ClickDate(val date: LocalDate) : DietCalendarIntent
+
+    data object ToggleCalendarExpansion : DietCalendarIntent
 
     data object ClickRetry : DietCalendarIntent
 }

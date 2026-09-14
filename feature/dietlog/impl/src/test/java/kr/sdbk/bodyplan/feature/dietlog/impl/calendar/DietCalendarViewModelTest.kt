@@ -149,6 +149,67 @@ internal class DietCalendarViewModelTest {
     }
 
     @Test
+    fun `진입 시 펼침 상태는 접혀 있다`() = runTest {
+        val viewModel = viewModel(FakeDietLogRepository())
+
+        subscribe(viewModel)
+
+        assertFalse(viewModel.uiState.value.isCalendarExpanded)
+    }
+
+    @Test
+    fun `토글을 한 번 하면 펼쳐지고 두 번 하면 다시 접힌다`() = runTest {
+        val viewModel = viewModel(FakeDietLogRepository())
+        subscribe(viewModel)
+
+        viewModel.handleIntent(DietCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isCalendarExpanded)
+
+        viewModel.handleIntent(DietCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isCalendarExpanded)
+    }
+
+    @Test
+    fun `다른 달을 보다가 펼친 뒤 접으면 이번 달로 돌아오고 다시 읽는다`() = runTest {
+        val repository = FakeDietLogRepository()
+        val viewModel = viewModel(repository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(DietCalendarIntent.ChangeMonth(YearMonth.of(2026, 8)))
+        advanceUntilIdle()
+        viewModel.handleIntent(DietCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+        val callCountBeforeCollapse = repository.observeFirstImageInRangeCallCount
+
+        viewModel.handleIntent(DietCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isCalendarExpanded)
+        assertEquals(YearMonth.of(2026, 9), viewModel.uiState.value.yearMonth)
+        assertTrue(repository.observeFirstImageInRangeCallCount > callCountBeforeCollapse)
+    }
+
+    @Test
+    fun `이번 달을 보는 채로 접으면 다시 읽지 않는다`() = runTest {
+        val repository = FakeDietLogRepository()
+        val viewModel = viewModel(repository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(DietCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+        val callCountBeforeCollapse = repository.observeFirstImageInRangeCallCount
+
+        viewModel.handleIntent(DietCalendarIntent.ToggleCalendarExpansion)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isCalendarExpanded)
+        assertEquals(YearMonth.of(2026, 9), viewModel.uiState.value.yearMonth)
+        assertEquals(callCountBeforeCollapse, repository.observeFirstImageInRangeCallCount)
+    }
+
+    @Test
     fun `날짜를 누르면 그 날짜의 기록으로 이동한다`() = runTest {
         val viewModel = viewModel(FakeDietLogRepository())
         val effects = mutableListOf<DietCalendarEffect>()

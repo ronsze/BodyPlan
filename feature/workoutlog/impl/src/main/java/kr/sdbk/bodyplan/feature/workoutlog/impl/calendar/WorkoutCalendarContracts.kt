@@ -13,6 +13,8 @@ internal data class WorkoutCalendarState(
     val dayStatuses: Map<LocalDate, DayStatus> = emptyMap(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    /** 캘린더를 달 전체로 펼쳤는지. 처음엔 이번 주만 보인다. */
+    val isCalendarExpanded: Boolean = false,
 ) : State
 
 internal sealed interface WorkoutCalendarIntent : Intent {
@@ -20,6 +22,8 @@ internal sealed interface WorkoutCalendarIntent : Intent {
     data class ChangeMonth(val yearMonth: YearMonth) : WorkoutCalendarIntent
 
     data class ClickDate(val date: LocalDate) : WorkoutCalendarIntent
+
+    data object ToggleCalendarExpansion : WorkoutCalendarIntent
 
     data object ClickManageExercise : WorkoutCalendarIntent
 

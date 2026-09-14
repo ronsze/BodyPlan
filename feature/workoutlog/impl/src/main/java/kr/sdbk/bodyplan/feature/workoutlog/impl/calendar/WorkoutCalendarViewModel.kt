@@ -43,8 +43,17 @@ constructor(
             is WorkoutCalendarIntent.ClickExerciseTrend ->
                 updateEffect(WorkoutCalendarEffect.NavigateToExerciseTrend)
 
+            is WorkoutCalendarIntent.ToggleCalendarExpansion -> toggleCalendarExpansion()
+
             is WorkoutCalendarIntent.ClickRetry -> observeMonth()
         }
+    }
+
+    /** 접으면 이번 주만 남으므로, 다른 달을 보고 있었다면 이번 달로 되돌린다. */
+    private fun toggleCalendarExpansion() {
+        val isExpanding = !state.value.isCalendarExpanded
+        updateState { it.copy(isCalendarExpanded = isExpanding) }
+        if (!isExpanding) changeMonth(YearMonth.from(state.value.today))
     }
 
     private fun changeMonth(yearMonth: YearMonth) {

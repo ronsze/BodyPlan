@@ -4,6 +4,7 @@ import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kr.sdbk.bodyplan.core.domain.model.DietEntry
 import kr.sdbk.bodyplan.core.domain.model.DietLog
 import kr.sdbk.bodyplan.core.domain.repository.DietLogRepository
@@ -28,6 +29,10 @@ internal class FakeDietLogRepository(
     var lastSavedMemo: String? = null
         private set
 
+    // 캘린더를 접었을 때 이미 이번 달이면 다시 구독하지 않는지 보려고 둔다.
+    var observeFirstImageInRangeCallCount: Int = 0
+        private set
+
     override fun observeLog(date: LocalDate): Flow<DietLog> = entries.map { list ->
         observeFailure?.let { throw it }
         DietLog(date = date, entries = list)
@@ -36,7 +41,7 @@ internal class FakeDietLogRepository(
     override fun observeFirstImageInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, String>> = entries.map {
         observeFailure?.let { failure -> throw failure }
         imagesByDate.filterKeys { date -> !date.isBefore(from) && !date.isAfter(to) }
-    }
+    }.onStart { observeFirstImageInRangeCallCount++ }
 
     override suspend fun getEntry(id: Long): DietEntry? = entries.value.firstOrNull { it.id == id }
 

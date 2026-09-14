@@ -52,6 +52,7 @@ internal data class WorkoutCalendarUiEvents(
     val onClickWeeklyAnalysis: () -> Unit,
     val onClickMonthlyAnalysis: () -> Unit,
     val onChangeMonth: (YearMonth) -> Unit,
+    val onToggleCalendarExpansion: () -> Unit,
     val onClickManageExercise: () -> Unit,
     val onClickExerciseTrend: () -> Unit,
     val onClickRetry: () -> Unit,
@@ -96,6 +97,7 @@ private fun rememberUiEvents(
         onClickWeeklyAnalysis = { events.goToAnalysis(WorkoutAnalysisPeriod.WEEKLY, today) },
         onClickMonthlyAnalysis = { events.goToAnalysis(WorkoutAnalysisPeriod.MONTHLY, dateInMonth) },
         onChangeMonth = { viewModel.handleIntent(WorkoutCalendarIntent.ChangeMonth(it)) },
+        onToggleCalendarExpansion = { viewModel.handleIntent(WorkoutCalendarIntent.ToggleCalendarExpansion) },
         onClickManageExercise = { viewModel.handleIntent(WorkoutCalendarIntent.ClickManageExercise) },
         onClickExerciseTrend = { viewModel.handleIntent(WorkoutCalendarIntent.ClickExerciseTrend) },
         onClickRetry = { viewModel.handleIntent(WorkoutCalendarIntent.ClickRetry) },
@@ -138,6 +140,9 @@ internal fun WorkoutCalendarViewImpl(state: WorkoutCalendarState, uiEvents: Work
                 onChangeMonth = uiEvents.onChangeMonth,
                 // 부위를 이름으로 적으면서 표시가 두 줄까지 늘었다. 그만큼 칸을 키운다.
                 cellHeight = CELL_HEIGHT,
+                collapsedWeekOf = state.today,
+                isExpanded = state.isCalendarExpanded,
+                onToggleExpanded = uiEvents.onToggleCalendarExpansion,
                 dayContent = { date ->
                     DayStatusIndicator(status = state.dayStatuses[date] ?: DayStatus.Pending)
                 },
@@ -215,6 +220,7 @@ private val previewUiEvents = WorkoutCalendarUiEvents(
     onClickWeeklyAnalysis = {},
     onClickMonthlyAnalysis = {},
     onChangeMonth = {},
+    onToggleCalendarExpansion = {},
     onClickManageExercise = {},
     onClickExerciseTrend = {},
     onClickRetry = {},
