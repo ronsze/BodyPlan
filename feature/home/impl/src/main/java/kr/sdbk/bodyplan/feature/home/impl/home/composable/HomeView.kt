@@ -28,6 +28,7 @@ import kr.sdbk.bodyplan.core.domain.model.ProgressHeadline
 import kr.sdbk.bodyplan.core.domain.model.ProgressMetric
 import kr.sdbk.bodyplan.core.domain.model.ProgressMetricKey
 import kr.sdbk.bodyplan.core.domain.model.ProgressSummary
+import kr.sdbk.bodyplan.core.domain.model.WeeklyGoalProgress
 import kr.sdbk.bodyplan.feature.home.impl.home.HomeIntent
 import kr.sdbk.bodyplan.feature.home.impl.home.HomeState
 import kr.sdbk.bodyplan.feature.home.impl.home.HomeViewModel
@@ -61,14 +62,14 @@ internal fun HomeViewImpl(state: HomeState, uiEvents: HomeUiEvents) {
             when {
                 state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
                 summary == null -> LoadingContent()
-                else -> SummaryContent(summary)
+                else -> SummaryContent(summary, state.weeklyGoal)
             }
         }
     }
 }
 
 @Composable
-private fun SummaryContent(summary: ProgressSummary) {
+private fun SummaryContent(summary: ProgressSummary, weeklyGoal: WeeklyGoalProgress?) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -76,6 +77,7 @@ private fun SummaryContent(summary: ProgressSummary) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        WeeklyGoalCard(progress = weeklyGoal)
         ProgressCard(headline = summary.headline, metrics = summary.recentMetrics)
         BodyCompositionCard(metrics = summary.bodyCompositionMetrics)
         BodyPartVolumeTrendCard(trends = summary.bodyPartVolumeTrends)
@@ -123,7 +125,13 @@ private val previewSummary = ProgressSummary(
 @Composable
 private fun HomeViewImplPreview() {
     BodyPlanTheme {
-        HomeViewImpl(state = HomeState(summary = previewSummary), uiEvents = previewUiEvents)
+        HomeViewImpl(
+            state = HomeState(
+                summary = previewSummary,
+                weeklyGoal = WeeklyGoalProgress(goalDays = 4, doneDays = 3, streakWeeks = 2),
+            ),
+            uiEvents = previewUiEvents,
+        )
     }
 }
 

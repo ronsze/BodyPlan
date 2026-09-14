@@ -14,6 +14,7 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WeightRecord
@@ -25,6 +26,7 @@ import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 import kr.sdbk.bodyplan.core.domain.repository.WeightLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 import kr.sdbk.bodyplan.core.domain.usecase.GetProgressSummaryUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.GetWeeklyGoalProgressUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.GetWeightTrendUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeTrendUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeUseCase
@@ -53,6 +55,11 @@ internal class HomeViewModelTest {
             getWeightTrend = GetWeightTrendUseCase(),
             summarizeWorkoutVolume = SummarizeWorkoutVolumeUseCase(),
             summarizeBodyPartVolumeTrend = SummarizeBodyPartVolumeTrendUseCase(SummarizeBodyPartVolumeUseCase()),
+            clock = clock,
+        ),
+        getWeeklyGoalProgress = GetWeeklyGoalProgressUseCase(
+            userProfileRepository = FakeUserProfileRepository(),
+            workoutLogRepository = FakeWorkoutLogRepository(),
             clock = clock,
         ),
     )
@@ -120,12 +127,19 @@ internal class HomeViewModelTest {
         override fun observeLog(date: LocalDate): Flow<WorkoutLog> = error("사용하지 않음")
 
         override fun observeBodyPartsInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, Set<BodyPart>>> =
-            error("사용하지 않음")
+            flowOf(
+                entriesByDate.filterKeys { !it.isBefore(from) && !it.isAfter(to) }
+                    .mapValues { (_, entries) -> entries.map { it.bodyPart }.toSet() },
+            )
 
         override fun observeEntriesInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<WorkoutEntry>>> =
             flowOf(entriesByDate.filterKeys { !it.isBefore(from) && !it.isAfter(to) })
 
         override suspend fun getEntry(id: Long): WorkoutEntry? = error("사용하지 않음")
+
+        override fun observeBestBefore(date: LocalDate): Flow<List<ExerciseBest>> = error("사용하지 않음")
+
+        override suspend fun getLatestEntry(exerciseId: Long, until: LocalDate): WorkoutEntry? = error("사용하지 않음")
 
         override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long =
             error("사용하지 않음")

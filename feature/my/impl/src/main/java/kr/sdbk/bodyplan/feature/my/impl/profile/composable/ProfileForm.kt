@@ -93,6 +93,9 @@ internal fun ProfileForm(input: ProfileInput, onChange: (ProfileInput) -> Unit, 
         NumberField("목표 체중", input.targetWeightKg, "kg") {
             onChange(input.copy(targetWeightKg = it))
         }
+        NumberField("주간 운동 목표", input.weeklyWorkoutGoal, "회") {
+            onChange(input.copy(weeklyWorkoutGoal = it))
+        }
 
         FieldLabel("그 밖의 목표")
         InputBox {

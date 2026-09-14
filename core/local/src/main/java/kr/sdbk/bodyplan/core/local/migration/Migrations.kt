@@ -180,3 +180,10 @@ internal val MIGRATION_9_10 = object : Migration(9, 10) {
         )
     }
 }
+
+/** 주간 운동 목표 컬럼을 더한다. 기존 행은 목표 없음(NULL)이다. */
+internal val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `weeklyWorkoutGoal` INTEGER")
+    }
+}

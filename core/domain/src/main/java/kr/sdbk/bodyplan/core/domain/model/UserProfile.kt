@@ -19,6 +19,8 @@ data class UserProfile(
     val goals: Set<Goal> = emptySet(),
     val targetWeightKg: Int? = null,
     val targetNote: String? = null,
+    /** 한 주에 운동할 날 수. 홈이 달성 여부와 연속 주를 센다. */
+    val weeklyWorkoutGoal: Int? = null,
 ) {
     val isEmpty: Boolean
         get() = ageYears == null &&
@@ -27,5 +29,11 @@ data class UserProfile(
             gender == null &&
             goals.isEmpty() &&
             targetWeightKg == null &&
-            targetNote.isNullOrBlank()
+            targetNote.isNullOrBlank() &&
+            weeklyWorkoutGoal == null
+
+    companion object {
+        /** 주에 운동할 수 있는 날은 7일뿐이다. */
+        val WEEKLY_GOAL_RANGE: IntRange = 1..7
+    }
 }

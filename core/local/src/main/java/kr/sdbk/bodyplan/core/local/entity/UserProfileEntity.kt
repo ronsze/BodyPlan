@@ -20,6 +20,8 @@ data class UserProfileEntity(
     val goals: String,
     val targetWeightKg: Int?,
     val targetNote: String?,
+    // 기본값이 있어야 이 컬럼이 생기기 전의 스냅샷도 읽힌다.
+    val weeklyWorkoutGoal: Int? = null,
 ) {
     companion object {
         const val SINGLE_ROW_ID = 0
