@@ -26,6 +26,8 @@ import kr.sdbk.bodyplan.core.domain.repository.WeightLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 import kr.sdbk.bodyplan.core.domain.usecase.GetProgressSummaryUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.GetWeightTrendUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeTrendUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.SummarizeWorkoutVolumeUseCase
 import kr.sdbk.bodyplan.feature.home.impl.MainDispatcherRule
 import org.junit.Assert.assertEquals
@@ -50,6 +52,7 @@ internal class HomeViewModelTest {
             analysisResultRepository = FakeAnalysisResultRepository(),
             getWeightTrend = GetWeightTrendUseCase(),
             summarizeWorkoutVolume = SummarizeWorkoutVolumeUseCase(),
+            summarizeBodyPartVolumeTrend = SummarizeBodyPartVolumeTrendUseCase(SummarizeBodyPartVolumeUseCase()),
             clock = clock,
         ),
     )

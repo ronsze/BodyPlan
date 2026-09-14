@@ -48,6 +48,7 @@ internal data class DietCalendarUiEvents(
     val onClickWeeklyAnalysis: () -> Unit,
     val onClickMonthlyAnalysis: () -> Unit,
     val onChangeMonth: (YearMonth) -> Unit,
+    val onToggleCalendarExpansion: () -> Unit,
     val onClickRetry: () -> Unit,
 )
 
@@ -89,6 +90,7 @@ private fun rememberUiEvents(
         onClickWeeklyAnalysis = { events.goToAnalysis(DietAnalysisPeriod.WEEKLY, today) },
         onClickMonthlyAnalysis = { events.goToAnalysis(DietAnalysisPeriod.MONTHLY, dateInMonth) },
         onChangeMonth = { viewModel.handleIntent(DietCalendarIntent.ChangeMonth(it)) },
+        onToggleCalendarExpansion = { viewModel.handleIntent(DietCalendarIntent.ToggleCalendarExpansion) },
         onClickRetry = { viewModel.handleIntent(DietCalendarIntent.ClickRetry) },
     )
 }
@@ -121,6 +123,9 @@ internal fun DietCalendarViewImpl(state: DietCalendarState, uiEvents: DietCalend
                 onSelectDate = uiEvents.onSelectDate,
                 onChangeMonth = uiEvents.onChangeMonth,
                 cellHeight = CELL_HEIGHT,
+                collapsedWeekOf = state.today,
+                isExpanded = state.isCalendarExpanded,
+                onToggleExpanded = uiEvents.onToggleCalendarExpansion,
                 dayContent = { date ->
                     DietDayStatusIndicator(
                         status = state.dayStatuses[date] ?: DietDayStatus.Pending,
@@ -191,6 +196,7 @@ private val previewUiEvents = DietCalendarUiEvents(
     onClickWeeklyAnalysis = {},
     onClickMonthlyAnalysis = {},
     onChangeMonth = {},
+    onToggleCalendarExpansion = {},
     onClickRetry = {},
 )
 

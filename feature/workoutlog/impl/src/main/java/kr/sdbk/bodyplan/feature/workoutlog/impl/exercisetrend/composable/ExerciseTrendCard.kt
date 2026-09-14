@@ -10,7 +10,10 @@ import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
+import kr.sdbk.bodyplan.core.designsystem.component.TrendChart
+import kr.sdbk.bodyplan.core.designsystem.component.TrendChartLine
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
+import kr.sdbk.bodyplan.core.designsystem.component.defaultValueText
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
@@ -21,9 +24,6 @@ import kr.sdbk.bodyplan.core.domain.model.ExerciseTrendPoint
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.RecordedExercise
 import kr.sdbk.bodyplan.core.domain.model.trendMetrics
-import kr.sdbk.bodyplan.core.designsystem.component.TrendChart
-import kr.sdbk.bodyplan.core.designsystem.component.TrendChartLine
-import kr.sdbk.bodyplan.core.designsystem.component.defaultValueText
 import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisetrend.color
 import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisetrend.label
 import kr.sdbk.bodyplan.feature.workoutlog.impl.exercisetrend.unit

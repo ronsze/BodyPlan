@@ -10,6 +10,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
+import kr.sdbk.bodyplan.core.designsystem.component.TrendChart
+import kr.sdbk.bodyplan.core.designsystem.component.TrendChartLine
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.PartCardio
@@ -18,8 +20,6 @@ import kr.sdbk.bodyplan.core.designsystem.theme.PartLeg
 import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
-import kr.sdbk.bodyplan.core.designsystem.component.TrendChart
-import kr.sdbk.bodyplan.core.designsystem.component.TrendChartLine
 
 /** 그래프에 찍는 한 점. 언제 잰 것인지 알아야 좌우 방향을 적을 수 있다. */
 internal data class InbodyTrendPoint(val measuredAtMillis: Long, val measurement: InbodyMeasurement)

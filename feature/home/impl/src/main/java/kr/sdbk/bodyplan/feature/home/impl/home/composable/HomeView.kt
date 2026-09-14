@@ -78,6 +78,7 @@ private fun SummaryContent(summary: ProgressSummary) {
     ) {
         ProgressCard(headline = summary.headline, metrics = summary.recentMetrics)
         BodyCompositionCard(metrics = summary.bodyCompositionMetrics)
+        BodyPartVolumeTrendCard(trends = summary.bodyPartVolumeTrends)
     }
 }
 
@@ -115,6 +116,7 @@ private val previewSummary = ProgressSummary(
         ProgressMetric(ProgressMetricKey.SKELETAL_MUSCLE, 0.8, ProgressDirection.IMPROVING),
         ProgressMetric(ProgressMetricKey.BODY_FAT, -0.4, ProgressDirection.IMPROVING),
     ),
+    bodyPartVolumeTrends = previewVolumeTrends,
 )
 
 @Preview(showBackground = true, heightDp = 780)

@@ -44,6 +44,10 @@ internal class FakeWorkoutLogRepository(
     var observeEntriesInRangeCallCount: Int = 0
         private set
 
+    // 캘린더를 접었을 때 이미 이번 달이면 다시 구독하지 않는지 보려고 둔다.
+    var observeBodyPartsInRangeCallCount: Int = 0
+        private set
+
     // 저장이 끝나지 않은 채로 두 번째 인텐트가 오는 상황을 만들려면 이 걸쇠로 완료 시점을 붙잡아 둔다.
     var saveMemoGate: CompletableDeferred<Unit>? = null
 
@@ -56,7 +60,7 @@ internal class FakeWorkoutLogRepository(
         entries.map {
             observeFailure?.let { failure -> throw failure }
             bodyPartsByDate.filterKeys { date -> !date.isBefore(from) && !date.isAfter(to) }
-        }
+        }.onStart { observeBodyPartsInRangeCallCount++ }
 
     override fun observeEntriesInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<WorkoutEntry>>> =
         entries.map {
