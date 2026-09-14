@@ -19,6 +19,7 @@ import kr.sdbk.bodyplan.core.domain.model.countsRepeats
 import kr.sdbk.bodyplan.core.domain.repository.ExerciseRepository
 import kr.sdbk.bodyplan.core.domain.repository.RoutineRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
+import kr.sdbk.bodyplan.core.domain.usecase.IsPersonalRecordUseCase
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 
 @HiltViewModel(assistedFactory = WorkoutEntryEditViewModel.Factory::class)
@@ -28,12 +29,14 @@ constructor(
     private val exerciseRepository: ExerciseRepository,
     private val workoutLogRepository: WorkoutLogRepository,
     private val routineRepository: RoutineRepository,
+    private val isPersonalRecord: IsPersonalRecordUseCase,
     @Assisted target: WorkoutEntryEditTarget,
     @Assisted editingEntryId: Long?,
 ) : BaseViewModel<WorkoutEntryEditState, WorkoutEntryEditIntent, WorkoutEntryEditEffect>(
     initialState = WorkoutEntryEditState(target = target, editingEntryId = editingEntryId),
 ) {
     private var exercisesJob: Job? = null
+    private var prefillJob: Job? = null
 
     override suspend fun initializeData() {
         val entryId = state.value.editingEntryId
@@ -172,6 +175,40 @@ constructor(
                 nextSetInputId = current.nextSetInputId + 1,
             )
         }
+        prefillFromLatest(exercise)
+    }
+
+    /**
+     * 신규 작성·일지 대상에서만 지난 세트를 미리 채운다 — 수정은 이미 값이 있고,
+     * 루틴 항목은 기준값이라 지난 기록에 끌려가면 안 된다.
+     *
+     * 조회를 기다리지 않는 것은 종목을 골랐는데 세트가 안 보이는 순간을 없애기 위해서다.
+     * 조회 실패는 무시한다 — 채움은 편의이지 필수가 아니다.
+     */
+    private fun prefillFromLatest(exercise: Exercise) {
+        prefillJob?.cancel()
+        val target = state.value.target as? WorkoutEntryEditTarget.Log ?: return
+        if (state.value.editingEntryId != null) return
+        prefillJob = viewModelScope.launch {
+            val latest = runCatching { workoutLogRepository.getLatestEntry(exercise.id, target.date) }
+                .getOrNull() ?: return@launch
+            // 축을 바꾼 종목의 옛 기록은 값의 뜻이 다르다 — 무게 80이 시간 80분으로 들어오면 안 된다.
+            if (latest.sets.isEmpty() || latest.intensityType != exercise.intensityType) return@launch
+            updateState { current ->
+                // 그 사이 다른 종목을 골랐으면 그쪽 세트를 덮지 않는다.
+                if (current.selectedExercise?.id != exercise.id) return@updateState current
+                current.copy(
+                    sets = latest.sets.mapIndexed { index, set ->
+                        SetInput(
+                            id = current.nextSetInputId + index,
+                            repeatCount = set.repeatCount,
+                            intensityValue = set.intensity.value,
+                        )
+                    },
+                    nextSetInputId = current.nextSetInputId + latest.sets.size,
+                )
+            }
+        }
     }
 
     private fun addSet() {
@@ -228,11 +265,28 @@ constructor(
                 saveTo(current.target, current.editingEntryId, exercise, sets)
             }.onSuccess {
                 updateState { it.copy(isSaving = false) }
+                notifyPersonalRecord(current.target, exercise, sets)
                 updateEffect(WorkoutEntryEditEffect.GoBack)
             }.onFailure {
                 updateState { it.copy(isSaving = false) }
                 updateEffect(WorkoutEntryEditEffect.ShowMessage(SAVE_ERROR))
             }
+        }
+    }
+
+    /** 판정이 실패해도 저장은 끝났으므로 조용히 넘어간다. 루틴은 기록이 아니라 견줄 것이 없다. */
+    private suspend fun notifyPersonalRecord(
+        target: WorkoutEntryEditTarget,
+        exercise: Exercise,
+        sets: List<WorkoutSet>,
+    ) {
+        val date = (target as? WorkoutEntryEditTarget.Log)?.date ?: return
+        val isRecord = runCatching { isPersonalRecord(date, exercise.id, exercise.intensityType, sets) }
+            .getOrDefault(false)
+        if (isRecord) {
+            updateEffect(
+                WorkoutEntryEditEffect.ShowMessage("${exercise.name} ${exercise.intensityType.recordLabel} 갱신!"),
+            )
         }
     }
 

@@ -6,12 +6,14 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutOptions
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
+import kr.sdbk.bodyplan.core.domain.usecase.IsPersonalRecordUseCase
 import kr.sdbk.bodyplan.feature.workoutlog.impl.MainDispatcherRule
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeExerciseRepository
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeRoutineRepository
@@ -47,6 +49,7 @@ internal class WorkoutEntryEditViewModelTest {
         exerciseRepository = exerciseRepository,
         workoutLogRepository = workoutLogRepository,
         routineRepository = routineRepository,
+        isPersonalRecord = IsPersonalRecordUseCase(workoutLogRepository),
         target = target,
         editingEntryId = entryId,
     )
@@ -208,6 +211,150 @@ internal class WorkoutEntryEditViewModelTest {
     }
 
     @Test
+    fun `일지 신규 작성에서 종목을 고르면 가장 최근 기록의 세트로 채워진다`() = runTest {
+        val latest = WorkoutEntry(
+            id = 5L,
+            exerciseId = benchPress.id,
+            exerciseName = benchPress.name,
+            bodyPart = BodyPart.CHEST,
+            intensityType = IntensityType.WEIGHT,
+            sets = listOf(
+                WorkoutSet(repeatCount = 10, intensity = Intensity.Weight(70)),
+                WorkoutSet(repeatCount = 6, intensity = Intensity.Weight(80)),
+            ),
+        )
+        val logRepository = FakeWorkoutLogRepository(latestEntriesByExercise = mapOf(benchPress.id to latest))
+        val viewModel = viewModel(workoutLogRepository = logRepository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CHEST))
+        advanceUntilIdle()
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(benchPress.id))
+        advanceUntilIdle()
+
+        assertEquals(listOf(70, 80), viewModel.uiState.value.sets.map { it.intensityValue })
+        assertEquals(listOf(10, 6), viewModel.uiState.value.sets.map { it.repeatCount })
+    }
+
+    @Test
+    fun `이전 기록이 없는 종목을 고르면 기본 세트 1개가 그대로 남는다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.sets.size)
+        assertEquals(WorkoutOptions.weightKilograms.first(), viewModel.uiState.value.sets.single().intensityValue)
+    }
+
+    @Test
+    fun `최근 기록의 축이 지금 종목의 축과 다르면 채우지 않고 기본 세트가 남는다`() = runTest {
+        // 무게로 재다가 각도로 바꾼 종목. 옛 무게 기록이 각도 세트로 들어오면 값의 뜻이 달라진다.
+        val latest = WorkoutEntry(
+            id = 5L,
+            exerciseId = pushUp.id,
+            exerciseName = pushUp.name,
+            bodyPart = BodyPart.CHEST,
+            intensityType = IntensityType.WEIGHT,
+            sets = listOf(WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(60))),
+        )
+        val logRepository = FakeWorkoutLogRepository(latestEntriesByExercise = mapOf(pushUp.id to latest))
+        val viewModel = viewModel(workoutLogRepository = logRepository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CHEST))
+        advanceUntilIdle()
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(pushUp.id))
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.sets.size)
+        assertEquals(WorkoutOptions.angleDegrees.first(), viewModel.uiState.value.sets.single().intensityValue)
+    }
+
+    @Test
+    fun `수정 진입에서는 종목을 골라도 자동 채움이 일어나지 않는다`() = runTest {
+        val stored = storedEntry()
+        val latest = storedEntry().copy(sets = listOf(WorkoutSet(repeatCount = 1, intensity = Intensity.Weight(999))))
+        val logRepository = FakeWorkoutLogRepository(
+            listOf(stored),
+            latestEntriesByExercise = mapOf(benchPress.id to latest),
+        )
+        val viewModel = viewModel(entryId = stored.id, workoutLogRepository = logRepository)
+
+        subscribe(viewModel)
+
+        assertEquals(listOf(40, 45), viewModel.uiState.value.sets.map { it.intensityValue })
+        assertEquals(0, logRepository.getLatestEntryCallCount)
+    }
+
+    @Test
+    fun `루틴 대상에서는 종목을 골라도 자동 채움이 일어나지 않는다`() = runTest {
+        val routine = Routine(id = 1L, name = "가슴 루틴", bodyPart = BodyPart.CHEST, entries = emptyList())
+        val routineRepository = FakeRoutineRepository(listOf(routine))
+        val latest = storedEntry().copy(sets = listOf(WorkoutSet(repeatCount = 1, intensity = Intensity.Weight(999))))
+        val logRepository = FakeWorkoutLogRepository(latestEntriesByExercise = mapOf(benchPress.id to latest))
+        val viewModel = viewModel(
+            workoutLogRepository = logRepository,
+            routineRepository = routineRepository,
+            target = WorkoutEntryEditTarget.Routine(1L),
+        )
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(benchPress.id))
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.sets.size)
+        assertEquals(WorkoutOptions.weightKilograms.first(), viewModel.uiState.value.sets.single().intensityValue)
+        assertEquals(0, logRepository.getLatestEntryCallCount)
+    }
+
+    @Test
+    fun `자동 채움 조회가 실패하면 기본 세트가 그대로 남고 에러로 바뀌지 않는다`() = runTest {
+        val logRepository = FakeWorkoutLogRepository()
+        logRepository.getLatestEntryFailure = IllegalStateException("boom")
+        val viewModel = viewModel(workoutLogRepository = logRepository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CHEST))
+        advanceUntilIdle()
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(benchPress.id))
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.sets.size)
+        assertEquals(WorkoutOptions.weightKilograms.first(), viewModel.uiState.value.sets.single().intensityValue)
+        assertNull(viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `종목을 빠르게 두 번 바꾸면 나중 종목의 세트만 남는다`() = runTest {
+        val latestBench = storedEntry().copy(
+            sets = listOf(WorkoutSet(repeatCount = 5, intensity = Intensity.Weight(100))),
+        )
+        val latestPushUp = WorkoutEntry(
+            id = 6L,
+            exerciseId = pushUp.id,
+            exerciseName = pushUp.name,
+            bodyPart = BodyPart.CHEST,
+            intensityType = IntensityType.ANGLE,
+            sets = listOf(WorkoutSet(repeatCount = 30, intensity = Intensity.Angle(20))),
+        )
+        val logRepository = FakeWorkoutLogRepository(
+            latestEntriesByExercise = mapOf(benchPress.id to latestBench, pushUp.id to latestPushUp),
+        )
+        val viewModel = viewModel(workoutLogRepository = logRepository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CHEST))
+        advanceUntilIdle()
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(benchPress.id))
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(pushUp.id))
+        advanceUntilIdle()
+
+        assertEquals(listOf(30), viewModel.uiState.value.sets.map { it.repeatCount })
+        assertEquals(pushUp.id, viewModel.uiState.value.selectedExercise?.id)
+    }
+
+    @Test
     fun `종목을 바꾸면 세트가 한 줄로 초기화된다`() = runTest {
         val viewModel = viewModel()
         subscribe(viewModel)
@@ -247,6 +394,85 @@ internal class WorkoutEntryEditViewModelTest {
 
         assertEquals(1, logRepository.addedCount)
         assertEquals(benchPress, logRepository.lastSavedExercise)
+        assertTrue(effects.any { it is WorkoutEntryEditEffect.GoBack })
+    }
+
+    @Test
+    fun `저장한 값이 이전 최고값을 넘기면 갱신 토스트가 GoBack 앞에 나간다`() = runTest {
+        val logRepository = FakeWorkoutLogRepository(
+            bestBeforeByDate = mapOf(
+                date to
+                    listOf(
+                        ExerciseBest(
+                            exerciseId = benchPress.id,
+                            intensityType = IntensityType.WEIGHT,
+                            maxIntensityValue = 30,
+                            maxRepeatCount = 0,
+                        ),
+                    ),
+            ),
+        )
+        val viewModel = viewModel(workoutLogRepository = logRepository)
+        val effects = collectEffects(viewModel)
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+        val setId = viewModel.uiState.value.sets.single().id
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetIntensity(setId, 50))
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("플랫 벤치프레스 머신 최고 무게 갱신!", "GoBack"),
+            effects.map {
+                when (it) {
+                    is WorkoutEntryEditEffect.ShowMessage -> it.message
+                    is WorkoutEntryEditEffect.GoBack -> "GoBack"
+                }
+            },
+        )
+    }
+
+    @Test
+    fun `저장한 값이 이전 최고값을 넘기지 못하면 토스트 없이 GoBack만 나간다`() = runTest {
+        val logRepository = FakeWorkoutLogRepository(
+            bestBeforeByDate = mapOf(
+                date to
+                    listOf(
+                        ExerciseBest(
+                            exerciseId = benchPress.id,
+                            intensityType = IntensityType.WEIGHT,
+                            maxIntensityValue = 999,
+                            maxRepeatCount = 0,
+                        ),
+                    ),
+            ),
+        )
+        val viewModel = viewModel(workoutLogRepository = logRepository)
+        val effects = collectEffects(viewModel)
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
+        advanceUntilIdle()
+
+        assertTrue(effects.none { it is WorkoutEntryEditEffect.ShowMessage })
+        assertTrue(effects.any { it is WorkoutEntryEditEffect.GoBack })
+    }
+
+    @Test
+    fun `루틴 대상은 저장에 성공해도 토스트가 나가지 않는다`() = runTest {
+        val routine = Routine(id = 1L, name = "가슴 루틴", bodyPart = BodyPart.CHEST, entries = emptyList())
+        val routineRepository = FakeRoutineRepository(listOf(routine))
+        val viewModel = viewModel(routineRepository = routineRepository, target = WorkoutEntryEditTarget.Routine(1L))
+        val effects = collectEffects(viewModel)
+        subscribe(viewModel)
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(benchPress.id))
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
+        advanceUntilIdle()
+
+        assertTrue(effects.none { it is WorkoutEntryEditEffect.ShowMessage })
         assertTrue(effects.any { it is WorkoutEntryEditEffect.GoBack })
     }
 

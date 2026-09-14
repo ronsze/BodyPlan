@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
 import kr.sdbk.bodyplan.core.local.entity.DateBodyPart
+import kr.sdbk.bodyplan.core.local.entity.ExerciseBestRow
 import kr.sdbk.bodyplan.core.local.entity.WorkoutEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.WorkoutEntryWithSets
 import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
@@ -53,6 +54,35 @@ internal class FakeWorkoutEntryDao : WorkoutEntryDao {
     override suspend fun getWithSets(id: Long): WorkoutEntryWithSets? {
         val entry = entries.value[id] ?: return null
         return WorkoutEntryWithSets(entry, setsFor(id))
+    }
+
+    override fun observeBestBefore(beforeEpochDay: Long): Flow<List<ExerciseBestRow>> = combine(entries, sets) { e, s ->
+        e.values
+            .filter { it.dateEpochDay < beforeEpochDay }
+            .groupBy { it.exerciseId to it.intensityType }
+            .mapNotNull { (key, ownEntries) ->
+                val (exerciseId, intensityType) = key
+                val ownSets = ownEntries.flatMap { entry -> s.values.filter { it.entryId == entry.id } }
+                if (ownSets.isEmpty()) return@mapNotNull null
+                ExerciseBestRow(
+                    exerciseId = exerciseId,
+                    intensityType = intensityType,
+                    maxIntensityValue = ownSets.maxOf { it.intensityValue },
+                    maxRepeatCount = ownSets.maxOf { it.repeatCount },
+                )
+            }
+    }
+
+    override suspend fun getLatestByExercise(exerciseId: Long, untilEpochDay: Long): WorkoutEntryWithSets? {
+        val entry = entries.value.values
+            .filter { it.exerciseId == exerciseId && it.dateEpochDay <= untilEpochDay }
+            .sortedWith(
+                compareByDescending<WorkoutEntryEntity> {
+                    it.dateEpochDay
+                }.thenByDescending { it.createdAtMillis }.thenByDescending { it.id },
+            )
+            .firstOrNull() ?: return null
+        return WorkoutEntryWithSets(entry, setsFor(entry.id))
     }
 
     override suspend fun insert(entity: WorkoutEntryEntity): Long {

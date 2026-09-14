@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
@@ -18,12 +19,18 @@ internal class FakeWorkoutLogRepository(
     initial: List<WorkoutEntry> = emptyList(),
     private val bodyPartsByDate: Map<LocalDate, Set<BodyPart>> = emptyMap(),
     private val entriesByDate: Map<LocalDate, List<WorkoutEntry>> = emptyMap(),
+    private val bestBeforeByDate: Map<LocalDate, List<ExerciseBest>> = emptyMap(),
+    private val latestEntriesByExercise: Map<Long, WorkoutEntry> = emptyMap(),
 ) : WorkoutLogRepository {
     private val entries = MutableStateFlow(initial)
     private val memo = MutableStateFlow<String?>(null)
 
     var observeFailure: Throwable? = null
     var mutateFailure: Throwable? = null
+    var getLatestEntryFailure: Throwable? = null
+
+    var getLatestEntryCallCount: Int = 0
+        private set
 
     var addedCount: Int = 0
         private set
@@ -69,6 +76,17 @@ internal class FakeWorkoutLogRepository(
         }.onStart { observeEntriesInRangeCallCount++ }
 
     override suspend fun getEntry(id: Long): WorkoutEntry? = entries.value.firstOrNull { it.id == id }
+
+    override fun observeBestBefore(date: LocalDate): Flow<List<ExerciseBest>> = entries.map {
+        observeFailure?.let { failure -> throw failure }
+        bestBeforeByDate[date].orEmpty()
+    }
+
+    override suspend fun getLatestEntry(exerciseId: Long, until: LocalDate): WorkoutEntry? {
+        getLatestEntryCallCount++
+        getLatestEntryFailure?.let { throw it }
+        return latestEntriesByExercise[exerciseId]
+    }
 
     override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long {
         mutateFailure?.let { throw it }

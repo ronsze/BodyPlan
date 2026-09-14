@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.DayStatus
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
@@ -105,6 +106,10 @@ class GetMonthlyDayStatusUseCaseTest {
             error("사용하지 않음")
 
         override suspend fun getEntry(id: Long): WorkoutEntry? = error("사용하지 않음")
+
+        override fun observeBestBefore(date: LocalDate): Flow<List<ExerciseBest>> = error("사용하지 않음")
+
+        override suspend fun getLatestEntry(exerciseId: Long, until: LocalDate): WorkoutEntry? = error("사용하지 않음")
 
         override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long =
             error("사용하지 않음")

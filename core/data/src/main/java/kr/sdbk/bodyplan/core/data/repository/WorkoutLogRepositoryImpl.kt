@@ -14,6 +14,7 @@ import kr.sdbk.bodyplan.core.data.mapper.toEntityWithSets
 import kr.sdbk.bodyplan.core.data.mapper.toEntriesByDate
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
@@ -44,6 +45,12 @@ constructor(
             .map { rows -> rows.toBodyPartsByDate() }
 
     override suspend fun getEntry(id: Long): WorkoutEntry? = workoutEntryDao.getWithSets(id)?.toDomain()
+
+    override fun observeBestBefore(date: LocalDate): Flow<List<ExerciseBest>> =
+        workoutEntryDao.observeBestBefore(date.toEpochDay()).map { rows -> rows.map { it.toDomain() } }
+
+    override suspend fun getLatestEntry(exerciseId: Long, until: LocalDate): WorkoutEntry? =
+        workoutEntryDao.getLatestByExercise(exerciseId, until.toEpochDay())?.toDomain()
 
     override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long {
         val entity = newEntryEntity(date, exercise, System.currentTimeMillis())

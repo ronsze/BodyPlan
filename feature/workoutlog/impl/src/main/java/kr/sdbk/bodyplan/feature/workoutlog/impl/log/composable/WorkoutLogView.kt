@@ -1,5 +1,7 @@
 package kr.sdbk.bodyplan.feature.workoutlog.impl.log.composable
 
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,11 +16,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -27,7 +31,7 @@ import java.time.format.DateTimeFormatter
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
 import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
-import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
+import kr.sdbk.bodyplan.core.designsystem.component.PrimaryButton
 import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
@@ -39,14 +43,17 @@ import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.ui.components.BodyPartVolumeCard
+import kr.sdbk.bodyplan.core.ui.components.WorkoutSetKey
 import kr.sdbk.bodyplan.core.ui.components.rememberWorkoutEntryGroupExpansion
 import kr.sdbk.bodyplan.core.ui.components.workoutEntryGroups
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisPeriod
+import kr.sdbk.bodyplan.feature.workoutlog.impl.log.RestTimer
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogIntent
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogState
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogViewModel
+import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutSession
 
 internal data class WorkoutLogEvents(
     val goBack: () -> Unit,
@@ -68,6 +75,11 @@ internal data class WorkoutLogUiEvents(
     val onClickLoadRoutine: () -> Unit,
     val onDismissRoutineSheet: () -> Unit,
     val onSelectRoutine: (Long) -> Unit,
+    val onClickStartSession: () -> Unit,
+    val onClickEndSession: () -> Unit,
+    val onToggleSet: (WorkoutSetKey) -> Unit,
+    val onClickAdjustRest: (Int) -> Unit,
+    val onClickSkipRest: () -> Unit,
 )
 
 @Composable
@@ -81,6 +93,13 @@ internal fun WorkoutLogView(events: WorkoutLogEvents, viewModel: WorkoutLogViewM
         uiEvents = uiEvents,
     )
 
+    // 세션 중에는 화면을 꺼뜨리지 않는다. 세트 사이에 폰을 내려놓아도 타이머가 보여야 한다.
+    val view = LocalView.current
+    DisposableEffect(view, state.isSessionActive) {
+        view.keepScreenOn = state.isSessionActive
+        onDispose { view.keepScreenOn = false }
+    }
+
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
             is WorkoutLogEffect.NavigateToEntryEdit -> events.goToEntryEdit(effect.date, effect.entryId)
@@ -89,6 +108,10 @@ internal fun WorkoutLogView(events: WorkoutLogEvents, viewModel: WorkoutLogViewM
 
             is WorkoutLogEffect.ShowMessage ->
                 Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+
+            is WorkoutLogEffect.VibrateRestEnd ->
+                context.getSystemService(Vibrator::class.java)
+                    ?.vibrate(VibrationEffect.createOneShot(VIBRATION_MILLIS, VibrationEffect.DEFAULT_AMPLITUDE))
         }
     }
 }
@@ -113,6 +136,11 @@ private fun rememberUiEvents(
         onClickLoadRoutine = { viewModel.handleIntent(WorkoutLogIntent.ClickLoadRoutine) },
         onDismissRoutineSheet = { viewModel.handleIntent(WorkoutLogIntent.DismissRoutineSheet) },
         onSelectRoutine = { viewModel.handleIntent(WorkoutLogIntent.SelectRoutine(it)) },
+        onClickStartSession = { viewModel.handleIntent(WorkoutLogIntent.ClickStartSession) },
+        onClickEndSession = { viewModel.handleIntent(WorkoutLogIntent.ClickEndSession) },
+        onToggleSet = { viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(it)) },
+        onClickAdjustRest = { viewModel.handleIntent(WorkoutLogIntent.ClickAdjustRest(it)) },
+        onClickSkipRest = { viewModel.handleIntent(WorkoutLogIntent.ClickSkipRest) },
     )
 }
 
@@ -139,17 +167,8 @@ internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEv
         }
 
         // 조회만 되는 날짜에서도 분석은 할 수 있다. 지난 기록을 돌아보는 것이 분석의 쓸모다.
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-        ) {
-            if (state.isEditable) {
-                OutlinedActionButton(text = "루틴 불러오기", onClick = uiEvents.onClickLoadRoutine)
-                VerticalSpacer(space = 8.dp)
-            }
-            OutlinedActionButton(text = "운동 분석", onClick = uiEvents.onClickAnalyze)
+        if (state.errorMessage == null) {
+            BottomActions(state, uiEvents)
         }
     }
 
@@ -160,6 +179,35 @@ internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEv
             onSelectRoutine = uiEvents.onSelectRoutine,
             onDismiss = uiEvents.onDismissRoutineSheet,
         )
+    }
+}
+
+@Composable
+private fun BottomActions(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        val session = state.session
+        if (session != null) {
+            SessionBar(
+                session = session,
+                onClickAdjustRest = uiEvents.onClickAdjustRest,
+                onClickSkipRest = uiEvents.onClickSkipRest,
+            )
+        } else if (state.canStartSession) {
+            PrimaryButton(text = "운동 시작", onClick = uiEvents.onClickStartSession)
+        }
+        if (state.isEditable) {
+            OutlinedActionButton(text = "루틴 불러오기", onClick = uiEvents.onClickLoadRoutine)
+        }
+        OutlinedActionButton(text = "운동 분석", onClick = uiEvents.onClickAnalyze)
+        if (session != null) {
+            PrimaryButton(text = "운동 종료", onClick = uiEvents.onClickEndSession)
+        }
     }
 }
 
@@ -200,6 +248,9 @@ private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
             expansion = expansion,
             onClickEntry = uiEvents.onClickEntry,
             onClickDeleteEntry = uiEvents.onClickDeleteEntry,
+            personalRecordExerciseIds = state.personalRecordExerciseIds,
+            completedSets = state.session?.completedSets,
+            onToggleSet = uiEvents.onToggleSet,
         )
     }
 }
@@ -241,6 +292,8 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
     }
 }
 
+private const val VIBRATION_MILLIS = 500L
+
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일")
 
 private val previewEntries = listOf(
@@ -279,6 +332,11 @@ private val previewUiEvents = WorkoutLogUiEvents(
     onClickLoadRoutine = {},
     onDismissRoutineSheet = {},
     onSelectRoutine = {},
+    onClickStartSession = {},
+    onClickEndSession = {},
+    onToggleSet = {},
+    onClickAdjustRest = {},
+    onClickSkipRest = {},
 )
 
 @Preview(showBackground = true, heightDp = 780)
@@ -294,7 +352,31 @@ private fun WorkoutLogViewImplPreview() {
                     BodyPartVolume(BodyPart.CHEST, 160),
                     BodyPartVolume(BodyPart.SHOULDER, 40),
                 ),
+                personalRecordExerciseIds = setOf(1L),
+                canStartSession = true,
                 memo = "어깨가 뻐근해서 무게를 내렸다",
+            ),
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 780)
+@Composable
+private fun WorkoutLogViewImplSessionPreview() {
+    BodyPlanTheme {
+        WorkoutLogViewImpl(
+            state = WorkoutLogState(
+                date = LocalDate.of(2026, 9, 7),
+                isEditable = true,
+                entries = previewEntries,
+                canStartSession = true,
+                session = WorkoutSession(
+                    startedAtMillis = 0L,
+                    elapsedSeconds = 900L,
+                    completedSets = setOf(WorkoutSetKey(entryId = 1L, setIndex = 0)),
+                    rest = RestTimer(remainingSeconds = 75),
+                ),
             ),
             uiEvents = previewUiEvents,
         )

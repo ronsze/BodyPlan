@@ -12,6 +12,7 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
+import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.Goal
 import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.model.Intensity
@@ -335,6 +336,10 @@ class GetProgressSummaryUseCaseTest {
             flowOf(entriesByDate.filterKeys { !it.isBefore(from) && !it.isAfter(to) })
 
         override suspend fun getEntry(id: Long): WorkoutEntry? = error("사용하지 않음")
+
+        override fun observeBestBefore(date: LocalDate): Flow<List<ExerciseBest>> = error("사용하지 않음")
+
+        override suspend fun getLatestEntry(exerciseId: Long, until: LocalDate): WorkoutEntry? = error("사용하지 않음")
 
         override suspend fun addEntry(date: LocalDate, exercise: Exercise, sets: List<WorkoutSet>): Long =
             error("사용하지 않음")
