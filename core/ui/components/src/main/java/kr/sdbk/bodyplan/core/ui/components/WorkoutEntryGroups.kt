@@ -42,20 +42,20 @@ import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 
 /**
- * 부위·종목 그룹의 접힘 상태. 화면 표시 상태라 ViewModel에 두지 않고 스크롤 위치처럼 화면이 든다.
+ * 부위·종목 그룹의 펼침 상태. 화면 표시 상태라 ViewModel에 두지 않고 스크롤 위치처럼 화면이 든다.
  *
- * 접힌 키만 저장한다 — 기본이 전부 펼침이라, 항목이 새로 생겨도 따로 등록할 것이 없다.
+ * 펼친 키만 저장한다 — 기본이 전부 접힘이라, 항목이 새로 생겨도 따로 등록할 것이 없다.
  */
 @Stable
-class WorkoutEntryGroupExpansion internal constructor(initialCollapsed: Set<String>) {
-    private val collapsed = mutableStateOf(initialCollapsed)
+class WorkoutEntryGroupExpansion internal constructor(initialExpanded: Set<String>) {
+    private val expanded = mutableStateOf(initialExpanded)
 
-    internal val collapsedKeys: Set<String> get() = collapsed.value
+    internal val expandedKeys: Set<String> get() = expanded.value
 
-    fun isExpanded(key: String): Boolean = key !in collapsed.value
+    fun isExpanded(key: String): Boolean = key in expanded.value
 
     fun toggle(key: String) {
-        collapsed.value = if (key in collapsed.value) collapsed.value - key else collapsed.value + key
+        expanded.value = if (key in expanded.value) expanded.value - key else expanded.value + key
     }
 }
 
@@ -65,7 +65,7 @@ fun rememberWorkoutEntryGroupExpansion(): WorkoutEntryGroupExpansion = rememberS
 }
 
 private val ExpansionSaver = Saver<WorkoutEntryGroupExpansion, List<String>>(
-    save = { it.collapsedKeys.toList() },
+    save = { it.expandedKeys.toList() },
     restore = { WorkoutEntryGroupExpansion(it.toSet()) },
 )
 
@@ -311,10 +311,10 @@ private fun WorkoutEntryGroupsPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun WorkoutEntryGroupsCollapsedPreview() {
+private fun WorkoutEntryGroupsExpandedPreview() {
     BodyPlanTheme {
         val expansion = rememberSaveable(saver = ExpansionSaver) {
-            WorkoutEntryGroupExpansion(setOf(BodyPart.SHOULDER.name, exerciseKey(BodyPart.CHEST, 1L)))
+            WorkoutEntryGroupExpansion(setOf(BodyPart.CHEST.name, exerciseKey(BodyPart.CHEST, 1L)))
         }
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
