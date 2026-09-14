@@ -20,6 +20,7 @@ internal data class ProfileInput(
     val goals: Set<Goal> = emptySet(),
     val targetWeightKg: String = "",
     val targetNote: String = "",
+    val weeklyWorkoutGoal: String = "",
 ) {
     fun toProfile(): UserProfile = UserProfile(
         ageYears = ageYears.toIntOrNull(),
@@ -29,6 +30,7 @@ internal data class ProfileInput(
         goals = goals,
         targetWeightKg = targetWeightKg.toIntOrNull(),
         targetNote = targetNote.trim().ifBlank { null },
+        weeklyWorkoutGoal = weeklyWorkoutGoal.toIntOrNull()?.takeIf { it in UserProfile.WEEKLY_GOAL_RANGE },
     )
 
     companion object {
@@ -40,6 +42,7 @@ internal data class ProfileInput(
             goals = profile.goals,
             targetWeightKg = profile.targetWeightKg?.toString().orEmpty(),
             targetNote = profile.targetNote.orEmpty(),
+            weeklyWorkoutGoal = profile.weeklyWorkoutGoal?.toString().orEmpty(),
         )
     }
 }

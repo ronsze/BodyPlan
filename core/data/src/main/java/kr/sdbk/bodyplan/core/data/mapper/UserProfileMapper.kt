@@ -18,6 +18,7 @@ internal fun UserProfileEntity.toDomain(): UserProfile = UserProfile(
         .toSet(),
     targetWeightKg = targetWeightKg,
     targetNote = targetNote,
+    weeklyWorkoutGoal = weeklyWorkoutGoal,
 )
 
 internal fun UserProfile.toEntity(): UserProfileEntity = UserProfileEntity(
@@ -28,4 +29,6 @@ internal fun UserProfile.toEntity(): UserProfileEntity = UserProfileEntity(
     goals = goals.joinToString(GOAL_SEPARATOR) { it.name },
     targetWeightKg = targetWeightKg,
     targetNote = targetNote?.trim()?.ifBlank { null },
+    // 화면이 거르지 않아도 저장소에 범위 밖 값이 남지 않게 한다.
+    weeklyWorkoutGoal = weeklyWorkoutGoal?.takeIf { it in UserProfile.WEEKLY_GOAL_RANGE },
 )
