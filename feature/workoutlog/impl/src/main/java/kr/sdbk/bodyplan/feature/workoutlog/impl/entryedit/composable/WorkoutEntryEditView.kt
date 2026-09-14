@@ -15,8 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -25,19 +23,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
-import kr.sdbk.bodyplan.core.designsystem.component.BaseTextField
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
 import kr.sdbk.bodyplan.core.designsystem.component.ItemChip
+import kr.sdbk.bodyplan.core.designsystem.component.NumberInputField
 import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
 import kr.sdbk.bodyplan.core.designsystem.component.PrimaryButton
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
@@ -47,7 +43,6 @@ import kr.sdbk.bodyplan.core.designsystem.theme.Accent
 import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.Border
-import kr.sdbk.bodyplan.core.designsystem.theme.SurfaceMuted
 import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
@@ -309,7 +304,6 @@ private fun SetCard(
     }
 }
 
-/** 숫자 한 칸. 걸러 내는 일은 ViewModel이 한다 — 무엇이 유효한 입력인지가 저장 규칙과 같은 곳에 있어야 한다. */
 @Composable
 private fun NumberField(
     label: String,
@@ -318,33 +312,13 @@ private fun NumberField(
     suffix: String,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
-        BaseText(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = TextTertiary,
-        )
-        VerticalSpacer(space = 8.dp)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(SurfaceMuted)
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            BaseTextField(
-                value = value?.toString().orEmpty(),
-                onValueChange = onChange,
-                modifier = Modifier.weight(1f),
-                textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-            )
-            BaseText(text = suffix, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-        }
-    }
+    NumberInputField(
+        label = label,
+        value = value?.toString().orEmpty(),
+        onValueChange = onChange,
+        suffix = suffix,
+        modifier = modifier,
+    )
 }
 
 @Composable

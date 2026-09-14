@@ -10,17 +10,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BaseTextField
+import kr.sdbk.bodyplan.core.designsystem.component.FieldLabel
+import kr.sdbk.bodyplan.core.designsystem.component.InputBox
+import kr.sdbk.bodyplan.core.designsystem.component.NumberInputField
 import kr.sdbk.bodyplan.core.designsystem.component.PillChip
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.Border
@@ -106,57 +107,16 @@ internal fun ProfileForm(input: ProfileInput, onChange: (ProfileInput) -> Unit, 
     }
 }
 
+/** 숫자만 남긴다. 붙여 넣기로 들어온 글자도 여기서 걸린다. */
 @Composable
 private fun NumberField(label: String, value: String, suffix: String, onChange: (String) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        FieldLabel(label)
-        InputBox {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                BaseTextField(
-                    value = value,
-                    // 숫자만 남긴다. 붙여 넣기로 들어온 글자도 여기서 걸린다.
-                    onValueChange = { onChange(it.filter(Char::isDigit)) },
-                    modifier = Modifier.weight(1f),
-                    placeholder = "비워 둘 수 있어요",
-                    textStyle = MaterialTheme.typography.bodyMedium,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                )
-                BaseText(
-                    text = suffix,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextPrimary,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FieldLabel(text: String) {
-    BaseText(
-        text = text,
-        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-        color = TextPrimary,
+    NumberInputField(
+        label = label,
+        value = value,
+        onValueChange = { onChange(it.filter(Char::isDigit)) },
+        suffix = suffix,
+        placeholder = "비워 둘 수 있어요",
     )
-}
-
-@Composable
-private fun InputBox(content: @Composable () -> Unit) {
-    val shape = RoundedCornerShape(12.dp)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(Surface)
-            .border(BorderStroke(1.dp, Border), shape)
-            .padding(16.dp),
-    ) {
-        content()
-    }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFFF2F4F6, heightDp = 900)
