@@ -14,6 +14,7 @@ import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.usecase.IsEditableDateUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeUseCase
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.impl.MainDispatcherRule
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeRoutineRepository
@@ -41,6 +42,7 @@ internal class WorkoutLogViewModelTest {
         workoutLogRepository = repository,
         routineRepository = routineRepository,
         isEditableDate = IsEditableDateUseCase(clock),
+        summarizeBodyPartVolume = SummarizeBodyPartVolumeUseCase(),
         navKey = WorkoutLogNavKey(date.toEpochDay()),
     )
 
@@ -87,6 +89,21 @@ internal class WorkoutLogViewModelTest {
     }
 
     @Test
+    fun `진입하면 그 날의 기록에서 부위별 볼륨이 계산된다`() = runTest {
+        val repository = FakeWorkoutLogRepository(listOf(entry(id = 1L)))
+        val viewModel = viewModel(repository = repository)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(BodyPart.CHEST),
+            viewModel.uiState.value.bodyPartVolumes.map { it.bodyPart },
+        )
+        assertEquals(12 * 40, viewModel.uiState.value.bodyPartVolumes.single().weightVolumeKg)
+    }
+
+    @Test
     fun `항목을 지우면 목록이 즉시 갱신된다`() = runTest {
         val repository = FakeWorkoutLogRepository(listOf(entry(id = 1L), entry(id = 2L)))
         val viewModel = viewModel(repository = repository)
@@ -98,6 +115,20 @@ internal class WorkoutLogViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(2L), viewModel.uiState.value.entries.map { it.id })
+    }
+
+    @Test
+    fun `항목을 지우면 부위별 볼륨도 따라 바뀐다`() = runTest {
+        val repository = FakeWorkoutLogRepository(listOf(entry(id = 1L)))
+        val viewModel = viewModel(repository = repository)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(WorkoutLogIntent.ClickDeleteEntry(1L))
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.bodyPartVolumes.isEmpty())
     }
 
     @Test

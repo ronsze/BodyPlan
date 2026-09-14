@@ -10,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kr.sdbk.bodyplan.core.domain.usecase.GetMonthlyDayStatusUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.GetWeeklyBodyPartVolumeUseCase
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 
 @HiltViewModel
@@ -17,6 +18,7 @@ internal class WorkoutCalendarViewModel
 @Inject
 constructor(
     private val getMonthlyDayStatus: GetMonthlyDayStatusUseCase,
+    private val getWeeklyBodyPartVolume: GetWeeklyBodyPartVolumeUseCase,
     clock: Clock,
 ) : BaseViewModel<WorkoutCalendarState, WorkoutCalendarIntent, WorkoutCalendarEffect>(
     initialState = WorkoutCalendarState(
@@ -25,9 +27,11 @@ constructor(
     ),
 ) {
     private var loadJob: Job? = null
+    private var weeklyVolumeJob: Job? = null
 
     override suspend fun initializeData() {
         observeMonth()
+        observeWeeklyVolume()
     }
 
     override fun handleIntent(intent: WorkoutCalendarIntent) {
@@ -46,6 +50,8 @@ constructor(
             is WorkoutCalendarIntent.ToggleCalendarExpansion -> toggleCalendarExpansion()
 
             is WorkoutCalendarIntent.ClickRetry -> observeMonth()
+
+            is WorkoutCalendarIntent.ClickRetryWeeklyVolume -> observeWeeklyVolume()
         }
     }
 
@@ -71,6 +77,17 @@ constructor(
                 .collect { statuses ->
                     updateState { it.copy(isLoading = false, errorMessage = null, dayStatuses = statuses) }
                 }
+        }
+    }
+
+    /** 이번 주 볼륨은 보고 있는 달과 무관하다. 달 조회가 실패해도 카드는 살고, 카드가 실패해도 캘린더는 산다. */
+    private fun observeWeeklyVolume() {
+        weeklyVolumeJob?.cancel()
+        updateState { it.copy(weeklyVolumeErrorMessage = null) }
+        weeklyVolumeJob = viewModelScope.launch {
+            getWeeklyBodyPartVolume()
+                .catch { updateState { it.copy(weeklyVolumeErrorMessage = LOAD_ERROR) } }
+                .collect { volumes -> updateState { it.copy(weeklyVolumes = volumes) } }
         }
     }
 }

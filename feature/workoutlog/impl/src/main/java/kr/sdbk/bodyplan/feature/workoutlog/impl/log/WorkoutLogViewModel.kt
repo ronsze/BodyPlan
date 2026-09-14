@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kr.sdbk.bodyplan.core.domain.repository.RoutineRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 import kr.sdbk.bodyplan.core.domain.usecase.IsEditableDateUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeUseCase
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 
@@ -22,6 +23,7 @@ constructor(
     private val workoutLogRepository: WorkoutLogRepository,
     private val routineRepository: RoutineRepository,
     private val isEditableDate: IsEditableDateUseCase,
+    private val summarizeBodyPartVolume: SummarizeBodyPartVolumeUseCase,
     @Assisted navKey: WorkoutLogNavKey,
 ) : BaseViewModel<WorkoutLogState, WorkoutLogIntent, WorkoutLogEffect>(
     initialState = WorkoutLogState(date = LocalDate.ofEpochDay(navKey.dateEpochDay)),
@@ -79,6 +81,7 @@ constructor(
                             isLoading = false,
                             errorMessage = null,
                             entries = log.entries,
+                            bodyPartVolumes = summarizeBodyPartVolume(log.entries),
                             memo = log.memo,
                         )
                     }

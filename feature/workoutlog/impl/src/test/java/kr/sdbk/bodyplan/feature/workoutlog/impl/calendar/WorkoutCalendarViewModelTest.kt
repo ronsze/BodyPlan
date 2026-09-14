@@ -9,8 +9,14 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.DayStatus
+import kr.sdbk.bodyplan.core.domain.model.Intensity
+import kr.sdbk.bodyplan.core.domain.model.IntensityType
+import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
+import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.usecase.GetMonthlyDayStatusUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.GetWeeklyBodyPartVolumeUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.IsEditableDateUseCase
+import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeUseCase
 import kr.sdbk.bodyplan.feature.workoutlog.impl.MainDispatcherRule
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeWorkoutLogRepository
 import org.junit.Assert.assertEquals
@@ -28,13 +34,30 @@ internal class WorkoutCalendarViewModelTest {
     private val today: LocalDate = LocalDate.of(2026, 9, 7)
     private val clock: Clock = Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC)
 
-    private fun viewModel(repository: FakeWorkoutLogRepository): WorkoutCalendarViewModel {
+    private fun viewModel(
+        repository: FakeWorkoutLogRepository,
+        weeklyVolumeRepository: FakeWorkoutLogRepository = FakeWorkoutLogRepository(),
+    ): WorkoutCalendarViewModel {
         val isEditableDate = IsEditableDateUseCase(clock)
         return WorkoutCalendarViewModel(
             getMonthlyDayStatus = GetMonthlyDayStatusUseCase(repository, isEditableDate, clock),
+            getWeeklyBodyPartVolume = GetWeeklyBodyPartVolumeUseCase(
+                weeklyVolumeRepository,
+                SummarizeBodyPartVolumeUseCase(),
+                clock,
+            ),
             clock = clock,
         )
     }
+
+    private fun entry(bodyPart: BodyPart = BodyPart.CHEST, weightKg: Int = 20, repeatCount: Int = 10) = WorkoutEntry(
+        id = 1L,
+        exerciseId = 1L,
+        exerciseName = "종목",
+        bodyPart = bodyPart,
+        intensityType = IntensityType.WEIGHT,
+        sets = listOf(WorkoutSet(repeatCount = repeatCount, intensity = Intensity.Weight(weightKg))),
+    )
 
     @Test
     fun `진입하면 이번 달과 오늘이 실린다`() = runTest {
@@ -237,6 +260,75 @@ internal class WorkoutCalendarViewModelTest {
             DayStatus.Recorded(setOf(BodyPart.LEG)),
             viewModel.uiState.value.dayStatuses[LocalDate.of(2026, 9, 3)],
         )
+    }
+
+    @Test
+    fun `진입하면 이번 주 부위별 볼륨이 실린다`() = runTest {
+        val weeklyVolumeRepository = FakeWorkoutLogRepository(
+            entriesByDate = mapOf(today to listOf(entry(bodyPart = BodyPart.CHEST, weightKg = 20, repeatCount = 10))),
+        )
+        val viewModel = viewModel(FakeWorkoutLogRepository(), weeklyVolumeRepository)
+
+        subscribe(viewModel)
+
+        assertEquals(
+            listOf(BodyPart.CHEST),
+            viewModel.uiState.value.weeklyVolumes.map { it.bodyPart },
+        )
+        assertEquals(200, viewModel.uiState.value.weeklyVolumes.single().weightVolumeKg)
+    }
+
+    @Test
+    fun `주간 볼륨 구독이 실패하면 카드 메시지만 실리고 달 조회는 영향받지 않는다`() = runTest {
+        val repository = FakeWorkoutLogRepository(
+            bodyPartsByDate = mapOf(LocalDate.of(2026, 9, 3) to setOf(BodyPart.CHEST)),
+        )
+        val weeklyVolumeRepository = FakeWorkoutLogRepository()
+        weeklyVolumeRepository.observeFailure = IllegalStateException("boom")
+        val viewModel = viewModel(repository, weeklyVolumeRepository)
+
+        subscribe(viewModel)
+
+        assertEquals("불러오지 못했습니다", viewModel.uiState.value.weeklyVolumeErrorMessage)
+        assertNull(viewModel.uiState.value.errorMessage)
+        assertEquals(
+            DayStatus.Recorded(setOf(BodyPart.CHEST)),
+            viewModel.uiState.value.dayStatuses[LocalDate.of(2026, 9, 3)],
+        )
+    }
+
+    @Test
+    fun `주간 볼륨 재시도는 에러를 지우고 다시 구독한다`() = runTest {
+        val weeklyVolumeRepository = FakeWorkoutLogRepository(
+            entriesByDate = mapOf(today to listOf(entry())),
+        )
+        weeklyVolumeRepository.observeFailure = IllegalStateException("boom")
+        val viewModel = viewModel(FakeWorkoutLogRepository(), weeklyVolumeRepository)
+
+        subscribe(viewModel)
+        assertEquals("불러오지 못했습니다", viewModel.uiState.value.weeklyVolumeErrorMessage)
+
+        weeklyVolumeRepository.observeFailure = null
+        viewModel.handleIntent(WorkoutCalendarIntent.ClickRetryWeeklyVolume)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.weeklyVolumeErrorMessage)
+        assertEquals(1, viewModel.uiState.value.weeklyVolumes.size)
+    }
+
+    @Test
+    fun `달을 옮겨도 주간 볼륨은 다시 구독하지 않는다`() = runTest {
+        val weeklyVolumeRepository = FakeWorkoutLogRepository(
+            entriesByDate = mapOf(today to listOf(entry())),
+        )
+        val viewModel = viewModel(FakeWorkoutLogRepository(), weeklyVolumeRepository)
+        subscribe(viewModel)
+        val callCountBeforeChange = weeklyVolumeRepository.observeEntriesInRangeCallCount
+
+        viewModel.handleIntent(WorkoutCalendarIntent.ChangeMonth(YearMonth.of(2026, 8)))
+        advanceUntilIdle()
+
+        assertEquals(callCountBeforeChange, weeklyVolumeRepository.observeEntriesInRangeCallCount)
     }
 
     private fun kotlinx.coroutines.test.TestScope.subscribe(viewModel: WorkoutCalendarViewModel) {

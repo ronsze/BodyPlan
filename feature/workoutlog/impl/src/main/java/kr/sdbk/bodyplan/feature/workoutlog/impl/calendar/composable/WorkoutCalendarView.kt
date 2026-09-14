@@ -31,7 +31,9 @@ import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.BodyPartVolume
 import kr.sdbk.bodyplan.core.domain.model.DayStatus
+import kr.sdbk.bodyplan.core.ui.components.BodyPartVolumeCard
 import kr.sdbk.bodyplan.core.ui.components.DayStatusIndicator
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisPeriod
@@ -56,6 +58,7 @@ internal data class WorkoutCalendarUiEvents(
     val onClickManageExercise: () -> Unit,
     val onClickExerciseTrend: () -> Unit,
     val onClickRetry: () -> Unit,
+    val onClickRetryWeeklyVolume: () -> Unit,
 )
 
 @Composable
@@ -101,6 +104,7 @@ private fun rememberUiEvents(
         onClickManageExercise = { viewModel.handleIntent(WorkoutCalendarIntent.ClickManageExercise) },
         onClickExerciseTrend = { viewModel.handleIntent(WorkoutCalendarIntent.ClickExerciseTrend) },
         onClickRetry = { viewModel.handleIntent(WorkoutCalendarIntent.ClickRetry) },
+        onClickRetryWeeklyVolume = { viewModel.handleIntent(WorkoutCalendarIntent.ClickRetryWeeklyVolume) },
     )
 }
 
@@ -146,6 +150,13 @@ internal fun WorkoutCalendarViewImpl(state: WorkoutCalendarState, uiEvents: Work
                 dayContent = { date ->
                     DayStatusIndicator(status = state.dayStatuses[date] ?: DayStatus.Pending)
                 },
+            )
+            BodyPartVolumeCard(
+                title = "이번 주 부위별 볼륨",
+                volumes = state.weeklyVolumes,
+                emptyText = "이번 주 무게 기록이 없습니다",
+                errorMessage = state.weeklyVolumeErrorMessage,
+                onClickRetry = uiEvents.onClickRetryWeeklyVolume,
             )
             MonthSummaryBanner(state)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -224,6 +235,7 @@ private val previewUiEvents = WorkoutCalendarUiEvents(
     onClickManageExercise = {},
     onClickExerciseTrend = {},
     onClickRetry = {},
+    onClickRetryWeeklyVolume = {},
 )
 
 @Preview(showBackground = true, heightDp = 780)
@@ -235,6 +247,10 @@ private fun WorkoutCalendarViewImplPreview() {
                 yearMonth = YearMonth.of(2026, 9),
                 today = LocalDate.of(2026, 9, 8),
                 dayStatuses = previewStatuses,
+                weeklyVolumes = listOf(
+                    BodyPartVolume(BodyPart.CHEST, 1240),
+                    BodyPartVolume(BodyPart.SHOULDER, 360),
+                ),
             ),
             uiEvents = previewUiEvents,
         )

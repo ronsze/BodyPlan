@@ -2,9 +2,9 @@ package kr.sdbk.bodyplan.core.domain.usecase
 
 import java.time.LocalDate
 import javax.inject.Inject
-import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutVolume
+import kr.sdbk.bodyplan.core.domain.model.weightVolumeKg
 
 /**
  * 이미 읽은 기록을 한 기간의 운동량으로 줄인다.
@@ -16,14 +16,8 @@ class SummarizeWorkoutVolumeUseCase
 @Inject
 constructor() {
     operator fun invoke(entriesByDate: Map<LocalDate, List<WorkoutEntry>>): WorkoutVolume = WorkoutVolume(
-        weightVolumeKg = entriesByDate.values.sumOf { entries -> entries.sumOf { it.weightVolume() } },
+        weightVolumeKg = entriesByDate.values.sumOf { entries -> entries.sumOf { it.weightVolumeKg } },
         // 기록이 빈 목록으로 들어온 날짜는 운동한 날로 세지 않는다.
         workoutDays = entriesByDate.count { (_, entries) -> entries.isNotEmpty() },
     )
-
-    private fun WorkoutEntry.weightVolume(): Int = if (intensityType != IntensityType.WEIGHT) {
-        0
-    } else {
-        sets.sumOf { it.intensity.value * it.repeatCount }
-    }
 }

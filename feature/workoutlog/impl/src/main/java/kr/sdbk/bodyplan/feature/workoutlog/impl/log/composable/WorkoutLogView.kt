@@ -33,10 +33,12 @@ import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.BodyPartVolume
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
+import kr.sdbk.bodyplan.core.ui.components.BodyPartVolumeCard
 import kr.sdbk.bodyplan.core.ui.components.rememberWorkoutEntryGroupExpansion
 import kr.sdbk.bodyplan.core.ui.components.workoutEntryGroups
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
@@ -170,6 +172,13 @@ private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
+            BodyPartVolumeCard(
+                title = "부위별 볼륨",
+                volumes = state.bodyPartVolumes,
+                emptyText = "무게 기록이 없습니다",
+            )
+        }
+        item {
             WorkoutMemoCard(
                 memo = state.memo,
                 input = state.memoInput,
@@ -281,6 +290,10 @@ private fun WorkoutLogViewImplPreview() {
                 date = LocalDate.of(2026, 9, 7),
                 isEditable = true,
                 entries = previewEntries,
+                bodyPartVolumes = listOf(
+                    BodyPartVolume(BodyPart.CHEST, 160),
+                    BodyPartVolume(BodyPart.SHOULDER, 40),
+                ),
                 memo = "어깨가 뻐근해서 무게를 내렸다",
             ),
             uiEvents = previewUiEvents,

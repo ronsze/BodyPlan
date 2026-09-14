@@ -2,6 +2,7 @@ package kr.sdbk.bodyplan.feature.workoutlog.impl.log
 
 import java.time.LocalDate
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.BodyPartVolume
 import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.groupedByBodyPart
@@ -12,6 +13,8 @@ import kr.sdbk.bodyplan.core.ui.coordinator.State
 internal data class WorkoutLogState(
     val date: LocalDate,
     val entries: List<WorkoutEntry> = emptyList(),
+    /** [entries]에서 센 부위별 무게 볼륨. 셈이 UseCase에 있어 파생 getter가 아니라 필드다. */
+    val bodyPartVolumes: List<BodyPartVolume> = emptyList(),
     val isEditable: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
