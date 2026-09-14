@@ -76,7 +76,7 @@ internal class WorkoutEntryEditViewModelTest {
     }
 
     @Test
-    fun `무게 종목을 고르면 기본값 세트가 한 줄 생긴다`() = runTest {
+    fun `무게 종목을 고르면 세트가 빈 칸으로 생긴다`() = runTest {
         val viewModel = viewModel()
         subscribe(viewModel)
 
@@ -86,12 +86,12 @@ internal class WorkoutEntryEditViewModelTest {
 
         val sets = viewModel.uiState.value.sets
         assertEquals(1, sets.size)
-        assertEquals(WorkoutOptions.weightKilograms.first(), sets.single().intensityValue)
-        assertEquals(WorkoutOptions.repeatCounts.first(), sets.single().repeatCount)
+        assertNull(sets.single().intensityValue)
+        assertNull(sets.single().repeatCount)
     }
 
     @Test
-    fun `각도 종목을 고르면 각도 기본값으로 세트가 생긴다`() = runTest {
+    fun `각도 종목을 고르면 각도만 기본값이고 횟수는 빈 칸이다`() = runTest {
         val viewModel = viewModel()
         subscribe(viewModel)
 
@@ -99,11 +99,13 @@ internal class WorkoutEntryEditViewModelTest {
         advanceUntilIdle()
         viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(pushUp.id))
 
-        assertEquals(WorkoutOptions.angleDegrees.first(), viewModel.uiState.value.sets.single().intensityValue)
+        val set = viewModel.uiState.value.sets.single()
+        assertEquals(WorkoutOptions.angleDegrees.first(), set.intensityValue)
+        assertNull(set.repeatCount)
     }
 
     @Test
-    fun `유산소 종목을 고르면 시간 기본값으로 세트가 생긴다`() = runTest {
+    fun `유산소 종목을 고르면 시간 기본값과 횟수 1이 채워진다`() = runTest {
         val viewModel = viewModel()
         subscribe(viewModel)
 
@@ -111,24 +113,26 @@ internal class WorkoutEntryEditViewModelTest {
         advanceUntilIdle()
         viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(running.id))
 
-        assertEquals(WorkoutOptions.durationMinutes.first(), viewModel.uiState.value.sets.single().intensityValue)
+        val set = viewModel.uiState.value.sets.single()
+        assertEquals(WorkoutOptions.durationMinutes.first(), set.intensityValue)
+        assertEquals(WorkoutOptions.SINGLE_REPEAT, set.repeatCount)
     }
 
     @Test
-    fun `세트를 추가하면 앞 세트 값을 물려받지 않고 기본값으로 생긴다`() = runTest {
+    fun `세트를 추가하면 앞 세트 값을 그대로 물려받는다`() = runTest {
         val viewModel = viewModel()
         subscribe(viewModel)
         selectBenchPress(viewModel)
 
         val setId = viewModel.uiState.value.sets.single().id
-        viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetIntensity(setId, 45))
-        viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetRepeatCount(setId, 8))
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(setId, "45"))
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetRepeatCount(setId, "8"))
         viewModel.handleIntent(WorkoutEntryEditIntent.ClickAddSet)
 
         val sets = viewModel.uiState.value.sets
         assertEquals(2, sets.size)
-        assertEquals(WorkoutOptions.weightKilograms.first(), sets[1].intensityValue)
-        assertEquals(WorkoutOptions.repeatCounts.first(), sets[1].repeatCount)
+        assertEquals(45, sets[1].intensityValue)
+        assertEquals(8, sets[1].repeatCount)
         assertEquals(2, sets.map { it.id }.distinct().size)
         // 앞 세트는 그대로 남는다.
         assertEquals(45, sets[0].intensityValue)
@@ -136,19 +140,111 @@ internal class WorkoutEntryEditViewModelTest {
     }
 
     @Test
-    fun `각도 종목은 세트를 더해도 각도 기본값으로 생긴다`() = runTest {
+    fun `각도 세트를 추가해도 각도 값을 그대로 물려받는다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CHEST))
+        advanceUntilIdle()
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(pushUp.id))
+        val setId = viewModel.uiState.value.sets.single().id
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(setId, "30"))
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ClickAddSet)
+
+        assertEquals(listOf(30, 30), viewModel.uiState.value.sets.map { it.intensityValue })
+    }
+
+    @Test
+    fun `숫자가 아닌 글자는 지워지고 남은 숫자만 값이 된다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+        val setId = viewModel.uiState.value.sets.single().id
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(setId, "7a5kg"))
+
+        assertEquals(75, viewModel.uiState.value.sets.single().intensityValue)
+    }
+
+    @Test
+    fun `네 자리 이상 입력하면 앞 세 자리만 남는다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+        val setId = viewModel.uiState.value.sets.single().id
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(setId, "12345"))
+
+        assertEquals(123, viewModel.uiState.value.sets.single().intensityValue)
+    }
+
+    @Test
+    fun `빈 문자열을 넣으면 빈 칸이 된다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+        val setId = viewModel.uiState.value.sets.single().id
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(setId, "50"))
+
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(setId, ""))
+
+        assertNull(viewModel.uiState.value.sets.single().intensityValue)
+    }
+
+    @Test
+    fun `빈 칸이 있으면 저장할 수 없다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+
+        assertFalse(viewModel.uiState.value.canSave)
+    }
+
+    @Test
+    fun `횟수가 범위 밖이면 저장할 수 없다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+        fillWeightSet(viewModel, repeatCount = 0)
+
+        assertFalse(viewModel.uiState.value.canSave)
+    }
+
+    @Test
+    fun `무게와 횟수를 채우면 저장할 수 있다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        selectBenchPress(viewModel)
+        fillWeightSet(viewModel)
+
+        assertTrue(viewModel.uiState.value.canSave)
+    }
+
+    @Test
+    fun `각도 종목은 횟수를 채워야 저장할 수 있다`() = runTest {
         val viewModel = viewModel()
         subscribe(viewModel)
         viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CHEST))
         advanceUntilIdle()
         viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(pushUp.id))
 
-        viewModel.handleIntent(WorkoutEntryEditIntent.ClickAddSet)
+        assertFalse(viewModel.uiState.value.canSave)
 
-        assertEquals(
-            listOf(WorkoutOptions.angleDegrees.first(), WorkoutOptions.angleDegrees.first()),
-            viewModel.uiState.value.sets.map { it.intensityValue },
-        )
+        val setId = viewModel.uiState.value.sets.single().id
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetRepeatCount(setId, "20"))
+
+        assertTrue(viewModel.uiState.value.canSave)
+    }
+
+    @Test
+    fun `유산소 종목은 기본값만으로 저장할 수 있다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CARDIO))
+        advanceUntilIdle()
+        viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(running.id))
+
+        assertTrue(viewModel.uiState.value.canSave)
     }
 
     @Test
@@ -157,6 +253,7 @@ internal class WorkoutEntryEditViewModelTest {
         val viewModel = viewModel(workoutLogRepository = logRepository)
         subscribe(viewModel)
         selectBenchPress(viewModel)
+        fillWeightSet(viewModel)
 
         viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
         advanceUntilIdle()
@@ -200,10 +297,10 @@ internal class WorkoutEntryEditViewModelTest {
 
         viewModel.handleIntent(WorkoutEntryEditIntent.ClickAddSet)
         val (first, second) = viewModel.uiState.value.sets
-        viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetIntensity(first.id, 40))
-        viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetRepeatCount(first.id, 12))
-        viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetIntensity(second.id, 60))
-        viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetRepeatCount(second.id, 4))
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(first.id, "40"))
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetRepeatCount(first.id, "12"))
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(second.id, "60"))
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetRepeatCount(second.id, "4"))
 
         val sets = viewModel.uiState.value.sets
         assertEquals(listOf(40, 60), sets.map { it.intensityValue })
@@ -244,7 +341,7 @@ internal class WorkoutEntryEditViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, viewModel.uiState.value.sets.size)
-        assertEquals(WorkoutOptions.weightKilograms.first(), viewModel.uiState.value.sets.single().intensityValue)
+        assertNull(viewModel.uiState.value.sets.single().intensityValue)
     }
 
     @Test
@@ -304,7 +401,7 @@ internal class WorkoutEntryEditViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, viewModel.uiState.value.sets.size)
-        assertEquals(WorkoutOptions.weightKilograms.first(), viewModel.uiState.value.sets.single().intensityValue)
+        assertNull(viewModel.uiState.value.sets.single().intensityValue)
         assertEquals(0, logRepository.getLatestEntryCallCount)
     }
 
@@ -321,7 +418,7 @@ internal class WorkoutEntryEditViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, viewModel.uiState.value.sets.size)
-        assertEquals(WorkoutOptions.weightKilograms.first(), viewModel.uiState.value.sets.single().intensityValue)
+        assertNull(viewModel.uiState.value.sets.single().intensityValue)
         assertNull(viewModel.uiState.value.errorMessage)
     }
 
@@ -388,6 +485,7 @@ internal class WorkoutEntryEditViewModelTest {
         val effects = collectEffects(viewModel)
         subscribe(viewModel)
         selectBenchPress(viewModel)
+        fillWeightSet(viewModel)
 
         viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
         advanceUntilIdle()
@@ -416,8 +514,7 @@ internal class WorkoutEntryEditViewModelTest {
         val effects = collectEffects(viewModel)
         subscribe(viewModel)
         selectBenchPress(viewModel)
-        val setId = viewModel.uiState.value.sets.single().id
-        viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetIntensity(setId, 50))
+        fillWeightSet(viewModel, intensity = 50)
 
         viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
         advanceUntilIdle()
@@ -452,6 +549,7 @@ internal class WorkoutEntryEditViewModelTest {
         val effects = collectEffects(viewModel)
         subscribe(viewModel)
         selectBenchPress(viewModel)
+        fillWeightSet(viewModel)
 
         viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
         advanceUntilIdle()
@@ -468,6 +566,7 @@ internal class WorkoutEntryEditViewModelTest {
         val effects = collectEffects(viewModel)
         subscribe(viewModel)
         viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(benchPress.id))
+        fillWeightSet(viewModel)
 
         viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
         advanceUntilIdle()
@@ -498,6 +597,7 @@ internal class WorkoutEntryEditViewModelTest {
         val effects = collectEffects(viewModel)
         subscribe(viewModel)
         selectBenchPress(viewModel)
+        fillWeightSet(viewModel)
 
         viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
         advanceUntilIdle()
@@ -603,6 +703,7 @@ internal class WorkoutEntryEditViewModelTest {
         val effects = collectEffects(viewModel)
         subscribe(viewModel)
         viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(benchPress.id))
+        fillWeightSet(viewModel)
 
         viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave)
         advanceUntilIdle()
@@ -685,6 +786,13 @@ internal class WorkoutEntryEditViewModelTest {
         viewModel.handleIntent(WorkoutEntryEditIntent.SelectBodyPart(BodyPart.CHEST))
         advanceUntilIdle()
         viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(benchPress.id))
+    }
+
+    /** 무게 종목은 손으로 채워야 저장할 수 있어, 저장을 확인하는 테스트마다 값을 넣어 준다. */
+    private fun fillWeightSet(viewModel: WorkoutEntryEditViewModel, intensity: Int = 50, repeatCount: Int = 8) {
+        val setId = viewModel.uiState.value.sets.single().id
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(setId, intensity.toString()))
+        viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetRepeatCount(setId, repeatCount.toString()))
     }
 
     private fun storedEntry() = WorkoutEntry(

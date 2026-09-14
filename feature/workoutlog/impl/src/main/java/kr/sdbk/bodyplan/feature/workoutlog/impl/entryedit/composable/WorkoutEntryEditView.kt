@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -23,12 +25,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
+import kr.sdbk.bodyplan.core.designsystem.component.BaseTextField
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
 import kr.sdbk.bodyplan.core.designsystem.component.ItemChip
@@ -41,6 +47,7 @@ import kr.sdbk.bodyplan.core.designsystem.theme.Accent
 import kr.sdbk.bodyplan.core.designsystem.theme.Background
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.Border
+import kr.sdbk.bodyplan.core.designsystem.theme.SurfaceMuted
 import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
@@ -66,8 +73,8 @@ internal data class WorkoutEntryEditUiEvents(
     val onSelectExercise: (Long) -> Unit,
     val onClickAddSet: () -> Unit,
     val onClickRemoveSet: (Long) -> Unit,
-    val onSelectSetRepeatCount: (Long, Int) -> Unit,
-    val onSelectSetIntensity: (Long, Int) -> Unit,
+    val onChangeSetRepeatCount: (Long, String) -> Unit,
+    val onChangeSetIntensity: (Long, String) -> Unit,
     val onClickSave: () -> Unit,
     val onClickRetry: () -> Unit,
 )
@@ -104,11 +111,11 @@ private fun rememberUiEvents(
         onSelectExercise = { viewModel.handleIntent(WorkoutEntryEditIntent.SelectExercise(it)) },
         onClickAddSet = { viewModel.handleIntent(WorkoutEntryEditIntent.ClickAddSet) },
         onClickRemoveSet = { viewModel.handleIntent(WorkoutEntryEditIntent.ClickRemoveSet(it)) },
-        onSelectSetRepeatCount = { id, value ->
-            viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetRepeatCount(id, value))
+        onChangeSetRepeatCount = { id, text ->
+            viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetRepeatCount(id, text))
         },
-        onSelectSetIntensity = { id, value ->
-            viewModel.handleIntent(WorkoutEntryEditIntent.SelectSetIntensity(id, value))
+        onChangeSetIntensity = { id, text ->
+            viewModel.handleIntent(WorkoutEntryEditIntent.ChangeSetIntensity(id, text))
         },
         onClickSave = { viewModel.handleIntent(WorkoutEntryEditIntent.ClickSave) },
         onClickRetry = { viewModel.handleIntent(WorkoutEntryEditIntent.ClickRetry) },
@@ -205,7 +212,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.setItems(
 ) {
     val intensityType = state.selectedExercise?.intensityType ?: IntensityType.WEIGHT
     val intensityOptions = when (intensityType) {
-        IntensityType.WEIGHT -> WorkoutOptions.weightKilograms
+        IntensityType.WEIGHT -> null
         IntensityType.ANGLE -> WorkoutOptions.angleDegrees
         IntensityType.DURATION -> WorkoutOptions.durationMinutes
     }
@@ -230,8 +237,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.setItems(
             showRepeatCount = intensityType.countsRepeats,
             canRemove = state.canRemoveSet,
             onClickRemove = { uiEvents.onClickRemoveSet(setInput.id) },
-            onSelectRepeatCount = { uiEvents.onSelectSetRepeatCount(setInput.id, it) },
-            onSelectIntensity = { uiEvents.onSelectSetIntensity(setInput.id, it) },
+            onChangeRepeatCount = { uiEvents.onChangeSetRepeatCount(setInput.id, it) },
+            onChangeIntensity = { uiEvents.onChangeSetIntensity(setInput.id, it) },
         )
     }
 }
@@ -240,14 +247,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.setItems(
 private fun SetCard(
     setNumber: Int,
     setInput: SetInput,
-    intensityOptions: List<Int>,
+    intensityOptions: List<Int>?,
     intensityLabel: String,
     intensitySuffix: String,
     showRepeatCount: Boolean,
     canRemove: Boolean,
     onClickRemove: () -> Unit,
-    onSelectRepeatCount: (Int) -> Unit,
-    onSelectIntensity: (Int) -> Unit,
+    onChangeRepeatCount: (String) -> Unit,
+    onChangeIntensity: (String) -> Unit,
 ) {
     BodyPlanCard(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -270,25 +277,72 @@ private fun SetCard(
         HorizontalDivider(color = Border)
         VerticalSpacer(space = 16.dp)
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            WheelPicker(
-                label = intensityLabel,
-                options = intensityOptions,
-                selected = setInput.intensityValue,
-                onSelect = onSelectIntensity,
-                modifier = Modifier.weight(1f),
-                suffix = intensitySuffix,
-            )
-            // 시간으로 재는 종목은 한 세트가 한 회차라 횟수를 고를 것이 없다.
-            if (showRepeatCount) {
-                WheelPicker(
-                    label = "횟수",
-                    options = WorkoutOptions.repeatCounts,
-                    selected = setInput.repeatCount,
-                    onSelect = onSelectRepeatCount,
+            if (intensityOptions == null) {
+                NumberField(
+                    label = intensityLabel,
+                    value = setInput.intensityValue,
+                    onChange = onChangeIntensity,
+                    suffix = intensitySuffix,
                     modifier = Modifier.weight(1f),
-                    suffix = "회",
+                )
+            } else {
+                WheelPicker(
+                    label = intensityLabel,
+                    options = intensityOptions,
+                    selected = setInput.intensityValue ?: intensityOptions.first(),
+                    onSelect = { onChangeIntensity(it.toString()) },
+                    modifier = Modifier.weight(1f),
+                    suffix = intensitySuffix,
                 )
             }
+            // 시간으로 재는 종목은 한 세트가 한 회차라 횟수를 고를 것이 없다.
+            if (showRepeatCount) {
+                NumberField(
+                    label = "횟수",
+                    value = setInput.repeatCount,
+                    onChange = onChangeRepeatCount,
+                    suffix = "회",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+/** 숫자 한 칸. 걸러 내는 일은 ViewModel이 한다 — 무엇이 유효한 입력인지가 저장 규칙과 같은 곳에 있어야 한다. */
+@Composable
+private fun NumberField(
+    label: String,
+    value: Int?,
+    onChange: (String) -> Unit,
+    suffix: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        BaseText(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = TextTertiary,
+        )
+        VerticalSpacer(space = 8.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(SurfaceMuted)
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            BaseTextField(
+                value = value?.toString().orEmpty(),
+                onValueChange = onChange,
+                modifier = Modifier.weight(1f),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.End),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+            )
+            BaseText(text = suffix, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
         }
     }
 }
@@ -342,8 +396,8 @@ private val previewUiEvents = WorkoutEntryEditUiEvents(
     onSelectExercise = {},
     onClickAddSet = {},
     onClickRemoveSet = {},
-    onSelectSetRepeatCount = { _, _ -> },
-    onSelectSetIntensity = { _, _ -> },
+    onChangeSetRepeatCount = { _, _ -> },
+    onChangeSetIntensity = { _, _ -> },
     onClickSave = {},
     onClickRetry = {},
 )

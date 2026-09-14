@@ -60,11 +60,11 @@ constructor(
 
             is WorkoutEntryEditIntent.ClickRemoveSet -> removeSet(intent.setInputId)
 
-            is WorkoutEntryEditIntent.SelectSetRepeatCount ->
-                updateSet(intent.setInputId) { it.copy(repeatCount = intent.value) }
+            is WorkoutEntryEditIntent.ChangeSetRepeatCount ->
+                updateSet(intent.setInputId) { it.copy(repeatCount = parseNumber(intent.text)) }
 
-            is WorkoutEntryEditIntent.SelectSetIntensity ->
-                updateSet(intent.setInputId) { it.copy(intensityValue = intent.value) }
+            is WorkoutEntryEditIntent.ChangeSetIntensity ->
+                updateSet(intent.setInputId) { it.copy(intensityValue = parseNumber(intent.text)) }
 
             is WorkoutEntryEditIntent.ClickSave -> save()
 
@@ -211,27 +211,30 @@ constructor(
         }
     }
 
+    /** 새 세트는 직전 세트를 따라간다 — 같은 무게로 이어 가는 경우가 대부분이라 다시 넣지 않게 한다. */
     private fun addSet() {
         val intensityType = state.value.selectedExercise?.intensityType ?: return
         updateState { current ->
             if (!current.canAddSet) return@updateState current
+            val last = current.sets.lastOrNull()
+            val added = last?.copy(id = current.nextSetInputId) ?: newSetInput(current.nextSetInputId, intensityType)
             current.copy(
-                sets = current.sets + newSetInput(current.nextSetInputId, intensityType),
+                sets = current.sets + added,
                 nextSetInputId = current.nextSetInputId + 1,
             )
         }
     }
 
-    /** 시간으로 재는 종목은 한 세트가 한 회차다. 화면에서 감춘 값이 4로 저장되지 않게 여기서 정한다. */
+    /** 시간으로 재는 종목은 한 세트가 한 회차다. 화면에서 감춘 횟수가 빈 채로 남아 저장을 막지 않게 여기서 정한다. */
     private fun newSetInput(id: Long, intensityType: IntensityType) = SetInput(
         id = id,
-        repeatCount = if (intensityType.countsRepeats) {
-            WorkoutOptions.repeatCounts.first()
-        } else {
-            WorkoutOptions.SINGLE_REPEAT
-        },
-        intensityValue = WorkoutOptions.defaultIntensity(intensityType).value,
+        repeatCount = if (intensityType.countsRepeats) null else WorkoutOptions.SINGLE_REPEAT,
+        intensityValue = WorkoutOptions.defaultIntensity(intensityType)?.value,
     )
+
+    /** 붙여 넣기로 들어온 글자·자릿수 초과도 여기서 걸린다 — 유효 입력의 정의가 저장 규칙과 같은 곳에 있어야 한다. */
+    private fun parseNumber(text: String): Int? =
+        text.filter(Char::isDigit).take(WorkoutOptions.INPUT_MAX_DIGITS).toIntOrNull()
 
     private fun removeSet(setInputId: Long) {
         updateState { current ->
@@ -255,10 +258,11 @@ constructor(
 
         updateState { it.copy(isSaving = true) }
         viewModelScope.launch {
+            // canSave가 통과했으므로 빈 칸은 없다.
             val sets = current.sets.map { input ->
                 WorkoutSet(
-                    repeatCount = input.repeatCount,
-                    intensity = Intensity.of(exercise.intensityType, input.intensityValue),
+                    repeatCount = requireNotNull(input.repeatCount),
+                    intensity = Intensity.of(exercise.intensityType, requireNotNull(input.intensityValue)),
                 )
             }
             runCatching {
