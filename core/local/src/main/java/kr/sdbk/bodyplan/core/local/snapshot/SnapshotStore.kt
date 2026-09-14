@@ -37,10 +37,13 @@ constructor(private val database: BodyPlanDatabase) {
 
     /**
      * 표를 전부 비우고 스냅샷의 행을 원래 id 그대로 넣는다. 하나라도 실패하면 아무것도 바뀌지 않는다.
-     * 스키마 버전이 다르면 [UnsupportedBackupVersionException] — 다른 버전의 행은 컬럼이 맞지 않는다.
+     *
+     * [MIN_IMPORTABLE_DB_VERSION]부터 지금 버전까지의 스냅샷만 들인다. 그 사이의 스키마 변화가 전부
+     * "기본값 있는 컬럼 추가"뿐이라 옛 행이 그대로 들어간다 — 엔티티의 새 필드에 기본값이 있어 JSON에 없어도 읽힌다.
+     * 더 오래된 것과 더 새 것은 [UnsupportedBackupVersionException].
      */
     suspend fun import(snapshot: BodyPlanSnapshot) {
-        if (snapshot.dbVersion != currentDbVersion()) {
+        if (snapshot.dbVersion !in MIN_IMPORTABLE_DB_VERSION..currentDbVersion()) {
             throw UnsupportedBackupVersionException(snapshot.dbVersion)
         }
         database.withTransaction {
@@ -71,3 +74,11 @@ constructor(private val database: BodyPlanDatabase) {
 
     private fun currentDbVersion(): Int = database.openHelper.readableDatabase.version
 }
+
+/**
+ * 이 버전 이후의 마이그레이션은 전부 기본값 있는 컬럼 추가다.
+ *
+ * 컬럼을 지우거나 이름을 바꾸거나 NOT NULL로 더하는 마이그레이션을 넣으면 이 값을 그 버전으로 올려야 한다 —
+ * 옛 스냅샷의 행이 새 표에 들어가지 못한다.
+ */
+private const val MIN_IMPORTABLE_DB_VERSION = 10

@@ -17,7 +17,7 @@ import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
  * DB 전체를 한 시점에 떠 놓은 것. 백업 파일의 본문이다.
  *
  * 표마다 행을 그대로 담는다 — 스냅샷은 스키마의 사본이라 별도 DTO를 두지 않고,
- * 대신 [dbVersion]으로 어느 스키마의 것인지 묶는다. 다른 버전의 스냅샷은 들이지 않는다.
+ * 대신 [dbVersion]으로 어느 스키마의 것인지 묶는다. 어느 버전까지 들일지는 [SnapshotStore]가 정한다.
  */
 @Serializable
 data class BodyPlanSnapshot(
