@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import kotlin.math.ceil
 import kr.sdbk.bodyplan.core.designsystem.theme.Accent
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.Danger
@@ -138,12 +139,14 @@ private fun MonthGrid(
     // 일요일을 한 주의 첫 칸으로 둔다. DayOfWeek는 월요일이 1이라 7로 나눈 나머지가 곧 칸 번호다.
     val leadingBlanks = firstDay.dayOfWeek.value % DAYS_IN_WEEK
     val lengthOfMonth = yearMonth.lengthOfMonth()
+    // 달마다 필요한 주 수가 다르다. 6줄로 고정하면 5주로 끝나는 달에 빈 줄만큼 여백이 남는다.
+    val weekRows = ceil((leadingBlanks + lengthOfMonth) / DAYS_IN_WEEK.toFloat()).toInt()
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        repeat(WEEK_ROWS) { row ->
+        repeat(weekRows) { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -209,7 +212,6 @@ private fun RowScope.DayCell(
 
 private val WEEKDAY_LABELS = listOf("일", "월", "화", "수", "목", "금", "토")
 private const val DAYS_IN_WEEK = 7
-private const val WEEK_ROWS = 6
 private val DEFAULT_CELL_HEIGHT = 56.dp
 private val MONTH_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy년 M월")
 
