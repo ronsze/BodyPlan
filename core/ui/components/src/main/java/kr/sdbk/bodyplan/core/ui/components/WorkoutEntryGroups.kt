@@ -7,9 +7,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -83,6 +86,9 @@ fun LazyListScope.workoutEntryGroups(
     onClickEntry: (Long) -> Unit,
     onClickDeleteEntry: (Long) -> Unit,
     personalRecordExerciseIds: Set<Long> = emptySet(),
+    // null이면 세션이 아니다 — 체크 칸을 그리지 않는다.
+    completedSets: Set<WorkoutSetKey>? = null,
+    onToggleSet: (WorkoutSetKey) -> Unit = {},
 ) {
     val byBodyPart = entries.groupBy { it.bodyPart }
     BodyPart.entries.forEach { bodyPart ->
@@ -110,6 +116,8 @@ fun LazyListScope.workoutEntryGroups(
                 onClickHeader = { expansion.toggle(exerciseKey) },
                 onClickEntry = onClickEntry,
                 onClickDeleteEntry = onClickDeleteEntry,
+                completedSets = completedSets,
+                onToggleSet = onToggleSet,
             )
         }
     }
@@ -151,6 +159,8 @@ private fun ExerciseGroupCard(
     onClickHeader: () -> Unit,
     onClickEntry: (Long) -> Unit,
     onClickDeleteEntry: (Long) -> Unit,
+    completedSets: Set<WorkoutSetKey>?,
+    onToggleSet: (WorkoutSetKey) -> Unit,
 ) {
     val first = entries.first()
     val setCount = entries.sumOf { it.sets.size }
@@ -194,6 +204,8 @@ private fun ExerciseGroupCard(
                     isEditable = isEditable,
                     onClickEdit = { onClickEntry(entry.id) },
                     onClickDelete = { onClickDeleteEntry(entry.id) },
+                    completedSets = completedSets,
+                    onToggleSet = onToggleSet,
                 )
             }
         }
@@ -201,11 +213,24 @@ private fun ExerciseGroupCard(
 }
 
 @Composable
-private fun EntrySets(entry: WorkoutEntry, isEditable: Boolean, onClickEdit: () -> Unit, onClickDelete: () -> Unit) {
+private fun EntrySets(
+    entry: WorkoutEntry,
+    isEditable: Boolean,
+    onClickEdit: () -> Unit,
+    onClickDelete: () -> Unit,
+    completedSets: Set<WorkoutSetKey>?,
+    onToggleSet: (WorkoutSetKey) -> Unit,
+) {
     Column {
         entry.sets.forEachIndexed { index, set ->
             if (index > 0) VerticalSpacer(space = 8.dp)
-            SetRow(setNumber = index + 1, set = set)
+            val key = WorkoutSetKey(entryId = entry.id, setIndex = index)
+            SetRow(
+                setNumber = index + 1,
+                set = set,
+                checked = completedSets?.let { key in it },
+                onToggle = { onToggleSet(key) },
+            )
         }
         if (isEditable) {
             VerticalSpacer(space = 12.dp)
@@ -230,9 +255,22 @@ private fun EntrySets(entry: WorkoutEntry, isEditable: Boolean, onClickEdit: () 
     }
 }
 
+/** [checked]가 null이면 세션이 아니다. 세션 중에는 줄 어디를 눌러도 토글된다 — 체크 칸만 눌리면 손이 미끄러진다. */
 @Composable
-private fun SetRow(setNumber: Int, set: WorkoutSet) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+private fun SetRow(setNumber: Int, set: WorkoutSet, checked: Boolean?, onToggle: () -> Unit) {
+    Row(
+        modifier = if (checked == null) Modifier else Modifier.fillMaxWidth().clickable(onClick = onToggle),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (checked != null) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = { onToggle() },
+                modifier = Modifier.size(24.dp),
+                colors = CheckboxDefaults.colors(checkedColor = Accent),
+            )
+        }
         BaseText(
             text = "${setNumber}세트",
             style = MaterialTheme.typography.bodyMedium,
@@ -241,7 +279,7 @@ private fun SetRow(setNumber: Int, set: WorkoutSet) {
         BaseText(
             text = set.summaryText(),
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-            color = TextPrimary,
+            color = if (checked == true) TextTertiary else TextPrimary,
         )
     }
 }
@@ -324,6 +362,7 @@ private fun WorkoutEntryGroupsExpandedPreview() {
         val expansion = rememberSaveable(saver = ExpansionSaver) {
             WorkoutEntryGroupExpansion(setOf(BodyPart.CHEST.name, exerciseKey(BodyPart.CHEST, 1L)))
         }
+        val completedSets = setOf(WorkoutSetKey(entryId = 1L, setIndex = 0))
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -334,6 +373,7 @@ private fun WorkoutEntryGroupsExpandedPreview() {
                 expansion = expansion,
                 onClickEntry = {},
                 onClickDeleteEntry = {},
+                completedSets = completedSets,
             )
         }
     }

@@ -5,8 +5,10 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Clock
 import java.time.LocalDate
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kr.sdbk.bodyplan.core.domain.repository.RoutineRepository
@@ -14,6 +16,8 @@ import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 import kr.sdbk.bodyplan.core.domain.usecase.IsEditableDateUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.ObserveWorkoutLogUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeUseCase
+import kr.sdbk.bodyplan.core.ui.components.WorkoutSetKey
+import kr.sdbk.bodyplan.core.ui.components.volumeText
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 
@@ -26,15 +30,18 @@ constructor(
     private val isEditableDate: IsEditableDateUseCase,
     private val observeWorkoutLog: ObserveWorkoutLogUseCase,
     private val summarizeBodyPartVolume: SummarizeBodyPartVolumeUseCase,
+    private val clock: Clock,
     @Assisted navKey: WorkoutLogNavKey,
 ) : BaseViewModel<WorkoutLogState, WorkoutLogIntent, WorkoutLogEffect>(
     initialState = WorkoutLogState(date = LocalDate.ofEpochDay(navKey.dateEpochDay)),
 ) {
     private var loadJob: Job? = null
+    private var sessionJob: Job? = null
 
     override suspend fun initializeData() {
         // 자정을 넘겨도 화면 안에서 편집 가능 여부가 바뀌지 않도록 진입 시점에 한 번만 판정한다.
-        updateState { it.copy(isEditable = isEditableDate(it.date)) }
+        val today = LocalDate.now(clock)
+        updateState { it.copy(isEditable = isEditableDate(it.date, today), canStartSession = it.date == today) }
         observeLog()
         // 조회 전용 날짜에는 불러올 일이 없어 루틴을 읽지 않는다.
         if (state.value.isEditable) observeRoutines()
@@ -68,6 +75,77 @@ constructor(
             is WorkoutLogIntent.DismissRoutineSheet -> dismissRoutineSheet()
 
             is WorkoutLogIntent.SelectRoutine -> applyRoutine(intent.id)
+
+            is WorkoutLogIntent.ClickStartSession -> startSession()
+
+            is WorkoutLogIntent.ClickEndSession -> endSession()
+
+            is WorkoutLogIntent.ToggleSetCompleted -> toggleSetCompleted(intent.key)
+
+            is WorkoutLogIntent.ClickAdjustRest -> adjustRest(intent.deltaSeconds)
+
+            is WorkoutLogIntent.ClickSkipRest -> updateSession { it.copy(rest = null) }
+        }
+    }
+
+    private fun startSession() {
+        if (!state.value.canStartSession || state.value.isSessionActive) return
+        updateState { it.copy(session = WorkoutSession(startedAtMillis = clock.millis())) }
+        sessionJob?.cancel()
+        sessionJob = viewModelScope.launch {
+            while (true) {
+                delay(TICK_MILLIS)
+                tick()
+            }
+        }
+    }
+
+    /** 경과 시간은 시작 시각에서 다시 세어 delay의 오차가 쌓이지 않게 한다. 휴식만 초 단위로 줄인다. */
+    private fun tick() {
+        val session = state.value.session ?: return
+        val elapsed = (clock.millis() - session.startedAtMillis) / MILLIS_PER_SECOND
+        val remaining = session.rest?.remainingSeconds?.minus(1)
+        val restEnded = remaining != null && remaining <= 0
+        updateSession {
+            it.copy(elapsedSeconds = elapsed, rest = if (remaining == null || restEnded) null else RestTimer(remaining))
+        }
+        if (restEnded) updateEffect(WorkoutLogEffect.VibrateRestEnd)
+    }
+
+    private fun endSession() {
+        val session = state.value.session ?: return
+        sessionJob?.cancel()
+        sessionJob = null
+        val minutes = session.elapsedSeconds / SECONDS_PER_MINUTE
+        val volume = volumeText(state.value.bodyPartVolumes.sumOf { it.weightVolumeKg })
+        updateState { it.copy(session = null) }
+        updateEffect(WorkoutLogEffect.ShowMessage("운동 종료 · ${minutes}분 · 볼륨 $volume"))
+    }
+
+    /** 체크를 켤 때만 휴식을 새로 시작한다. 이미 쉬는 중이어도 다시 90초부터다 — 방금 한 세트 뒤의 휴식이다. */
+    private fun toggleSetCompleted(key: WorkoutSetKey) {
+        updateSession { session ->
+            val completing = key !in session.completedSets
+            session.copy(
+                completedSets = if (completing) session.completedSets + key else session.completedSets - key,
+                rest = if (completing) RestTimer(REST_SECONDS) else session.rest,
+            )
+        }
+    }
+
+    /** 줄여서 0 이하가 되면 바로 끝낸다. 진동은 없다 — 사용자가 스스로 끝낸 것이다. */
+    private fun adjustRest(deltaSeconds: Int) {
+        updateSession { session ->
+            val rest = session.rest ?: return@updateSession session
+            val remaining = rest.remainingSeconds + deltaSeconds
+            session.copy(rest = if (remaining <= 0) null else RestTimer(remaining))
+        }
+    }
+
+    private fun updateSession(transform: (WorkoutSession) -> WorkoutSession) {
+        updateState { current ->
+            val session = current.session ?: return@updateState current
+            current.copy(session = transform(session))
         }
     }
 
@@ -179,6 +257,11 @@ constructor(
         fun create(navKey: WorkoutLogNavKey): WorkoutLogViewModel
     }
 }
+
+private const val REST_SECONDS = 90
+private const val TICK_MILLIS = 1_000L
+private const val MILLIS_PER_SECOND = 1_000L
+private const val SECONDS_PER_MINUTE = 60L
 
 private const val LOAD_ERROR = "불러오지 못했습니다"
 private const val DELETE_ERROR = "삭제하지 못했습니다"
