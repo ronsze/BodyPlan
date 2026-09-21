@@ -20,6 +20,7 @@ import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.theme.AiClaude
 import kr.sdbk.bodyplan.core.designsystem.theme.AiGemini
 import kr.sdbk.bodyplan.core.designsystem.theme.AiGpt
+import kr.sdbk.bodyplan.core.designsystem.theme.AiOnDevice
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
 
@@ -28,6 +29,7 @@ val AiProvider.label: String
         AiProvider.CLAUDE -> "클로드"
         AiProvider.GPT -> "GPT"
         AiProvider.GEMINI -> "제미나이"
+        AiProvider.ON_DEVICE -> "온디바이스"
     }
 
 /**
@@ -41,6 +43,7 @@ val AiProvider.brandColor: Color
         AiProvider.CLAUDE -> AiClaude
         AiProvider.GPT -> AiGpt
         AiProvider.GEMINI -> AiGemini
+        AiProvider.ON_DEVICE -> AiOnDevice
     }
 
 private val AiProvider.initial: String
@@ -48,6 +51,7 @@ private val AiProvider.initial: String
         AiProvider.CLAUDE -> "C"
         AiProvider.GPT -> "G"
         AiProvider.GEMINI -> "G"
+        AiProvider.ON_DEVICE -> "N"
     }
 
 /**

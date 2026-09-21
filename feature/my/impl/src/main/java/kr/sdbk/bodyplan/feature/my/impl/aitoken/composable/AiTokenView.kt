@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +50,8 @@ import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
+import kr.sdbk.bodyplan.core.domain.model.OnDeviceModelStatus
+import kr.sdbk.bodyplan.core.domain.model.requiresToken
 import kr.sdbk.bodyplan.core.ui.components.AiProviderMark
 import kr.sdbk.bodyplan.core.ui.components.label
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
@@ -64,6 +67,7 @@ internal data class AiTokenUiEvents(
     val onClickProvider: (AiProvider) -> Unit,
     val onChangeInput: (String) -> Unit,
     val onClickConnect: () -> Unit,
+    val onClickDownloadModel: () -> Unit,
     val onClickCancelConnect: () -> Unit,
     val onClickDisconnect: () -> Unit,
 )
@@ -96,6 +100,7 @@ private fun rememberUiEvents(events: AiTokenEvents, viewModel: AiTokenViewModel)
         onClickProvider = { viewModel.handleIntent(AiTokenIntent.ClickProvider(it)) },
         onChangeInput = { viewModel.handleIntent(AiTokenIntent.ChangeInput(it)) },
         onClickConnect = { viewModel.handleIntent(AiTokenIntent.ClickConnect) },
+        onClickDownloadModel = { viewModel.handleIntent(AiTokenIntent.ClickDownloadModel) },
         onClickCancelConnect = { viewModel.handleIntent(AiTokenIntent.ClickCancelConnect) },
         onClickDisconnect = { viewModel.handleIntent(AiTokenIntent.ClickDisconnect) },
     )
@@ -118,27 +123,33 @@ internal fun AiTokenViewImpl(state: AiTokenState, uiEvents: AiTokenUiEvents) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when {
-                state.isLoading && state.connected == null -> LoadingContent()
+                // 온디바이스 바로 연결은 화면 없이 검증만 돈다. 그동안 목록을 보이면 다른 제공자를 누를 수 있다.
+                state.isBusyWithoutScreen -> LoadingContent()
+
                 state.connected != null -> ConnectedContent(state, uiEvents)
+
+                state.connectingProvider?.requiresToken == false -> OnDeviceDownloadContent(state, uiEvents)
+
                 state.connectingProvider != null -> ConnectingContent(state, uiEvents)
-                else -> ProviderPicker(uiEvents.onClickProvider)
+
+                else -> ProviderPicker(state.providers, uiEvents.onClickProvider)
             }
         }
     }
 }
 
 @Composable
-private fun ProviderPicker(onClickProvider: (AiProvider) -> Unit) {
+private fun ProviderPicker(providers: List<AiProvider>, onClickProvider: (AiProvider) -> Unit) {
     BaseText(
         text = "분석에 쓸 AI를 하나 골라 연동하세요.",
         style = MaterialTheme.typography.bodyMedium,
         color = TextSecondary,
     )
-    AiProvider.entries.forEach { provider ->
+    providers.forEach { provider ->
         ProviderButton(provider = provider, onClick = { onClickProvider(provider) })
     }
     BaseText(
-        text = "키는 이 기기에만 저장되고, 사진과 기록이 분석을 위해 외부로 전송됩니다.",
+        text = "키는 이 기기에만 저장되고, 사진과 기록이 분석을 위해 외부로 전송됩니다. 온디바이스는 기기 안에서 처리됩니다.",
         style = MaterialTheme.typography.bodySmall,
         color = TextTertiary,
     )
@@ -150,7 +161,60 @@ private fun ProviderButton(provider: AiProvider, onClick: () -> Unit) {
     SectionRow(
         title = "${provider.label}로 연동하기",
         onClick = onClick,
+        description = if (provider.requiresToken) null else ON_DEVICE_DESCRIPTION,
         leading = { AiProviderMark(provider) },
+    )
+}
+
+/** 모델을 내려받아 연결하는 화면. 키 넣기 화면과 버튼 자리를 맞춰 흐름이 같아 보이게 한다. */
+@Composable
+private fun OnDeviceDownloadContent(state: AiTokenState, uiEvents: AiTokenUiEvents) {
+    val provider = state.connectingProvider ?: return
+    BodyPlanCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            AiProviderMark(provider)
+            BaseText(
+                text = "온디바이스 모델 내려받기",
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+            )
+        }
+        VerticalSpacer(space = 8.dp)
+        BaseText(
+            text = "Gemini Nano 모델을 이 기기에 내려받습니다. 기록과 사진이 외부로 나가지 않습니다.",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextTertiary,
+        )
+        if (state.isConnecting) {
+            VerticalSpacer(space = 16.dp)
+            DownloadProgress(ratio = state.downloadRatio)
+        }
+    }
+
+    state.errorMessage?.let { message ->
+        BaseText(text = message, style = MaterialTheme.typography.bodyMedium, color = Danger)
+    }
+
+    PrimaryButton(
+        text = if (state.isConnecting) "내려받는 중" else "내려받기",
+        onClick = uiEvents.onClickDownloadModel,
+        enabled = state.canConnect,
+    )
+    OutlinedActionButton(text = "취소", onClick = uiEvents.onClickCancelConnect)
+}
+
+@Composable
+private fun DownloadProgress(ratio: Float?) {
+    if (ratio == null) {
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    } else {
+        LinearProgressIndicator(progress = { ratio }, modifier = Modifier.fillMaxWidth())
+    }
+    VerticalSpacer(space = 8.dp)
+    BaseText(
+        text = ratio?.let { "내려받는 중 ${(it * PERCENT).toInt()}%" } ?: "내려받는 중",
+        style = MaterialTheme.typography.bodySmall,
+        color = TextSecondary,
     )
 }
 
@@ -214,7 +278,7 @@ private fun ConnectedContent(state: AiTokenState, uiEvents: AiTokenUiEvents) {
                 )
                 VerticalSpacer(space = 4.dp)
                 BaseText(
-                    text = state.connectedTokenMask.orEmpty(),
+                    text = state.connectedTokenMask ?: ON_DEVICE_CONNECTED_DESCRIPTION,
                     style = MaterialTheme.typography.bodySmall,
                     color = TextTertiary,
                 )
@@ -242,12 +306,16 @@ private fun LoadingContent() {
 }
 
 private val FIELD_CORNER = 12.dp
+private const val PERCENT = 100
+private const val ON_DEVICE_DESCRIPTION = "키 없이 기기 안에서 처리"
+private const val ON_DEVICE_CONNECTED_DESCRIPTION = "기기 안에서 처리됩니다"
 
 private val previewUiEvents = AiTokenUiEvents(
     onBackPressed = {},
     onClickProvider = {},
     onChangeInput = {},
     onClickConnect = {},
+    onClickDownloadModel = {},
     onClickCancelConnect = {},
     onClickDisconnect = {},
 )
@@ -256,7 +324,27 @@ private val previewUiEvents = AiTokenUiEvents(
 @Composable
 private fun AiTokenViewImplPickerPreview() {
     BodyPlanTheme {
-        AiTokenViewImpl(state = AiTokenState(), uiEvents = previewUiEvents)
+        AiTokenViewImpl(
+            state = AiTokenState(onDeviceStatus = OnDeviceModelStatus.DOWNLOADABLE),
+            uiEvents = previewUiEvents,
+        )
+    }
+}
+
+@Preview(showBackground = true, heightDp = 700)
+@Composable
+private fun AiTokenViewImplDownloadingPreview() {
+    BodyPlanTheme {
+        AiTokenViewImpl(
+            state = AiTokenState(
+                connectingProvider = AiProvider.ON_DEVICE,
+                onDeviceStatus = OnDeviceModelStatus.DOWNLOADING,
+                isConnecting = true,
+                downloadTotalBytes = 1000,
+                downloadedBytes = 350,
+            ),
+            uiEvents = previewUiEvents,
+        )
     }
 }
 

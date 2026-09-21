@@ -1,5 +1,6 @@
 package kr.sdbk.bodyplan.feature.my.impl.aitoken
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -7,9 +8,12 @@ import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
 import kr.sdbk.bodyplan.core.domain.model.AiRequestFailedException
 import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
+import kr.sdbk.bodyplan.core.domain.model.OnDeviceDownload
+import kr.sdbk.bodyplan.core.domain.model.OnDeviceModelStatus
 import kr.sdbk.bodyplan.feature.my.impl.MainDispatcherRule
 import kr.sdbk.bodyplan.feature.my.impl.fake.FakeAiAnalysisRepository
 import kr.sdbk.bodyplan.feature.my.impl.fake.FakeAiCredentialRepository
+import kr.sdbk.bodyplan.feature.my.impl.fake.FakeOnDeviceAiRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -24,11 +28,13 @@ internal class AiTokenViewModelTest {
 
     private val credentialRepository = FakeAiCredentialRepository()
     private val analysisRepository = FakeAiAnalysisRepository()
+    private val onDeviceRepository = FakeOnDeviceAiRepository()
 
     private fun viewModel(
         credentials: FakeAiCredentialRepository = credentialRepository,
         analysis: FakeAiAnalysisRepository = analysisRepository,
-    ) = AiTokenViewModel(credentials, analysis)
+        onDevice: FakeOnDeviceAiRepository = onDeviceRepository,
+    ) = AiTokenViewModel(credentials, analysis, onDevice)
 
     @Test
     fun `저장된 키가 없으면 고르는 중이다`() = runTest {
@@ -245,6 +251,280 @@ internal class AiTokenViewModelTest {
         advanceUntilIdle()
 
         assertTrue(effects.any { it is AiTokenEffect.GoBack })
+    }
+
+    @Test
+    fun `온디바이스 미지원이면 제공자 목록에 온디바이스가 없다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.UNSUPPORTED
+        val viewModel = viewModel()
+
+        subscribe(viewModel)
+
+        assertFalse(viewModel.uiState.value.providers.contains(AiProvider.ON_DEVICE))
+    }
+
+    @Test
+    fun `상태 확인 전에는 제공자 목록에 온디바이스가 없다`() = runTest {
+        val viewModel = viewModel()
+
+        assertFalse(viewModel.uiState.value.providers.contains(AiProvider.ON_DEVICE))
+    }
+
+    @Test
+    fun `상태 확인이 실패하면 제공자 목록에 온디바이스가 없다`() = runTest {
+        onDeviceRepository.statusFailure = IllegalStateException("확인 실패")
+        val viewModel = viewModel()
+
+        subscribe(viewModel)
+
+        assertFalse(viewModel.uiState.value.providers.contains(AiProvider.ON_DEVICE))
+    }
+
+    @Test
+    fun `모델이 준비된 기기는 제공자 목록에 온디바이스가 있다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.READY
+        val viewModel = viewModel()
+
+        subscribe(viewModel)
+
+        assertTrue(viewModel.uiState.value.providers.contains(AiProvider.ON_DEVICE))
+    }
+
+    @Test
+    fun `내려받아야 하는 기기도 제공자 목록에 온디바이스가 있다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.DOWNLOADABLE
+        val viewModel = viewModel()
+
+        subscribe(viewModel)
+
+        assertTrue(viewModel.uiState.value.providers.contains(AiProvider.ON_DEVICE))
+    }
+
+    @Test
+    fun `내려받는 중인 기기도 제공자 목록에 온디바이스가 있다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.DOWNLOADING
+        val viewModel = viewModel()
+
+        subscribe(viewModel)
+
+        assertTrue(viewModel.uiState.value.providers.contains(AiProvider.ON_DEVICE))
+    }
+
+    @Test
+    fun `모델이 준비됐으면 온디바이스를 누르는 즉시 연결된다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.READY
+        val repository = FakeAiCredentialRepository()
+        val viewModel = viewModel(credentials = repository)
+        val effects = mutableListOf<AiTokenEffect>()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            viewModel.effect.collect { effects += it }
+        }
+        subscribe(viewModel)
+
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+        advanceUntilIdle()
+
+        assertEquals(listOf(AiCredential.onDevice()), analysisRepository.verified)
+        assertEquals(AiCredential.onDevice(), viewModel.uiState.value.connected)
+        assertNull(viewModel.uiState.value.connectingProvider)
+        assertTrue(effects.any { it is AiTokenEffect.ShowMessage && it.message == "연결했습니다" })
+        assertNull(viewModel.uiState.value.connectedTokenMask)
+    }
+
+    @Test
+    fun `모델이 준비된 상태에서 검증이 실패하면 내려받기 화면에 사유가 남는다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.READY
+        analysisRepository.verifyFailure = AiRequestFailedException(null, "온디바이스 모델이 준비되지 않았어요")
+        val viewModel = viewModel()
+        subscribe(viewModel)
+
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.uiState.value.errorMessage)
+        assertEquals(AiProvider.ON_DEVICE, viewModel.uiState.value.connectingProvider)
+    }
+
+    @Test
+    fun `내려받아야 하면 온디바이스를 눌러도 바로 연결되지 않는다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.DOWNLOADABLE
+        val repository = FakeAiCredentialRepository()
+        val viewModel = viewModel(credentials = repository)
+        subscribe(viewModel)
+
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+        advanceUntilIdle()
+
+        assertEquals(AiProvider.ON_DEVICE, viewModel.uiState.value.connectingProvider)
+        assertEquals(0, repository.saveCallCount)
+    }
+
+    @Test
+    fun `내려받기를 누르면 진행률이 상태에 반영되고 끝나면 연결된다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.DOWNLOADABLE
+        val repository = FakeAiCredentialRepository()
+        val viewModel = viewModel(credentials = repository)
+        subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+        advanceUntilIdle()
+
+        viewModel.handleIntent(AiTokenIntent.ClickDownloadModel)
+        advanceUntilIdle()
+
+        assertEquals(1, onDeviceRepository.downloadCallCount)
+        assertTrue(viewModel.uiState.value.isConnecting)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Started(1000))
+        }
+        advanceUntilIdle()
+        assertEquals(1000L, viewModel.uiState.value.downloadTotalBytes)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Progress(500))
+        }
+        advanceUntilIdle()
+        assertEquals(0.5f, viewModel.uiState.value.downloadRatio)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Completed)
+        }
+        advanceUntilIdle()
+
+        assertEquals(AiCredential.onDevice(), viewModel.uiState.value.connected)
+        assertEquals(AiCredential.onDevice(), repository.getCredential())
+    }
+
+    @Test
+    fun `내려받는 중 취소하면 연결되지 않고 바이트가 되돌아가며, 뒤늦게 완료가 와도 저장되지 않는다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.DOWNLOADABLE
+        val repository = FakeAiCredentialRepository()
+        val viewModel = viewModel(credentials = repository)
+        subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+        advanceUntilIdle()
+        viewModel.handleIntent(AiTokenIntent.ClickDownloadModel)
+        advanceUntilIdle()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Started(1000))
+        }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(AiTokenIntent.ClickCancelConnect)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.connectingProvider)
+        assertFalse(viewModel.uiState.value.isConnecting)
+        assertEquals(0L, viewModel.uiState.value.downloadTotalBytes)
+        assertEquals(0L, viewModel.uiState.value.downloadedBytes)
+        assertEquals(0, repository.saveCallCount)
+        // 취소는 실패가 아니다 — 사유가 남으면 돌아간 화면에 엉뚱한 오류가 보인다.
+        assertNull(viewModel.uiState.value.errorMessage)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Completed)
+        }
+        advanceUntilIdle()
+
+        assertEquals(0, repository.saveCallCount)
+        assertNull(viewModel.uiState.value.connected)
+    }
+
+    @Test
+    fun `내려받기가 실패하면 사유가 채워지고 온디바이스를 누른 상태로 남는다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.DOWNLOADABLE
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+        advanceUntilIdle()
+        viewModel.handleIntent(AiTokenIntent.ClickDownloadModel)
+        advanceUntilIdle()
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Failed("저장 공간이 부족해요"))
+        }
+        advanceUntilIdle()
+
+        assertEquals("저장 공간이 부족해요", viewModel.uiState.value.errorMessage)
+        assertFalse(viewModel.uiState.value.isConnecting)
+        assertEquals(AiProvider.ON_DEVICE, viewModel.uiState.value.connectingProvider)
+    }
+
+    @Test
+    fun `READY 연결은 검증 중에도 내려받기 화면을 거치지 않는다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.READY
+        val gate = CompletableDeferred<Unit>()
+        analysisRepository.verifyGate = gate
+        val viewModel = viewModel()
+        subscribe(viewModel)
+
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+
+        assertNull(viewModel.uiState.value.connectingProvider)
+        assertTrue(viewModel.uiState.value.isConnecting)
+        assertNull(viewModel.uiState.value.connected)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(AiCredential.onDevice(), viewModel.uiState.value.connected)
+    }
+
+    @Test
+    fun `내려받아 연결하면 온디바이스 상태가 준비됨으로 바뀌어 다시 연결할 때 내려받기를 건너뛴다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.DOWNLOADABLE
+        val repository = FakeAiCredentialRepository()
+        val viewModel = viewModel(credentials = repository)
+        subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+        advanceUntilIdle()
+        viewModel.handleIntent(AiTokenIntent.ClickDownloadModel)
+        advanceUntilIdle()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Completed)
+        }
+        advanceUntilIdle()
+        assertEquals(OnDeviceModelStatus.READY, viewModel.uiState.value.onDeviceStatus)
+
+        viewModel.handleIntent(AiTokenIntent.ClickDisconnect)
+        advanceUntilIdle()
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+        advanceUntilIdle()
+
+        assertEquals(listOf(AiCredential.onDevice(), AiCredential.onDevice()), analysisRepository.verified)
+        assertEquals(AiCredential.onDevice(), viewModel.uiState.value.connected)
+        assertNull(viewModel.uiState.value.connectingProvider)
+    }
+
+    @Test
+    fun `내려받기 실패 뒤 다시 내려받으면 이전 수집과 섞이지 않는다`() = runTest {
+        onDeviceRepository.status = OnDeviceModelStatus.DOWNLOADABLE
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        viewModel.handleIntent(AiTokenIntent.ClickProvider(AiProvider.ON_DEVICE))
+        advanceUntilIdle()
+        viewModel.handleIntent(AiTokenIntent.ClickDownloadModel)
+        advanceUntilIdle()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Failed("실패"))
+        }
+        advanceUntilIdle()
+
+        viewModel.handleIntent(AiTokenIntent.ClickDownloadModel)
+        advanceUntilIdle()
+
+        assertEquals(2, onDeviceRepository.downloadCallCount)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Started(1000))
+        }
+        advanceUntilIdle()
+        backgroundScope.launch(mainDispatcherRule.dispatcher) {
+            onDeviceRepository.downloads.emit(OnDeviceDownload.Progress(500))
+        }
+        advanceUntilIdle()
+
+        assertEquals(500L, viewModel.uiState.value.downloadedBytes)
     }
 
     private fun kotlinx.coroutines.test.TestScope.subscribe(viewModel: AiTokenViewModel) {
