@@ -10,6 +10,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.time.Clock
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kr.sdbk.bodyplan.core.data.image.DIET_IMAGE_DIRECTORY
 import kr.sdbk.bodyplan.core.data.image.DietImages
 import kr.sdbk.bodyplan.core.data.image.INBODY_IMAGE_DIRECTORY
@@ -28,6 +31,8 @@ import kr.sdbk.bodyplan.core.data.repository.RoutineRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.UserProfileRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.WeightLogRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.WorkoutLogRepositoryImpl
+import kr.sdbk.bodyplan.core.data.session.WorkoutSessionControllerImpl
+import kr.sdbk.bodyplan.core.data.session.WorkoutSessionEngine
 import kr.sdbk.bodyplan.core.data.work.AnalysisRunnerImpl
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
@@ -42,6 +47,7 @@ import kr.sdbk.bodyplan.core.domain.repository.RoutineRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 import kr.sdbk.bodyplan.core.domain.repository.WeightLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
+import kr.sdbk.bodyplan.core.domain.repository.WorkoutSessionController
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -98,6 +104,10 @@ internal abstract class DataModule {
     @Singleton
     abstract fun bindBackupRepository(impl: BackupRepositoryImpl): BackupRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindWorkoutSessionController(impl: WorkoutSessionControllerImpl): WorkoutSessionController
+
     companion object {
         /** 날짜 판정 UseCase가 오늘을 읽는 창구. 테스트가 고정 시각을 넣을 수 있게 주입한다. */
         @Provides
@@ -107,6 +117,12 @@ internal abstract class DataModule {
         @Provides
         @Singleton
         fun provideWorkManager(@ApplicationContext context: Context): WorkManager = WorkManager.getInstance(context)
+
+        /** 세션 틱은 화면·서비스 어느 쪽 수명에도 묶이지 않는다. 앱이 사는 동안 도는 scope에 띄운다. */
+        @Provides
+        @Singleton
+        fun provideWorkoutSessionEngine(clock: Clock): WorkoutSessionEngine =
+            WorkoutSessionEngine(clock, CoroutineScope(SupervisorJob() + Dispatchers.Default))
 
         @Provides
         @Singleton

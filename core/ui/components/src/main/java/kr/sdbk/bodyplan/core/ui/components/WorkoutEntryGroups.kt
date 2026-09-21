@@ -44,6 +44,7 @@ import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
+import kr.sdbk.bodyplan.core.domain.model.WorkoutSetKey
 
 /**
  * 부위·종목 그룹의 펼침 상태. 화면 표시 상태라 ViewModel에 두지 않고 스크롤 위치처럼 화면이 든다.

@@ -5,8 +5,9 @@ import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.BodyPartVolume
 import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
+import kr.sdbk.bodyplan.core.domain.model.WorkoutSession
+import kr.sdbk.bodyplan.core.domain.model.WorkoutSetKey
 import kr.sdbk.bodyplan.core.domain.model.groupedByBodyPart
-import kr.sdbk.bodyplan.core.ui.components.WorkoutSetKey
 import kr.sdbk.bodyplan.core.ui.coordinator.Effect
 import kr.sdbk.bodyplan.core.ui.coordinator.Intent
 import kr.sdbk.bodyplan.core.ui.coordinator.State
@@ -30,6 +31,7 @@ internal data class WorkoutLogState(
     val isApplyingRoutine: Boolean = false,
     /** 오늘만 세션을 연다. 어제도 편집은 되지만 "지금 운동 중"이 아니다. */
     val canStartSession: Boolean = false,
+    /** 컨트롤러의 세션을 비춘 것. 오늘 화면에서만 채워진다. */
     val session: WorkoutSession? = null,
 ) : State {
     val isSessionActive: Boolean get() = session != null
@@ -65,6 +67,10 @@ internal sealed interface WorkoutLogIntent : Intent {
 
     data object ClickStartSession : WorkoutLogIntent
 
+    data object ClickPauseSession : WorkoutLogIntent
+
+    data object ClickResumeSession : WorkoutLogIntent
+
     data object ClickEndSession : WorkoutLogIntent
 
     data class ToggleSetCompleted(val key: WorkoutSetKey) : WorkoutLogIntent
@@ -80,6 +86,4 @@ internal sealed interface WorkoutLogEffect : Effect {
     data object GoBack : WorkoutLogEffect
 
     data class ShowMessage(val message: String) : WorkoutLogEffect
-
-    data object VibrateRestEnd : WorkoutLogEffect
 }

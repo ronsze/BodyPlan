@@ -16,16 +16,18 @@ import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
+import kr.sdbk.bodyplan.core.domain.model.WorkoutSession
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
+import kr.sdbk.bodyplan.core.domain.model.WorkoutSetKey
 import kr.sdbk.bodyplan.core.domain.usecase.FindPersonalRecordsUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.IsEditableDateUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.ObserveWorkoutLogUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.SummarizeBodyPartVolumeUseCase
-import kr.sdbk.bodyplan.core.ui.components.WorkoutSetKey
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutLogNavKey
 import kr.sdbk.bodyplan.feature.workoutlog.impl.MainDispatcherRule
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeRoutineRepository
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeWorkoutLogRepository
+import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeWorkoutSessionController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -56,6 +58,7 @@ internal class WorkoutLogViewModelTest {
         date: LocalDate = today,
         repository: FakeWorkoutLogRepository = FakeWorkoutLogRepository(),
         routineRepository: FakeRoutineRepository = FakeRoutineRepository(),
+        sessionController: FakeWorkoutSessionController = FakeWorkoutSessionController(),
     ) = WorkoutLogViewModel(
         workoutLogRepository = repository,
         routineRepository = routineRepository,
@@ -63,28 +66,9 @@ internal class WorkoutLogViewModelTest {
         observeWorkoutLog = ObserveWorkoutLogUseCase(repository, FindPersonalRecordsUseCase()),
         summarizeBodyPartVolume = SummarizeBodyPartVolumeUseCase(),
         clock = clock,
+        sessionController = sessionController,
         navKey = WorkoutLogNavKey(date.toEpochDay()),
     )
-
-    private fun advanceSeconds(seconds: Long) {
-        repeat(seconds.toInt()) {
-            clock.advanceSeconds(1)
-            mainDispatcherRule.dispatcher.scheduler.advanceTimeBy(1_000)
-            mainDispatcherRule.dispatcher.scheduler.runCurrent()
-        }
-    }
-
-    private fun runSessionJob() = mainDispatcherRule.dispatcher.scheduler.runCurrent()
-
-    /**
-     * 세션 중인 채로 테스트를 끝내면 안 된다 — 틱은 `while(true) { delay(1_000); tick() }`로 끝나지 않는 코루틴이라,
-     * `runTest`가 종료 시점에 자체적으로 하는 스케줄러 비우기가 영영 끝나지 않는다. 세션을 볼 케이스가 아니면
-     * 마지막에 이걸로 틱 Job을 취소한다.
-     */
-    private fun stopTicking(viewModel: WorkoutLogViewModel) {
-        viewModel.handleIntent(WorkoutLogIntent.ClickEndSession)
-        runSessionJob()
-    }
 
     @Test
     fun `오늘 날짜로 진입하면 편집 가능하다`() = runTest {
@@ -654,251 +638,148 @@ internal class WorkoutLogViewModelTest {
     }
 
     @Test
-    fun `조회 전용 날짜에서는 운동 시작 인텐트를 보내도 세션이 열리지 않는다`() = runTest {
-        val viewModel = viewModel(date = today.minusDays(1))
+    fun `조회 전용 날짜에서는 운동 시작 인텐트를 보내도 컨트롤러가 호출되지 않는다`() = runTest {
+        val sessionController = FakeWorkoutSessionController()
+        val viewModel = viewModel(date = today.minusDays(1), sessionController = sessionController)
 
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
         viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
+        advanceUntilIdle()
+
+        assertEquals(0, sessionController.startCallCount)
+        assertNull(viewModel.uiState.value.session)
+    }
+
+    @Test
+    fun `오늘 화면에서 컨트롤러 세션이 바뀌면 상태의 세션에 그대로 비친다`() = runTest {
+        val sessionController = FakeWorkoutSessionController()
+        val viewModel = viewModel(sessionController = sessionController)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        val session = WorkoutSession(
+            elapsedSeconds = 12L,
+            isPaused = false,
+            completedSets = emptySet(),
+            rest = null,
+        )
+        sessionController.session.value = session
+        advanceUntilIdle()
+
+        assertEquals(session, viewModel.uiState.value.session)
+    }
+
+    @Test
+    fun `어제 화면은 컨트롤러 세션이 있어도 상태의 세션은 계속 null이다`() = runTest {
+        val sessionController = FakeWorkoutSessionController()
+        val viewModel = viewModel(date = today.minusDays(1), sessionController = sessionController)
+
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        sessionController.session.value = WorkoutSession(
+            elapsedSeconds = 10L,
+            isPaused = false,
+            completedSets = emptySet(),
+            rest = null,
+        )
         advanceUntilIdle()
 
         assertNull(viewModel.uiState.value.session)
     }
 
     @Test
-    fun `운동 시작을 누르면 세션이 열리고 시작 시각이 지금이다`() = runTest {
-        val viewModel = viewModel()
+    fun `운동 시작을 누르면 컨트롤러 시작이 위임된다`() = runTest {
+        val sessionController = FakeWorkoutSessionController()
+        val viewModel = viewModel(sessionController = sessionController)
 
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
         viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        runSessionJob()
+        advanceUntilIdle()
 
-        val session = viewModel.uiState.value.session
-        assertNotNull(session)
-        assertEquals(clock.millis(), session!!.startedAtMillis)
-        assertEquals(0L, session.elapsedSeconds)
-        stopTicking(viewModel)
+        assertEquals(1, sessionController.startCallCount)
+        assertNotNull(viewModel.uiState.value.session)
     }
 
     @Test
-    fun `이미 세션 중에 운동 시작을 다시 눌러도 세션이 그대로다`() = runTest {
-        val viewModel = viewModel()
+    fun `이미 세션 중에 운동 시작을 다시 눌러도 컨트롤러가 다시 호출되지 않는다`() = runTest {
+        val sessionController = FakeWorkoutSessionController()
+        val viewModel = viewModel(sessionController = sessionController)
 
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
         viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        runSessionJob()
-        val startedAt = viewModel.uiState.value.session?.startedAtMillis
-
-        advanceSeconds(5)
+        advanceUntilIdle()
         viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        runSessionJob()
+        advanceUntilIdle()
 
-        assertEquals(startedAt, viewModel.uiState.value.session?.startedAtMillis)
-        stopTicking(viewModel)
+        assertEquals(1, sessionController.startCallCount)
     }
 
     @Test
-    fun `세션 중에는 매초 경과 시간이 늘어난다`() = runTest {
-        val viewModel = viewModel()
+    fun `일시정지·재개 인텐트는 컨트롤러로 위임된다`() = runTest {
+        val sessionController = FakeWorkoutSessionController()
+        val viewModel = viewModel(sessionController = sessionController)
 
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        runSessionJob()
-        advanceSeconds(65)
+        viewModel.handleIntent(WorkoutLogIntent.ClickPauseSession)
+        viewModel.handleIntent(WorkoutLogIntent.ClickResumeSession)
+        advanceUntilIdle()
 
-        assertEquals(65L, viewModel.uiState.value.session?.elapsedSeconds)
-        stopTicking(viewModel)
+        assertEquals(1, sessionController.pauseCallCount)
+        assertEquals(1, sessionController.resumeCallCount)
     }
 
     @Test
-    fun `세트를 체크하면 완료 집합에 담기고 휴식이 90초로 시작한다`() = runTest {
-        val viewModel = viewModel()
+    fun `세트 체크·휴식 조정·건너뛰기 인텐트는 컨트롤러로 위임된다`() = runTest {
+        val sessionController = FakeWorkoutSessionController()
+        val viewModel = viewModel(sessionController = sessionController)
         val key = WorkoutSetKey(entryId = 1L, setIndex = 0)
 
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
         viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(key))
-        runSessionJob()
-
-        val session = viewModel.uiState.value.session
-        assertEquals(setOf(key), session?.completedSets)
-        assertEquals(90, session?.rest?.remainingSeconds)
-        stopTicking(viewModel)
-    }
-
-    @Test
-    fun `휴식 중에는 매초 남은 시간이 줄어든다`() = runTest {
-        val viewModel = viewModel()
-        val key = WorkoutSetKey(entryId = 1L, setIndex = 0)
-
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
-        advanceUntilIdle()
-
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(key))
-        runSessionJob()
-        advanceSeconds(10)
-
-        assertEquals(80, viewModel.uiState.value.session?.rest?.remainingSeconds)
-        stopTicking(viewModel)
-    }
-
-    @Test
-    fun `휴식이 0에 닿으면 타이머가 사라지고 진동 이펙트가 한 번 나간다`() = runTest {
-        val viewModel = viewModel()
-        val key = WorkoutSetKey(entryId = 1L, setIndex = 0)
-        val effects = mutableListOf<WorkoutLogEffect>()
-
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.effect.collect { effects += it } }
-        advanceUntilIdle()
-
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(key))
-        runSessionJob()
-        advanceSeconds(90)
-
-        assertNull(viewModel.uiState.value.session?.rest)
-        assertEquals(1, effects.filterIsInstance<WorkoutLogEffect.VibrateRestEnd>().size)
-        stopTicking(viewModel)
-    }
-
-    @Test
-    fun `체크를 끄는 것은 휴식 타이머에 영향이 없다`() = runTest {
-        val viewModel = viewModel()
-        val key = WorkoutSetKey(entryId = 1L, setIndex = 0)
-
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
-        advanceUntilIdle()
-
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(key))
-        runSessionJob()
-        advanceSeconds(10)
-
-        viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(key))
-        runSessionJob()
-
-        assertFalse(viewModel.uiState.value.session?.completedSets.orEmpty().contains(key))
-        assertEquals(80, viewModel.uiState.value.session?.rest?.remainingSeconds)
-        stopTicking(viewModel)
-    }
-
-    @Test
-    fun `휴식 중 다른 세트를 체크하면 타이머가 90초로 다시 시작한다`() = runTest {
-        val viewModel = viewModel()
-        val first = WorkoutSetKey(entryId = 1L, setIndex = 0)
-        val second = WorkoutSetKey(entryId = 1L, setIndex = 1)
-
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
-        advanceUntilIdle()
-
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(first))
-        runSessionJob()
-        advanceSeconds(30)
-
-        viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(second))
-        runSessionJob()
-
-        assertEquals(90, viewModel.uiState.value.session?.rest?.remainingSeconds)
-        stopTicking(viewModel)
-    }
-
-    @Test
-    fun `휴식 30초를 줄여 0 이하가 되면 즉시 끝나고 진동은 없다`() = runTest {
-        val viewModel = viewModel()
-        val key = WorkoutSetKey(entryId = 1L, setIndex = 0)
-        val effects = mutableListOf<WorkoutLogEffect>()
-
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.effect.collect { effects += it } }
-        advanceUntilIdle()
-
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(key))
-        runSessionJob()
-
-        // 90초에서 -30초를 세 번 주면 0에 닿는다.
         viewModel.handleIntent(WorkoutLogIntent.ClickAdjustRest(-30))
-        viewModel.handleIntent(WorkoutLogIntent.ClickAdjustRest(-30))
-        viewModel.handleIntent(WorkoutLogIntent.ClickAdjustRest(-30))
-        runSessionJob()
-
-        assertNull(viewModel.uiState.value.session?.rest)
-        assertTrue(effects.filterIsInstance<WorkoutLogEffect.VibrateRestEnd>().isEmpty())
-        stopTicking(viewModel)
-    }
-
-    @Test
-    fun `휴식 30초 더하기는 제한 없이 누적된다`() = runTest {
-        val viewModel = viewModel()
-        val key = WorkoutSetKey(entryId = 1L, setIndex = 0)
-
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
-        advanceUntilIdle()
-
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(key))
-        runSessionJob()
-
-        viewModel.handleIntent(WorkoutLogIntent.ClickAdjustRest(30))
-        viewModel.handleIntent(WorkoutLogIntent.ClickAdjustRest(30))
-        runSessionJob()
-
-        assertEquals(150, viewModel.uiState.value.session?.rest?.remainingSeconds)
-        stopTicking(viewModel)
-    }
-
-    @Test
-    fun `휴식 건너뛰기는 진동 없이 타이머를 끝낸다`() = runTest {
-        val viewModel = viewModel()
-        val key = WorkoutSetKey(entryId = 1L, setIndex = 0)
-        val effects = mutableListOf<WorkoutLogEffect>()
-
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
-        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.effect.collect { effects += it } }
-        advanceUntilIdle()
-
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(key))
-        runSessionJob()
-
         viewModel.handleIntent(WorkoutLogIntent.ClickSkipRest)
-        runSessionJob()
+        advanceUntilIdle()
 
-        assertNull(viewModel.uiState.value.session?.rest)
-        assertTrue(effects.filterIsInstance<WorkoutLogEffect.VibrateRestEnd>().isEmpty())
-        stopTicking(viewModel)
+        assertEquals(listOf(key), sessionController.toggledKeys)
+        assertEquals(listOf(-30), sessionController.adjustRestDeltas)
+        assertEquals(1, sessionController.skipRestCallCount)
     }
 
     @Test
-    fun `운동 종료를 누르면 경과 분과 볼륨이 담긴 메시지가 나가고 세션이 사라진다`() = runTest {
+    fun `운동 종료를 누르면 경과 분과 볼륨이 담긴 메시지가 나가고 컨트롤러 종료가 호출된다`() = runTest {
         val repository = FakeWorkoutLogRepository(listOf(entry(id = 1L)))
-        val viewModel = viewModel(repository = repository)
+        val sessionController = FakeWorkoutSessionController()
+        val viewModel = viewModel(repository = repository, sessionController = sessionController)
         val effects = mutableListOf<WorkoutLogEffect>()
 
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.effect.collect { effects += it } }
         advanceUntilIdle()
 
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        runSessionJob()
-        advanceSeconds(120)
+        sessionController.session.value = WorkoutSession(
+            elapsedSeconds = 150L,
+            isPaused = false,
+            completedSets = emptySet(),
+            rest = null,
+        )
+        advanceUntilIdle()
 
         viewModel.handleIntent(WorkoutLogIntent.ClickEndSession)
         advanceUntilIdle()
 
-        assertNull(viewModel.uiState.value.session)
+        assertEquals(1, sessionController.endCallCount)
         assertTrue(
             effects.filterIsInstance<WorkoutLogEffect.ShowMessage>()
                 .any { it.message == "운동 종료 · 2분 · 볼륨 480kg" },
@@ -906,22 +787,20 @@ internal class WorkoutLogViewModelTest {
     }
 
     @Test
-    fun `운동 종료 뒤에는 시간이 지나도 상태가 바뀌지 않는다`() = runTest {
-        val viewModel = viewModel()
+    fun `세션이 없을 때 운동 종료를 눌러도 컨트롤러가 호출되지 않고 메시지도 없다`() = runTest {
+        val sessionController = FakeWorkoutSessionController()
+        val viewModel = viewModel(sessionController = sessionController)
+        val effects = mutableListOf<WorkoutLogEffect>()
 
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
+        backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.effect.collect { effects += it } }
         advanceUntilIdle()
 
-        viewModel.handleIntent(WorkoutLogIntent.ClickStartSession)
-        runSessionJob()
-        advanceSeconds(5)
         viewModel.handleIntent(WorkoutLogIntent.ClickEndSession)
         advanceUntilIdle()
 
-        val stateAfterEnd = viewModel.uiState.value
-        advanceSeconds(30)
-
-        assertEquals(stateAfterEnd, viewModel.uiState.value)
+        assertEquals(0, sessionController.endCallCount)
+        assertTrue(effects.filterIsInstance<WorkoutLogEffect.ShowMessage>().isEmpty())
     }
 
     private fun routine(id: Long, entries: List<WorkoutEntry>) =

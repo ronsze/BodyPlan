@@ -1,13 +1,12 @@
 package kr.sdbk.bodyplan.feature.workoutlog.impl.log.composable
 
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,20 +39,21 @@ import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.BodyPartVolume
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
+import kr.sdbk.bodyplan.core.domain.model.RestTimer
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
+import kr.sdbk.bodyplan.core.domain.model.WorkoutSession
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
+import kr.sdbk.bodyplan.core.domain.model.WorkoutSetKey
 import kr.sdbk.bodyplan.core.ui.components.BodyPartVolumeCard
-import kr.sdbk.bodyplan.core.ui.components.WorkoutSetKey
 import kr.sdbk.bodyplan.core.ui.components.rememberWorkoutEntryGroupExpansion
+import kr.sdbk.bodyplan.core.ui.components.requestNotificationThen
 import kr.sdbk.bodyplan.core.ui.components.workoutEntryGroups
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.workoutlog.api.WorkoutAnalysisPeriod
-import kr.sdbk.bodyplan.feature.workoutlog.impl.log.RestTimer
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogIntent
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogState
 import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutLogViewModel
-import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutSession
 
 internal data class WorkoutLogEvents(
     val goBack: () -> Unit,
@@ -76,6 +76,8 @@ internal data class WorkoutLogUiEvents(
     val onDismissRoutineSheet: () -> Unit,
     val onSelectRoutine: (Long) -> Unit,
     val onClickStartSession: () -> Unit,
+    val onClickPauseSession: () -> Unit,
+    val onClickResumeSession: () -> Unit,
     val onClickEndSession: () -> Unit,
     val onToggleSet: (WorkoutSetKey) -> Unit,
     val onClickAdjustRest: (Int) -> Unit,
@@ -108,10 +110,6 @@ internal fun WorkoutLogView(events: WorkoutLogEvents, viewModel: WorkoutLogViewM
 
             is WorkoutLogEffect.ShowMessage ->
                 Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
-
-            is WorkoutLogEffect.VibrateRestEnd ->
-                context.getSystemService(Vibrator::class.java)
-                    ?.vibrate(VibrationEffect.createOneShot(VIBRATION_MILLIS, VibrationEffect.DEFAULT_AMPLITUDE))
         }
     }
 }
@@ -137,6 +135,8 @@ private fun rememberUiEvents(
         onDismissRoutineSheet = { viewModel.handleIntent(WorkoutLogIntent.DismissRoutineSheet) },
         onSelectRoutine = { viewModel.handleIntent(WorkoutLogIntent.SelectRoutine(it)) },
         onClickStartSession = { viewModel.handleIntent(WorkoutLogIntent.ClickStartSession) },
+        onClickPauseSession = { viewModel.handleIntent(WorkoutLogIntent.ClickPauseSession) },
+        onClickResumeSession = { viewModel.handleIntent(WorkoutLogIntent.ClickResumeSession) },
         onClickEndSession = { viewModel.handleIntent(WorkoutLogIntent.ClickEndSession) },
         onToggleSet = { viewModel.handleIntent(WorkoutLogIntent.ToggleSetCompleted(it)) },
         onClickAdjustRest = { viewModel.handleIntent(WorkoutLogIntent.ClickAdjustRest(it)) },
@@ -199,14 +199,30 @@ private fun BottomActions(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) 
                 onClickSkipRest = uiEvents.onClickSkipRest,
             )
         } else if (state.canStartSession) {
-            PrimaryButton(text = "운동 시작", onClick = uiEvents.onClickStartSession)
+            // 알림에 시간이 뜨려면 권한이 필요하다. 거절해도 세션은 시작한다.
+            PrimaryButton(text = "운동 시작", onClick = requestNotificationThen(uiEvents.onClickStartSession))
         }
         if (state.isEditable) {
             OutlinedActionButton(text = "루틴 불러오기", onClick = uiEvents.onClickLoadRoutine)
         }
         OutlinedActionButton(text = "운동 분석", onClick = uiEvents.onClickAnalyze)
         if (session != null) {
-            PrimaryButton(text = "운동 종료", onClick = uiEvents.onClickEndSession)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (session.isPaused) {
+                    OutlinedActionButton(
+                        text = "재개",
+                        onClick = uiEvents.onClickResumeSession,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    OutlinedActionButton(
+                        text = "일시정지",
+                        onClick = uiEvents.onClickPauseSession,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                PrimaryButton(text = "운동 종료", onClick = uiEvents.onClickEndSession, modifier = Modifier.weight(1f))
+            }
         }
     }
 }
@@ -292,8 +308,6 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
     }
 }
 
-private const val VIBRATION_MILLIS = 500L
-
 private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일")
 
 private val previewEntries = listOf(
@@ -333,6 +347,8 @@ private val previewUiEvents = WorkoutLogUiEvents(
     onDismissRoutineSheet = {},
     onSelectRoutine = {},
     onClickStartSession = {},
+    onClickPauseSession = {},
+    onClickResumeSession = {},
     onClickEndSession = {},
     onToggleSet = {},
     onClickAdjustRest = {},
@@ -372,8 +388,8 @@ private fun WorkoutLogViewImplSessionPreview() {
                 entries = previewEntries,
                 canStartSession = true,
                 session = WorkoutSession(
-                    startedAtMillis = 0L,
                     elapsedSeconds = 900L,
+                    isPaused = false,
                     completedSets = setOf(WorkoutSetKey(entryId = 1L, setIndex = 0)),
                     rest = RestTimer(remainingSeconds = 75),
                 ),
