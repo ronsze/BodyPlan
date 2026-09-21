@@ -10,6 +10,7 @@ import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.feature.my.impl.MainDispatcherRule
 import kr.sdbk.bodyplan.feature.my.impl.fake.FakeAiAnalysisRepository
 import kr.sdbk.bodyplan.feature.my.impl.fake.FakeAiCredentialRepository
+import kr.sdbk.bodyplan.feature.my.impl.fake.FakeOnDeviceAiRepository
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -24,11 +25,13 @@ internal class AiTokenViewModelTest {
 
     private val credentialRepository = FakeAiCredentialRepository()
     private val analysisRepository = FakeAiAnalysisRepository()
+    private val onDeviceRepository = FakeOnDeviceAiRepository()
 
     private fun viewModel(
         credentials: FakeAiCredentialRepository = credentialRepository,
         analysis: FakeAiAnalysisRepository = analysisRepository,
-    ) = AiTokenViewModel(credentials, analysis)
+        onDevice: FakeOnDeviceAiRepository = onDeviceRepository,
+    ) = AiTokenViewModel(credentials, analysis, onDevice)
 
     @Test
     fun `저장된 키가 없으면 고르는 중이다`() = runTest {
