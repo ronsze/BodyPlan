@@ -1,5 +1,6 @@
 package kr.sdbk.bodyplan.feature.my.impl.fake
 
+import kotlinx.coroutines.CompletableDeferred
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSummaryRequest
@@ -16,6 +17,9 @@ internal class FakeAiAnalysisRepository(
 ) : AiAnalysisRepository {
     var verifyFailure: Throwable? = null
 
+    /** 완료 전 검증 중 상태를 관찰하려는 테스트가 채운다. `null`이면 즉시 끝난다. */
+    var verifyGate: CompletableDeferred<Unit>? = null
+
     val verified: MutableList<AiCredential> = mutableListOf()
 
     var analyzeInbodyCallCount: Int = 0
@@ -25,6 +29,7 @@ internal class FakeAiAnalysisRepository(
     var analyzeInbodyFailure: Throwable? = null
 
     override suspend fun verifyCredential(credential: AiCredential) {
+        verifyGate?.await()
         verifyFailure?.let { throw it }
         verified += credential
     }

@@ -44,6 +44,10 @@ internal data class AiTokenState(
 
     val canDisconnect: Boolean get() = connected != null && !isConnecting
 
+    /** 보일 화면 없이 무언가 도는 중 — 첫 로드, 또는 온디바이스 바로 연결의 검증. 목록을 가려 다른 제공자를 못 누르게 한다. */
+    val isBusyWithoutScreen: Boolean
+        get() = (isLoading || isConnecting) && connected == null && connectingProvider == null
+
     /** 0..1 진행률. 전체 크기를 아직 모르면 `null`이라 화면은 무한 표시를 쓴다. */
     val downloadRatio: Float?
         get() = downloadTotalBytes.takeIf { it > 0 }?.let { (downloadedBytes.toFloat() / it).coerceIn(0f, 1f) }

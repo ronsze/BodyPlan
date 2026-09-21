@@ -123,10 +123,15 @@ internal fun AiTokenViewImpl(state: AiTokenState, uiEvents: AiTokenUiEvents) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when {
-                state.isLoading && state.connected == null -> LoadingContent()
+                // 온디바이스 바로 연결은 화면 없이 검증만 돈다. 그동안 목록을 보이면 다른 제공자를 누를 수 있다.
+                state.isBusyWithoutScreen -> LoadingContent()
+
                 state.connected != null -> ConnectedContent(state, uiEvents)
+
                 state.connectingProvider?.requiresToken == false -> OnDeviceDownloadContent(state, uiEvents)
+
                 state.connectingProvider != null -> ConnectingContent(state, uiEvents)
+
                 else -> ProviderPicker(state.providers, uiEvents.onClickProvider)
             }
         }

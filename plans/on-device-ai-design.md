@@ -93,7 +93,7 @@ sealed interface OnDeviceDownload {
 }
 
 interface OnDeviceAiRepository {
-    suspend fun status(): OnDeviceModelStatus
+    suspend fun getStatus(): OnDeviceModelStatus
     /** 내려받기 진행을 흘린다. Completed 또는 Failed로 끝난다. 수집을 취소하면 더 이상 관찰하지 않는다 */
     fun download(): Flow<OnDeviceDownload>
 }
@@ -111,8 +111,8 @@ core:network처럼 domain에 의존하지 않는다. core:network의 `AiClient`�
 | `OnDeviceFeatureStatus` enum `UNAVAILABLE, DOWNLOADABLE, DOWNLOADING, AVAILABLE` | `FeatureStatus` Int 상수를 감싼 것 | `OnDeviceAiRepositoryImpl`이 `OnDeviceModelStatus`로 매핑 |
 | `OnDeviceDownloadEvent` sealed `Started(bytesToDownload)`, `Progress(bytesDownloaded)`, `Completed`, `Failed(exception: OnDeviceAiException)` | `DownloadStatus` 매핑 | 위와 같음 |
 | `OnDeviceAiException(val code: Int, val reason: String) : Exception(reason)` | `GenAiException.errorCode` → 한국어 사유 | `AiAnalysisRepositoryImpl.toDomainFailure` → `AiRequestFailedException(this, reason)` |
-| `GeminiNano` (public, `@Singleton`) | `suspend fun status(): OnDeviceFeatureStatus`, `fun download(): Flow<OnDeviceDownloadEvent>`, 내부적으로 `Generation.getClient()` 하나를 lazy로 든다 | `OnDeviceAiRepositoryImpl`, `GeminiNanoClient` |
-| `GeminiNanoClient : AiClient` (internal) | `verify(token)`: `status() == AVAILABLE`이 아니면 `OnDeviceAiException(NOT_AVAILABLE)`. `complete(...)`: 이미지 base64→`Bitmap` 디코드, `content { images…; text(userPrompt) }`, `isSystemPromptAvailable()`이면 `SystemInstruction(systemPrompt)`, 아니면 `systemPrompt + "\n\n" + userPrompt`를 text로. `maxOutputTokens = 4096`. `GenAiException`은 `OnDeviceAiException`으로 바꿔 던진다. 답은 `candidates.firstOrNull()?.text.orEmpty()` | `AiAnalysisRepositoryImpl.call` |
+| `GeminiNano` (public, `@Singleton`) | `suspend fun getStatus(): OnDeviceFeatureStatus`, `fun download(): Flow<OnDeviceDownloadEvent>`, 내부적으로 `Generation.getClient()` 하나를 lazy로 든다 | `OnDeviceAiRepositoryImpl`, `GeminiNanoClient` |
+| `GeminiNanoClient : AiClient` (internal) | `verify(token)`: `getStatus() == AVAILABLE`이 아니면 `OnDeviceAiException(NOT_AVAILABLE)`. `complete(...)`: 이미지 base64→`Bitmap` 디코드, `content { images…; text(userPrompt) }`, `isSystemPromptAvailable()`이면 `SystemInstruction(systemPrompt)`, 아니면 `systemPrompt + "\n\n" + userPrompt`를 text로. `maxOutputTokens = 4096`. `GenAiException`은 `OnDeviceAiException`으로 바꿔 던진다. 답은 `candidates.firstOrNull()?.text.orEmpty()` | `AiAnalysisRepositoryImpl.call` |
 | `OnDeviceModule` (Hilt, internal) | `@Provides @OnDeviceApi fun provideOnDeviceClient(client: GeminiNanoClient): AiClient` | Hilt 그래프 |
 
 `GenAiException.errorCode` → 사유 문구:
@@ -146,7 +146,7 @@ core:network처럼 domain에 의존하지 않는다. core:network의 `AiClient`�
 
 | 필드 | 타입 · 초기값 | 출처 |
 |---|---|---|
-| `onDeviceStatus` | `OnDeviceModelStatus? = null` | `initializeData`에서 `OnDeviceAiRepository.status()` 한 번. `null`은 아직 확인 전 |
+| `onDeviceStatus` | `OnDeviceModelStatus? = null` | `initializeData`에서 `OnDeviceAiRepository.getStatus()` 한 번. `null`은 아직 확인 전 |
 | `downloadTotalBytes` | `Long = 0` | `OnDeviceDownload.Started` |
 | `downloadedBytes` | `Long = 0` | `OnDeviceDownload.Progress` |
 | 기존 `connected`, `connectingProvider`, `input`, `isLoading`, `isConnecting`, `errorMessage` | 그대로 | |
@@ -156,16 +156,17 @@ core:network처럼 domain에 의존하지 않는다. core:network의 `AiClient`�
 - `connectedTokenMask` — `connected.provider.requiresToken`이 아니면 `null`.
 - `canConnect` — `connectingProvider.requiresToken`이면 기존 규칙(`input.isNotBlank() && !isConnecting`), 아니면 `!isConnecting`.
 - `downloadRatio: Float?` — `downloadTotalBytes > 0`이면 `downloadedBytes / downloadTotalBytes`를 0..1로, 아니면 `null`.
+- `isBusyWithoutScreen: Boolean` — `(isLoading || isConnecting) && connected == null && connectingProvider == null`. 첫 로드와 온디바이스 바로 연결의 검증 동안 목록 대신 로딩을 보여 다른 제공자를 못 누르게 한다 (리뷰에서 추가).
 
 Intent:
-- `ClickProvider(provider)` — 기존. `ON_DEVICE`이고 `onDeviceStatus == READY`면 `connectingProvider`를 거치지 않고 바로 `verifyCredential(onDevice()) → save`. `DOWNLOADABLE`·`DOWNLOADING`이면 `connectingProvider = ON_DEVICE`(내려받기 화면).
+- `ClickProvider(provider)` — 기존. `isConnecting`이면 무시한다. `ON_DEVICE`이고 `onDeviceStatus == READY`면 `connectingProvider`를 거치지 않고 바로 `verifyCredential(onDevice()) → save`; 성공하면 `onDeviceStatus = READY`로 둔다(내려받기로 연결한 뒤 해제→재연결 시 내려받기를 건너뛰기 위해). `DOWNLOADABLE`·`DOWNLOADING`이면 `connectingProvider = ON_DEVICE`(내려받기 화면).
 - `ClickDownloadModel` — 신규. `OnDeviceAiRepository.download()` 수집을 `connectJob`에 담아 시작. `isConnecting = true`. `Started`·`Progress`는 바이트 필드 갱신, `Completed`는 `verifyCredential(onDevice()) → save` → 기존 연동 성공 처리(`connected` 채움, `ShowMessage(CONNECTED)`), `Failed(reason)`은 `isConnecting = false, errorMessage = reason`.
-- `ClickConnect`, `ClickCancelConnect`, `ClickDisconnect`, `ChangeInput`, `ClickBack` — 기존. `ClickCancelConnect`는 `connectJob`을 취소해 내려받기 수집도 함께 멈추고 바이트 필드를 0으로 되돌린다.
+- `ClickConnect`, `ClickCancelConnect`, `ClickDisconnect`, `ChangeInput`, `ClickBack` — 기존. `ClickCancelConnect`는 `connectJob`을 취소해 내려받기 수집도 함께 멈추고 바이트 필드를 0으로 되돌린다. 취소로 끝난 job의 `CancellationException`은 실패로 보지 않는다. 새 연결·내려받기를 시작할 때 이전 `connectJob`을 먼저 취소한다.
 
 Effect: 기존 `GoBack`, `ShowMessage` 그대로.
 
 실패 경로:
-- `status()`가 던지면 `onDeviceStatus = UNSUPPORTED`로 둔다(선택지를 숨긴다). 나머지 화면은 그대로 뜬다.
+- `getStatus()`가 던지면 `onDeviceStatus = UNSUPPORTED`로 둔다(선택지를 숨긴다). 나머지 화면은 그대로 뜬다.
 - 바로 연결(READY)에서 `verifyCredential`이 던지면 `errorMessage = failure.toMessage()`(기존)이고 `connectingProvider = ON_DEVICE`로 옮겨 내려받기 화면에서 사유를 보인다.
 
 #### 마이 탭 (`MyState`)
@@ -236,7 +237,7 @@ Effect: 기존 `GoBack`, `ShowMessage` 그대로.
 | `core/ondevice/.../OnDeviceFeatureStatus.kt` | 신규 | enum |
 | `core/ondevice/.../OnDeviceDownloadEvent.kt` | 신규 | sealed |
 | `core/ondevice/.../OnDeviceAiException.kt` | 신규 | code→reason 표 포함 |
-| `core/ondevice/.../GeminiNano.kt` | 신규 | `status()`, `download()`, `GenerativeModel` 보관 |
+| `core/ondevice/.../GeminiNano.kt` | 신규 | `getStatus()`, `download()`, `GenerativeModel` 보관 |
 | `core/ondevice/.../GeminiNanoClient.kt` | 신규 | `AiClient` 구현 |
 | `core/ondevice/.../di/OnDeviceModule.kt` | 신규 | `@OnDeviceApi AiClient` 제공 |
 | `core/domain/.../model/AiProvider.kt` | 수정 | `ON_DEVICE`, `requiresToken` |

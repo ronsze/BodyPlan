@@ -13,6 +13,7 @@ import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.network.AiClient
 import kr.sdbk.bodyplan.core.network.AiHttpException
 import kr.sdbk.bodyplan.core.network.AiImage
+import kr.sdbk.bodyplan.core.ondevice.OnDeviceAiException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -171,6 +172,29 @@ internal class AiAnalysisRepositoryImplTest {
 
         val reason = (failure as AiRequestFailedException).reason.orEmpty()
         assertFalse(reason.contains(credential.token))
+    }
+
+    @Test
+    fun `온디바이스 예외는 예외의 사유를 그대로 담은 요청 실패가 된다`() = runTest {
+        val onDeviceCredential = AiCredential.onDevice()
+        val client = FakeAiClient(verifyFailure = OnDeviceAiException(code = 8))
+        val repository = repository(client)
+
+        val failure = runCatching { repository.verifyCredential(onDeviceCredential) }.exceptionOrNull()
+
+        assertTrue(failure is AiRequestFailedException)
+        assertEquals("온디바이스 모델이 준비되지 않았어요", (failure as AiRequestFailedException).reason)
+    }
+
+    @Test
+    fun `알 수 없는 온디바이스 코드는 코드를 담은 사유가 된다`() = runTest {
+        val onDeviceCredential = AiCredential.onDevice()
+        val client = FakeAiClient(verifyFailure = OnDeviceAiException(code = 999))
+        val repository = repository(client)
+
+        val failure = runCatching { repository.verifyCredential(onDeviceCredential) }.exceptionOrNull()
+
+        assertEquals("온디바이스 오류 999", (failure as AiRequestFailedException).reason)
     }
 
     private class FakeAiClient(private val verifyFailure: Throwable? = null) : AiClient {
