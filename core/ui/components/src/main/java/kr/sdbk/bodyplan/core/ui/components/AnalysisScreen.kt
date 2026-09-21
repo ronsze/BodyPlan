@@ -1,9 +1,5 @@
 package kr.sdbk.bodyplan.core.ui.components
 
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,13 +13,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
 import kr.sdbk.bodyplan.core.designsystem.component.PrimaryButton
@@ -157,31 +150,6 @@ fun AnalysisScreen(
         )
     }
 }
-
-/**
- * 분석을 누를 때 알림 권한을 한 번 묻고, 답과 무관하게 분석을 시작한다.
- *
- * 알림은 곁다리다. 거절했다고 분석을 막으면 사용자가 잃는 것이 더 크다.
- * 안드로이드 13 아래는 권한 자체가 없어 바로 시작한다.
- */
-@Composable
-private fun requestNotificationThen(onClickAnalyze: () -> Unit): () -> Unit {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return onClickAnalyze
-
-    val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        onClickAnalyze()
-    }
-    return remember(launcher, context, onClickAnalyze) {
-        {
-            val granted = ContextCompat.checkSelfPermission(context, POST_NOTIFICATIONS) ==
-                PackageManager.PERMISSION_GRANTED
-            if (granted) onClickAnalyze() else launcher.launch(POST_NOTIFICATIONS)
-        }
-    }
-}
-
-private const val POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS"
 
 private fun analyzeButtonText(state: AnalysisScreenState): String = when {
     state.isAnalyzing -> "분석 중"

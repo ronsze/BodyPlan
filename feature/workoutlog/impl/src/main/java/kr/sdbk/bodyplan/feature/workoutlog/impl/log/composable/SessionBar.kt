@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import java.util.Locale
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
 import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
@@ -20,10 +19,12 @@ import kr.sdbk.bodyplan.core.designsystem.theme.Accent
 import kr.sdbk.bodyplan.core.designsystem.theme.BodyPlanTheme
 import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
-import kr.sdbk.bodyplan.feature.workoutlog.impl.log.RestTimer
-import kr.sdbk.bodyplan.feature.workoutlog.impl.log.WorkoutSession
+import kr.sdbk.bodyplan.core.domain.model.RestTimer
+import kr.sdbk.bodyplan.core.domain.model.WorkoutSession
+import kr.sdbk.bodyplan.core.domain.model.elapsedText
+import kr.sdbk.bodyplan.core.domain.model.text
 
-/** 세션 중 하단에 붙는 한 줄. 쉬는 동안은 남은 시간이 경과 시간보다 급해 그것만 보인다. */
+/** 세션 중 하단에 붙는 한 줄. 쉬는 동안은 남은 시간이 경과 시간보다 급해 그것만 보이고, 멈춰 있으면 휴식도 숨는다. */
 @Composable
 internal fun SessionBar(
     session: WorkoutSession,
@@ -37,17 +38,25 @@ internal fun SessionBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (session.isPaused) {
+                BaseText(
+                    text = "일시정지 · ${session.elapsedText}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextTertiary,
+                )
+                return@Row
+            }
             val rest = session.rest
             if (rest == null) {
                 BaseText(
-                    text = "운동 중 · ${session.elapsedSeconds / SECONDS_PER_MINUTE}분",
+                    text = "운동 중 · ${session.elapsedText}",
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary,
                 )
                 return@Row
             }
             BaseText(
-                text = "휴식 ${restText(rest)}",
+                text = "휴식 ${rest.text}",
                 style = MaterialTheme.typography.titleMedium,
                 color = Accent,
             )
@@ -71,14 +80,6 @@ private fun RestAction(text: String, color: Color, onClick: () -> Unit) {
     )
 }
 
-private fun restText(rest: RestTimer): String = String.format(
-    Locale.US,
-    "%d:%02d",
-    rest.remainingSeconds / SECONDS_PER_MINUTE,
-    rest.remainingSeconds % SECONDS_PER_MINUTE,
-)
-
-private const val SECONDS_PER_MINUTE = 60
 private const val REST_STEP_SECONDS = 30
 
 @Preview(showBackground = true, backgroundColor = 0xFFF2F4F6)
@@ -86,7 +87,7 @@ private const val REST_STEP_SECONDS = 30
 private fun SessionBarRestingPreview() {
     BodyPlanTheme {
         SessionBar(
-            session = WorkoutSession(startedAtMillis = 0L, elapsedSeconds = 720L, rest = RestTimer(75)),
+            session = previewSession(rest = RestTimer(75)),
             onClickAdjustRest = {},
             onClickSkipRest = {},
             modifier = Modifier.padding(16.dp),
@@ -99,10 +100,26 @@ private fun SessionBarRestingPreview() {
 private fun SessionBarPreview() {
     BodyPlanTheme {
         SessionBar(
-            session = WorkoutSession(startedAtMillis = 0L, elapsedSeconds = 720L),
+            session = previewSession(),
             onClickAdjustRest = {},
             onClickSkipRest = {},
             modifier = Modifier.padding(16.dp),
         )
     }
 }
+
+@Preview(showBackground = true, backgroundColor = 0xFFF2F4F6)
+@Composable
+private fun SessionBarPausedPreview() {
+    BodyPlanTheme {
+        SessionBar(
+            session = previewSession(isPaused = true),
+            onClickAdjustRest = {},
+            onClickSkipRest = {},
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+}
+
+private fun previewSession(isPaused: Boolean = false, rest: RestTimer? = null) =
+    WorkoutSession(elapsedSeconds = 754L, isPaused = isPaused, completedSets = emptySet(), rest = rest)

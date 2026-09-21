@@ -15,6 +15,8 @@ dependencies {
     implementation(project(":core:network"))
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
+    // 세션 알림과 foreground service 시작에 쓴다.
+    implementation(libs.androidx.core.ktx)
     // 분석을 화면 밖에서 돌린다. 워커가 Hilt 주입을 받으려면 androidx.hilt가 함께 필요하다.
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.hilt.work)
