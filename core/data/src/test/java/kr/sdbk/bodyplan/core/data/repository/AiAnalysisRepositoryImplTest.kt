@@ -27,6 +27,7 @@ internal class AiAnalysisRepositoryImplTest {
         claude = client,
         gpt = client,
         gemini = client,
+        onDevice = client,
         imageLoader = AnalysisImageLoader(),
         contentParser = AnalysisContentParser(Json),
         errorReason = AiErrorReason(Json),

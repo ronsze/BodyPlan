@@ -26,6 +26,7 @@ import kr.sdbk.bodyplan.core.data.repository.BackupRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.DietLogRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.ExerciseRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.InbodyImageRepositoryImpl
+import kr.sdbk.bodyplan.core.data.repository.OnDeviceAiRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.OnboardingRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.RoutineRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.UserProfileRepositoryImpl
@@ -42,6 +43,7 @@ import kr.sdbk.bodyplan.core.domain.repository.BackupRepository
 import kr.sdbk.bodyplan.core.domain.repository.DietLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.ExerciseRepository
 import kr.sdbk.bodyplan.core.domain.repository.InbodyImageRepository
+import kr.sdbk.bodyplan.core.domain.repository.OnDeviceAiRepository
 import kr.sdbk.bodyplan.core.domain.repository.OnboardingRepository
 import kr.sdbk.bodyplan.core.domain.repository.RoutineRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
@@ -75,6 +77,10 @@ internal abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindAiAnalysisRepository(impl: AiAnalysisRepositoryImpl): AiAnalysisRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindOnDeviceAiRepository(impl: OnDeviceAiRepositoryImpl): OnDeviceAiRepository
 
     @Binds
     @Singleton

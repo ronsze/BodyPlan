@@ -23,6 +23,8 @@ import kr.sdbk.bodyplan.core.network.AiImage
 import kr.sdbk.bodyplan.core.network.ClaudeApi
 import kr.sdbk.bodyplan.core.network.GeminiApi
 import kr.sdbk.bodyplan.core.network.GptApi
+import kr.sdbk.bodyplan.core.ondevice.OnDeviceAiException
+import kr.sdbk.bodyplan.core.ondevice.OnDeviceApi
 
 internal class AiAnalysisRepositoryImpl
 @Inject
@@ -30,6 +32,7 @@ constructor(
     @ClaudeApi private val claude: AiClient,
     @GptApi private val gpt: AiClient,
     @GeminiApi private val gemini: AiClient,
+    @OnDeviceApi private val onDevice: AiClient,
     private val imageLoader: AnalysisImageLoader,
     private val contentParser: AnalysisContentParser,
     private val errorReason: AiErrorReason,
@@ -95,6 +98,7 @@ constructor(
         AiProvider.CLAUDE -> claude
         AiProvider.GPT -> gpt
         AiProvider.GEMINI -> gemini
+        AiProvider.ON_DEVICE -> onDevice
     }
 
     /**
@@ -111,6 +115,9 @@ constructor(
             AiUnauthorizedException()
 
         this is AiHttpException -> AiRequestFailedException(this, httpReason(token))
+
+        // 온디바이스는 인증이 없다. 사유는 이미 사용자에게 보일 문구로 정해져 있다.
+        this is OnDeviceAiException -> AiRequestFailedException(this, reason)
 
         this is IOException -> AiRequestFailedException(this, networkReason(token))
 

@@ -13,6 +13,7 @@ dependencies {
     api(project(":core:domain"))
     implementation(project(":core:local"))
     implementation(project(":core:network"))
+    implementation(project(":core:ondevice"))
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)
     // 세션 알림과 foreground service 시작에 쓴다.
