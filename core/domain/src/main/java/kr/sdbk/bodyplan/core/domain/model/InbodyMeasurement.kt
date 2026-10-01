@@ -15,6 +15,14 @@ data class InbodyMeasurement(
 ) {
     val isEmpty: Boolean
         get() = weightKg == null && skeletalMuscleKg == null && bodyFatKg == null && heightCm == null
+
+    /** 체지방량÷체중. 결과지가 퍼센트를 싣지 않아 같은 결과지의 두 값으로 구한다. */
+    val bodyFatPercent: Double?
+        get() {
+            val fat = bodyFatKg ?: return null
+            val weight = weightKg?.takeIf { it > 0.0 } ?: return null
+            return fat / weight * 100.0
+        }
 }
 
 /** 인바디 분석 한 번의 결과. 사람이 읽을 글과 기계가 쓸 숫자를 함께 낸다. */

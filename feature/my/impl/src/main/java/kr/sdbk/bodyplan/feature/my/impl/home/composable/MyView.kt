@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -89,13 +91,17 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
         BodyPlanTopBar(title = "마이")
 
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ProfileSummaryCard(
                 profile = state.profile,
                 fromInbody = state.profileFromInbody,
-                onClick = uiEvents.onClickProfile,
+                inbody = state.latestInbody,
+                onClickEdit = uiEvents.onClickProfile,
             )
             SectionRow(
                 title = "AI 연동",
@@ -118,7 +124,7 @@ internal fun MyViewImpl(state: MyState, uiEvents: MyUiEvents) {
             SectionRow(
                 title = "루틴 관리",
                 onClick = uiEvents.onClickRoutine,
-                description = "부위별 루틴을 만들어 일지에 불러와요",
+                description = "루틴을 만들어 일지에 불러와요",
             )
             SectionRow(
                 title = "백업",

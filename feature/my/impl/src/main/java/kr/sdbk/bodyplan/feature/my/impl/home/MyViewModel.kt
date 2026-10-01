@@ -48,7 +48,8 @@ constructor(
                 userProfileRepository.observeProfile(),
                 ::Pair,
             ).collect { (history, profile) ->
-                updateState { it.copy(profileFromInbody = profile.matches(history.firstOrNull()?.measurement)) }
+                val latest = history.firstOrNull()?.measurement
+                updateState { it.copy(profileFromInbody = profile.matches(latest), latestInbody = latest) }
             }
         }
     }

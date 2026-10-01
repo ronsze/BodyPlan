@@ -1,6 +1,7 @@
 package kr.sdbk.bodyplan.feature.my.impl.home
 
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
+import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.ui.coordinator.Effect
 import kr.sdbk.bodyplan.core.ui.coordinator.Intent
@@ -12,6 +13,8 @@ internal data class MyState(
     val profile: UserProfile = UserProfile(),
     /** 키·체중이 최근 인바디 분석으로 갱신됐는지. 어디서 온 값인지 보이게 한다. */
     val profileFromInbody: Boolean = false,
+    /** 가장 최근 인바디 측정값. 프로필에는 체지방률·골격근량 자리가 없어 여기서 가져와 보인다. */
+    val latestInbody: InbodyMeasurement? = null,
 ) : State
 
 internal sealed interface MyIntent : Intent {

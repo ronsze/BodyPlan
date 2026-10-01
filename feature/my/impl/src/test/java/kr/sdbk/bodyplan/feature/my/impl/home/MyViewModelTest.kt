@@ -98,6 +98,29 @@ internal class MyViewModelTest {
      * 그래서 아래 테스트들은 프로필 값을 측정값과 일치하도록 맞춰서 검증한다.
      */
     @Test
+    fun `최근 인바디 측정값이 latestInbody에 실린다`() = runTest {
+        val measurement = InbodyMeasurement(weightKg = 70.0, skeletalMuscleKg = 32.0, bodyFatKg = 14.0)
+        val viewModel = viewModel(
+            analysisResultRepository = FakeAnalysisResultRepository(
+                initialHistory = listOf(inbodyResult(id = 1L, measurement = measurement)),
+            ),
+        )
+
+        subscribe(viewModel)
+
+        assertEquals(measurement, viewModel.uiState.value.latestInbody)
+    }
+
+    @Test
+    fun `인바디 기록이 없으면 latestInbody는 비어 있다`() = runTest {
+        val viewModel = viewModel()
+
+        subscribe(viewModel)
+
+        assertNull(viewModel.uiState.value.latestInbody)
+    }
+
+    @Test
     fun `최근 인바디의 체중이 반올림해 프로필 체중과 같으면 profileFromInbody가 참이다`() = runTest {
         val userProfileRepository = FakeUserProfileRepository(UserProfile(weightKg = 65))
         val analysisResultRepository = FakeAnalysisResultRepository(
