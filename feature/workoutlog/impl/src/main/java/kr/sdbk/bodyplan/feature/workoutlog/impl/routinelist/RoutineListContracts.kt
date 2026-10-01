@@ -1,8 +1,6 @@
 package kr.sdbk.bodyplan.feature.workoutlog.impl.routinelist
 
-import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Routine
-import kr.sdbk.bodyplan.core.domain.model.groupedByBodyPart
 import kr.sdbk.bodyplan.core.ui.coordinator.Effect
 import kr.sdbk.bodyplan.core.ui.coordinator.Intent
 import kr.sdbk.bodyplan.core.ui.coordinator.State
@@ -13,19 +11,13 @@ internal data class RoutineListState(
     val errorMessage: String? = null,
     val isDialogVisible: Boolean = false,
     val dialogName: String = "",
-    val dialogBodyPart: BodyPart = BodyPart.CHEST,
     val isCreating: Boolean = false,
-) : State {
-    /** 부위 순서로 묶은 목록. 루틴이 없는 부위는 나오지 않는다. */
-    val sections: List<Pair<BodyPart, List<Routine>>> get() = routines.groupedByBodyPart()
-}
+) : State
 
 internal sealed interface RoutineListIntent : Intent {
     data object ClickAddRoutine : RoutineListIntent
 
     data class ChangeDialogName(val name: String) : RoutineListIntent
-
-    data class SelectDialogBodyPart(val bodyPart: BodyPart) : RoutineListIntent
 
     data object ConfirmDialog : RoutineListIntent
 

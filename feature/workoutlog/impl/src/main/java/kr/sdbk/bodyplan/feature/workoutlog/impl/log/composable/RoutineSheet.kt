@@ -30,15 +30,13 @@ import kr.sdbk.bodyplan.core.designsystem.theme.Surface
 import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
-import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Routine
-import kr.sdbk.bodyplan.core.ui.components.label
 
-/** 일지에 넣을 루틴을 고르는 시트. 부위별로 묶어 보인다. */
+/** 일지에 넣을 루틴을 고르는 시트. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RoutineSheet(
-    sections: List<Pair<BodyPart, List<Routine>>>,
+    routines: List<Routine>,
     isApplying: Boolean,
     onSelectRoutine: (Long) -> Unit,
     onDismiss: () -> Unit,
@@ -48,7 +46,7 @@ internal fun RoutineSheet(
     val sheetState = rememberModalBottomSheetState(confirmValueChange = { !currentIsApplying })
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = Surface) {
         RoutineSheetContent(
-            sections = sections,
+            routines = routines,
             isApplying = isApplying,
             onSelectRoutine = onSelectRoutine,
             modifier = Modifier.navigationBarsPadding(),
@@ -58,7 +56,7 @@ internal fun RoutineSheet(
 
 @Composable
 private fun RoutineSheetContent(
-    sections: List<Pair<BodyPart, List<Routine>>>,
+    routines: List<Routine>,
     isApplying: Boolean,
     onSelectRoutine: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -71,7 +69,7 @@ private fun RoutineSheetContent(
             color = TextPrimary,
         )
         VerticalSpacer(space = 8.dp)
-        if (sections.isEmpty()) {
+        if (routines.isEmpty()) {
             EmptyText()
             return@Column
         }
@@ -79,22 +77,12 @@ private fun RoutineSheetContent(
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            sections.forEach { (bodyPart, routines) ->
-                item(key = "section-${bodyPart.name}") {
-                    BaseText(
-                        text = bodyPart.label,
-                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = TextSecondary,
-                    )
-                }
-                items(items = routines, key = { it.id }) { routine ->
-                    RoutineRow(
-                        routine = routine,
-                        enabled = !isApplying,
-                        onClick = { onSelectRoutine(routine.id) },
-                    )
-                }
+            items(items = routines, key = { it.id }) { routine ->
+                RoutineRow(
+                    routine = routine,
+                    enabled = !isApplying,
+                    onClick = { onSelectRoutine(routine.id) },
+                )
             }
         }
     }
@@ -144,14 +132,10 @@ private fun EmptyText() {
 private fun RoutineSheetContentPreview() {
     BodyPlanTheme {
         RoutineSheetContent(
-            sections = listOf(
-                BodyPart.CHEST to listOf(
-                    Routine(id = 1L, name = "가슴 A", bodyPart = BodyPart.CHEST, entries = emptyList()),
-                    Routine(id = 2L, name = "가슴 B", bodyPart = BodyPart.CHEST, entries = emptyList()),
-                ),
-                BodyPart.BACK to listOf(
-                    Routine(id = 3L, name = "등 기본", bodyPart = BodyPart.BACK, entries = emptyList()),
-                ),
+            routines = listOf(
+                Routine(id = 1L, name = "상체 A", entries = emptyList()),
+                Routine(id = 2L, name = "상체 B", entries = emptyList()),
+                Routine(id = 3L, name = "하체 기본", entries = emptyList()),
             ),
             isApplying = false,
             onSelectRoutine = {},
@@ -163,6 +147,6 @@ private fun RoutineSheetContentPreview() {
 @Composable
 private fun RoutineSheetContentEmptyPreview() {
     BodyPlanTheme {
-        RoutineSheetContent(sections = emptyList(), isApplying = false, onSelectRoutine = {})
+        RoutineSheetContent(routines = emptyList(), isApplying = false, onSelectRoutine = {})
     }
 }

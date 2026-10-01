@@ -24,8 +24,6 @@ internal class FakeRoutineRepository(initial: List<Routine> = emptyList()) : Rou
 
     var lastAddedRoutineName: String? = null
         private set
-    var lastAddedRoutineBodyPart: BodyPart? = null
-        private set
     var addedEntryCount: Int = 0
         private set
     var lastUpdatedEntryId: Long? = null
@@ -50,12 +48,11 @@ internal class FakeRoutineRepository(initial: List<Routine> = emptyList()) : Rou
         return routines.value.firstOrNull { it.id == id }
     }
 
-    override suspend fun addRoutine(name: String, bodyPart: BodyPart): Long {
+    override suspend fun addRoutine(name: String): Long {
         mutateFailure?.let { throw it }
         lastAddedRoutineName = name
-        lastAddedRoutineBodyPart = bodyPart
         val id = nextRoutineId++
-        routines.value = routines.value + Routine(id = id, name = name, bodyPart = bodyPart, entries = emptyList())
+        routines.value = routines.value + Routine(id = id, name = name, entries = emptyList())
         return id
     }
 

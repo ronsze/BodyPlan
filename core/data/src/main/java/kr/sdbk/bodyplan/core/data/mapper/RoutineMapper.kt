@@ -16,7 +16,6 @@ import kr.sdbk.bodyplan.core.local.entity.RoutineWithEntries
 internal fun RoutineWithEntries.toDomain(): Routine = Routine(
     id = routine.id,
     name = routine.name,
-    bodyPart = BodyPart.valueOf(routine.bodyPart),
     // @Relation은 순서를 보장하지 않는다.
     entries = entries
         .sortedWith(compareBy({ it.entry.createdAtMillis }, { it.entry.id }))
@@ -49,8 +48,8 @@ internal fun List<WorkoutSet>.toRoutineSetEntities(entryId: Long): List<RoutineS
     )
 }
 
-internal fun newRoutineEntity(name: String, bodyPart: BodyPart, createdAtMillis: Long): RoutineEntity =
-    RoutineEntity(name = name, bodyPart = bodyPart.name, createdAtMillis = createdAtMillis)
+internal fun newRoutineEntity(name: String, createdAtMillis: Long): RoutineEntity =
+    RoutineEntity(name = name, createdAtMillis = createdAtMillis)
 
 internal fun newRoutineEntryEntity(routineId: Long, exercise: Exercise, createdAtMillis: Long): RoutineEntryEntity =
     RoutineEntryEntity(

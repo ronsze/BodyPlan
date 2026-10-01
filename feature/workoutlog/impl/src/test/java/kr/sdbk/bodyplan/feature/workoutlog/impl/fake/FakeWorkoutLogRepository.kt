@@ -12,6 +12,7 @@ import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
+import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 
@@ -23,7 +24,7 @@ internal class FakeWorkoutLogRepository(
     private val latestEntriesByExercise: Map<Long, WorkoutEntry> = emptyMap(),
 ) : WorkoutLogRepository {
     private val entries = MutableStateFlow(initial)
-    private val memo = MutableStateFlow<String?>(null)
+    private val memo = MutableStateFlow<WorkoutMemo?>(null)
 
     var observeFailure: Throwable? = null
     var mutateFailure: Throwable? = null
@@ -40,7 +41,7 @@ internal class FakeWorkoutLogRepository(
         private set
     var lastSavedExercise: Exercise? = null
         private set
-    var lastSavedMemo: String? = null
+    var lastSavedMemo: WorkoutMemo? = null
         private set
     var lastAddedEntries: List<WorkoutEntry>? = null
         private set
@@ -58,9 +59,9 @@ internal class FakeWorkoutLogRepository(
     // 저장이 끝나지 않은 채로 두 번째 인텐트가 오는 상황을 만들려면 이 걸쇠로 완료 시점을 붙잡아 둔다.
     var saveMemoGate: CompletableDeferred<Unit>? = null
 
-    override fun observeLog(date: LocalDate): Flow<WorkoutLog> = combine(entries, memo) { list, text ->
+    override fun observeLog(date: LocalDate): Flow<WorkoutLog> = combine(entries, memo) { list, saved ->
         observeFailure?.let { throw it }
-        WorkoutLog(date = date, entries = list, memo = text)
+        WorkoutLog(date = date, entries = list, memo = saved)
     }
 
     override fun observeBodyPartsInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, Set<BodyPart>>> =
@@ -116,12 +117,12 @@ internal class FakeWorkoutLogRepository(
         entries.value = entries.value.filterNot { it.id == id }
     }
 
-    override suspend fun saveMemo(date: LocalDate, text: String) {
+    override suspend fun saveMemo(date: LocalDate, memo: WorkoutMemo) {
         mutateFailure?.let { throw it }
         saveMemoCallCount++
         saveMemoGate?.await()
-        lastSavedMemo = text
-        // 실제 구현과 같이 공백뿐인 메모는 남기지 않는다.
-        memo.value = text.trim().ifEmpty { null }
+        lastSavedMemo = memo
+        // 실제 구현과 같이 비어 있는 메모는 남기지 않고, 글은 앞뒤 공백을 뗀다.
+        this.memo.value = memo.copy(text = memo.text?.trim()?.ifEmpty { null }).takeUnless { it.isEmpty }
     }
 }

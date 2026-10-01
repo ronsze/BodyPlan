@@ -25,20 +25,19 @@ class RoutineRepositoryImplTest {
     )
 
     @Test
-    fun `루틴을 만들면 부위와 이름 그대로 조회된다`() = runTest {
-        val id = repository.addRoutine("하체 루틴", BodyPart.LEG)
+    fun `루틴을 만들면 이름 그대로 조회된다`() = runTest {
+        val id = repository.addRoutine("하체 루틴")
 
         val stored = repository.getRoutine(id)!!
 
         assertEquals("하체 루틴", stored.name)
-        assertEquals(BodyPart.LEG, stored.bodyPart)
         assertTrue(stored.entries.isEmpty())
     }
 
     @Test
     fun `여러 루틴을 만든 순서대로 조회된다`() = runTest {
-        val firstId = repository.addRoutine("루틴A", BodyPart.CHEST)
-        val secondId = repository.addRoutine("루틴B", BodyPart.BACK)
+        val firstId = repository.addRoutine("루틴A")
+        val secondId = repository.addRoutine("루틴B")
 
         val routines = repository.observeRoutines().first()
 
@@ -47,7 +46,7 @@ class RoutineRepositoryImplTest {
 
     @Test
     fun `루틴에 항목을 더하면 세트와 함께 조회된다`() = runTest {
-        val routineId = repository.addRoutine("하체 루틴", BodyPart.LEG)
+        val routineId = repository.addRoutine("하체 루틴")
         val sets = listOf(
             WorkoutSet(repeatCount = 12, intensity = Intensity.Weight(40)),
             WorkoutSet(repeatCount = 8, intensity = Intensity.Weight(60)),
@@ -62,7 +61,7 @@ class RoutineRepositoryImplTest {
 
     @Test
     fun `항목을 수정하면 종목 스냅샷만 바뀐다`() = runTest {
-        val routineId = repository.addRoutine("하체 루틴", BodyPart.LEG)
+        val routineId = repository.addRoutine("하체 루틴")
         val entryId = repository.addEntry(
             routineId,
             exercise,
@@ -91,7 +90,7 @@ class RoutineRepositoryImplTest {
 
     @Test
     fun `항목을 지우면 조회되지 않는다`() = runTest {
-        val routineId = repository.addRoutine("하체 루틴", BodyPart.LEG)
+        val routineId = repository.addRoutine("하체 루틴")
         val entryId = repository.addEntry(routineId, exercise, listOf(WorkoutSet(12, Intensity.Weight(40))))
 
         repository.deleteEntry(entryId)
@@ -101,7 +100,7 @@ class RoutineRepositoryImplTest {
 
     @Test
     fun `루틴을 지우면 조회되지 않는다`() = runTest {
-        val routineId = repository.addRoutine("하체 루틴", BodyPart.LEG)
+        val routineId = repository.addRoutine("하체 루틴")
 
         repository.deleteRoutine(routineId)
 
@@ -114,7 +113,7 @@ class RoutineRepositoryImplTest {
 
         var thrown = false
         try {
-            repository.addRoutine("하체 루틴", BodyPart.LEG)
+            repository.addRoutine("하체 루틴")
         } catch (e: IOException) {
             thrown = true
         }
@@ -123,7 +122,7 @@ class RoutineRepositoryImplTest {
 
     @Test
     fun `루틴 삭제 실패는 예외로 전파된다`() = runTest {
-        val routineId = repository.addRoutine("하체 루틴", BodyPart.LEG)
+        val routineId = repository.addRoutine("하체 루틴")
         dao.deleteFailure = IOException("delete failed")
 
         var thrown = false

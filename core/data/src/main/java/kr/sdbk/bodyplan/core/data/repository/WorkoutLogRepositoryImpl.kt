@@ -17,6 +17,7 @@ import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
+import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
@@ -33,7 +34,7 @@ constructor(
         workoutEntryDao.observeByDate(date.toEpochDay()),
         workoutMemoDao.observeByDate(date.toEpochDay()),
     ) { rows, memo ->
-        WorkoutLog(date = date, entries = rows.map { it.toDomain() }, memo = memo?.text)
+        WorkoutLog(date = date, entries = rows.map { it.toDomain() }, memo = memo?.toDomain())
     }
 
     override fun observeEntriesInRange(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<WorkoutEntry>>> =
@@ -83,13 +84,12 @@ constructor(
         workoutEntryDao.deleteById(id)
     }
 
-    override suspend fun saveMemo(date: LocalDate, text: String) {
-        val trimmed = text.trim()
+    override suspend fun saveMemo(date: LocalDate, memo: WorkoutMemo) {
         // 빈 메모를 행으로 남기지 않는다 — 메모 없음과 빈 메모를 구분할 이유가 없다.
-        if (trimmed.isEmpty()) {
+        if (memo.isEmpty) {
             workoutMemoDao.deleteByDate(date.toEpochDay())
         } else {
-            workoutMemoDao.upsert(newMemoEntity(date, trimmed, System.currentTimeMillis()))
+            workoutMemoDao.upsert(newMemoEntity(date, memo, System.currentTimeMillis()))
         }
     }
 }

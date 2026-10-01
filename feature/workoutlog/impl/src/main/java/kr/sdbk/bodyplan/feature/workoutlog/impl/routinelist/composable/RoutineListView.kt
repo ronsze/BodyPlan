@@ -40,10 +40,8 @@ import kr.sdbk.bodyplan.core.designsystem.theme.Surface
 import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
-import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Routine
-import kr.sdbk.bodyplan.core.ui.components.BodyPartTabRow
-import kr.sdbk.bodyplan.core.ui.components.label
+import kr.sdbk.bodyplan.core.domain.model.totalSetCount
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.routinelist.RoutineListEffect
 import kr.sdbk.bodyplan.feature.workoutlog.impl.routinelist.RoutineListIntent
@@ -56,7 +54,6 @@ internal data class RoutineListUiEvents(
     val onBackPressed: () -> Unit,
     val onClickAddRoutine: () -> Unit,
     val onChangeDialogName: (String) -> Unit,
-    val onSelectDialogBodyPart: (BodyPart) -> Unit,
     val onConfirmDialog: () -> Unit,
     val onDismissDialog: () -> Unit,
     val onClickRoutine: (Long) -> Unit,
@@ -94,7 +91,6 @@ private fun rememberUiEvents(events: RoutineListEvents, viewModel: RoutineListVi
             onBackPressed = events.goBack,
             onClickAddRoutine = { viewModel.handleIntent(RoutineListIntent.ClickAddRoutine) },
             onChangeDialogName = { viewModel.handleIntent(RoutineListIntent.ChangeDialogName(it)) },
-            onSelectDialogBodyPart = { viewModel.handleIntent(RoutineListIntent.SelectDialogBodyPart(it)) },
             onConfirmDialog = { viewModel.handleIntent(RoutineListIntent.ConfirmDialog) },
             onDismissDialog = { viewModel.handleIntent(RoutineListIntent.DismissDialog) },
             onClickRoutine = { viewModel.handleIntent(RoutineListIntent.ClickRoutine(it)) },
@@ -122,7 +118,7 @@ internal fun RoutineListViewImpl(state: RoutineListState, uiEvents: RoutineListU
                 state.errorMessage != null -> ErrorContent(state.errorMessage, uiEvents.onClickRetry)
                 state.isLoading && state.routines.isEmpty() -> LoadingContent()
                 state.routines.isEmpty() -> EmptyContent()
-                else -> RoutineSections(state, uiEvents)
+                else -> RoutineItems(state, uiEvents)
             }
         }
     }
@@ -133,26 +129,17 @@ internal fun RoutineListViewImpl(state: RoutineListState, uiEvents: RoutineListU
 }
 
 @Composable
-private fun RoutineSections(state: RoutineListState, uiEvents: RoutineListUiEvents) {
+private fun RoutineItems(state: RoutineListState, uiEvents: RoutineListUiEvents) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        state.sections.forEach { (bodyPart, routines) ->
-            item(key = "section-${bodyPart.name}") {
-                BaseText(
-                    text = bodyPart.label,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = TextSecondary,
-                )
-            }
-            items(items = routines, key = { it.id }) { routine ->
-                RoutineCard(
-                    routine = routine,
-                    onClick = { uiEvents.onClickRoutine(routine.id) },
-                    onClickDelete = { uiEvents.onClickDeleteRoutine(routine.id) },
-                )
-            }
+        items(items = state.routines, key = { it.id }) { routine ->
+            RoutineCard(
+                routine = routine,
+                onClick = { uiEvents.onClickRoutine(routine.id) },
+                onClickDelete = { uiEvents.onClickDeleteRoutine(routine.id) },
+            )
         }
     }
 }
@@ -173,7 +160,7 @@ private fun RoutineCard(routine: Routine, onClick: () -> Unit, onClickDelete: ()
                     overflow = TextOverflow.Ellipsis,
                 )
                 BaseText(
-                    text = "종목 ${routine.entries.size}개",
+                    text = "종목 ${routine.entries.size}개 · 총 ${routine.totalSetCount}세트",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary,
                 )
@@ -201,22 +188,14 @@ private fun RoutineCreateDialog(state: RoutineListState, uiEvents: RoutineListUi
             )
         },
         text = {
-            Column {
-                BaseTextField(
-                    value = state.dialogName,
-                    onValueChange = uiEvents.onChangeDialogName,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = "루틴 이름",
-                    textStyle = MaterialTheme.typography.bodyMedium,
-                    singleLine = true,
-                )
-                VerticalSpacer(space = 12.dp)
-                BodyPartTabRow(
-                    selected = state.dialogBodyPart,
-                    onSelect = uiEvents.onSelectDialogBodyPart,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            BaseTextField(
+                value = state.dialogName,
+                onValueChange = uiEvents.onChangeDialogName,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = "루틴 이름",
+                textStyle = MaterialTheme.typography.bodyMedium,
+                singleLine = true,
+            )
         },
         confirmButton = {
             BaseText(
@@ -272,16 +251,15 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
 }
 
 private val previewRoutines = listOf(
-    Routine(id = 1L, name = "가슴 A", bodyPart = BodyPart.CHEST, entries = emptyList()),
-    Routine(id = 2L, name = "가슴 B", bodyPart = BodyPart.CHEST, entries = emptyList()),
-    Routine(id = 3L, name = "등 기본", bodyPart = BodyPart.BACK, entries = emptyList()),
+    Routine(id = 1L, name = "상체 A", entries = emptyList()),
+    Routine(id = 2L, name = "상체 B", entries = emptyList()),
+    Routine(id = 3L, name = "하체 기본", entries = emptyList()),
 )
 
 private val previewUiEvents = RoutineListUiEvents(
     onBackPressed = {},
     onClickAddRoutine = {},
     onChangeDialogName = {},
-    onSelectDialogBodyPart = {},
     onConfirmDialog = {},
     onDismissDialog = {},
     onClickRoutine = {},
@@ -316,7 +294,7 @@ private fun RoutineListViewImplEmptyPreview() {
 private fun RoutineListViewImplDialogPreview() {
     BodyPlanTheme {
         RoutineListViewImpl(
-            state = RoutineListState(routines = previewRoutines, isDialogVisible = true, dialogName = "가슴 C"),
+            state = RoutineListState(routines = previewRoutines, isDialogVisible = true, dialogName = "상체 C"),
             uiEvents = previewUiEvents,
         )
     }

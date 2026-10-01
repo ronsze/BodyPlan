@@ -53,9 +53,6 @@ internal data class WorkoutEntryEditState(
             return sets.isNotEmpty() && !isSaving && sets.all { it.isComplete(exercise.intensityType) }
         }
 
-    /** 루틴은 부위 하나에 묶여 있어 항목의 부위를 고르게 하지 않는다. */
-    val isBodyPartLocked: Boolean get() = target is WorkoutEntryEditTarget.Routine
-
     val canAddSet: Boolean get() = selectedExercise != null && sets.size < WorkoutOptions.MAX_SET_COUNT
 
     val canRemoveSet: Boolean get() = sets.size > 1

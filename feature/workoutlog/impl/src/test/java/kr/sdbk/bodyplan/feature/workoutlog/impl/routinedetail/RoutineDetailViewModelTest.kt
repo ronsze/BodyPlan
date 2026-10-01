@@ -34,7 +34,7 @@ internal class RoutineDetailViewModelTest {
     )
 
     private fun routine(id: Long = 1L, entries: List<WorkoutEntry> = emptyList()) =
-        Routine(id = id, name = "하체 루틴", bodyPart = BodyPart.LEG, entries = entries)
+        Routine(id = id, name = "하체 루틴", entries = entries)
 
     private fun viewModel(routineId: Long = 1L, repository: FakeRoutineRepository = FakeRoutineRepository()) =
         RoutineDetailViewModel(routineRepository = repository, navKey = RoutineDetailNavKey(routineId))
@@ -60,7 +60,6 @@ internal class RoutineDetailViewModelTest {
         subscribe(viewModel)
 
         assertEquals("하체 루틴", viewModel.uiState.value.routine?.name)
-        assertEquals(BodyPart.LEG, viewModel.uiState.value.routine?.bodyPart)
     }
 
     @Test

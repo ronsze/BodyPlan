@@ -39,20 +39,12 @@ constructor(
     private var prefillJob: Job? = null
 
     override suspend fun initializeData() {
-        val entryId = state.value.editingEntryId
-        when {
-            entryId != null -> restoreEntry(entryId)
-
-            // 루틴은 부위가 정해져 있어 고르게 하지 않고 바로 그 부위 종목을 연다.
-            state.value.target is WorkoutEntryEditTarget.Routine -> loadRoutineBodyPart()
-        }
+        state.value.editingEntryId?.let { restoreEntry(it) }
     }
 
     override fun handleIntent(intent: WorkoutEntryEditIntent) {
         when (intent) {
-            // 탭이 없지만 상태 쪽에서도 막는다 — 루틴 항목의 부위는 루틴이 정한다.
-            is WorkoutEntryEditIntent.SelectBodyPart ->
-                if (!state.value.isBodyPartLocked) selectBodyPart(intent.bodyPart)
+            is WorkoutEntryEditIntent.SelectBodyPart -> selectBodyPart(intent.bodyPart)
 
             is WorkoutEntryEditIntent.SelectExercise -> selectExercise(intent.id)
 
@@ -80,23 +72,8 @@ constructor(
             viewModelScope.launch { restoreEntry(entryId) }
             return
         }
-        // 부위가 이미 정해졌으면 종목 구독만 실패한 것이다. 루틴을 다시 읽어 부위를 되돌리지 않는다.
-        val bodyPart = state.value.selectedBodyPart
-        if (bodyPart != null) {
-            observeExercises(bodyPart)
-            return
-        }
-        if (state.value.target is WorkoutEntryEditTarget.Routine) {
-            viewModelScope.launch { loadRoutineBodyPart() }
-        }
-    }
-
-    private suspend fun loadRoutineBodyPart() {
-        val routineId = (state.value.target as? WorkoutEntryEditTarget.Routine)?.routineId ?: return
-        updateState { it.copy(isLoading = true, errorMessage = null) }
-        runCatching { requireNotNull(routineRepository.getRoutine(routineId)) { "루틴이 없습니다" } }
-            .onSuccess { routine -> selectBodyPart(routine.bodyPart) }
-            .onFailure { updateState { it.copy(isLoading = false, errorMessage = LOAD_ERROR) } }
+        // 부위를 고른 뒤에만 오류가 나므로 종목 구독만 다시 연다.
+        state.value.selectedBodyPart?.let { observeExercises(it) }
     }
 
     private suspend fun restoreEntry(entryId: Long) {

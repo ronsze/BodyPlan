@@ -22,6 +22,8 @@ import kr.sdbk.bodyplan.core.local.dao.WorkoutEntryDao
 import kr.sdbk.bodyplan.core.local.dao.WorkoutMemoDao
 import kr.sdbk.bodyplan.core.local.datastore.AppPreferences
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_10_11
+import kr.sdbk.bodyplan.core.local.migration.MIGRATION_11_12
+import kr.sdbk.bodyplan.core.local.migration.MIGRATION_12_13
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_1_2
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_2_3
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_3_4
@@ -52,6 +54,8 @@ object LocalModule {
                 MIGRATION_8_9,
                 MIGRATION_9_10,
                 MIGRATION_10_11,
+                MIGRATION_11_12,
+                MIGRATION_12_13,
             )
             .build()
 

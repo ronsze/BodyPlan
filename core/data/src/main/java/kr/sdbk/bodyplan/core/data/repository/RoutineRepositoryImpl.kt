@@ -7,7 +7,6 @@ import kr.sdbk.bodyplan.core.data.mapper.newRoutineEntity
 import kr.sdbk.bodyplan.core.data.mapper.newRoutineEntryEntity
 import kr.sdbk.bodyplan.core.data.mapper.toDomain
 import kr.sdbk.bodyplan.core.data.mapper.toRoutineSetEntities
-import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
@@ -25,8 +24,8 @@ constructor(private val routineDao: RoutineDao) : RoutineRepository {
 
     override suspend fun getRoutine(id: Long): Routine? = routineDao.getById(id)?.toDomain()
 
-    override suspend fun addRoutine(name: String, bodyPart: BodyPart): Long =
-        routineDao.insert(newRoutineEntity(name, bodyPart, System.currentTimeMillis()))
+    override suspend fun addRoutine(name: String): Long =
+        routineDao.insert(newRoutineEntity(name, System.currentTimeMillis()))
 
     override suspend fun deleteRoutine(id: Long) {
         // 항목·세트는 외래 키 CASCADE가 함께 지운다.

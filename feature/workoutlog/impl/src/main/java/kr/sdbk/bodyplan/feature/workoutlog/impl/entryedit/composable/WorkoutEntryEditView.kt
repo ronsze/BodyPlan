@@ -129,14 +129,12 @@ internal fun WorkoutEntryEditViewImpl(state: WorkoutEntryEditState, uiEvents: Wo
             onBack = uiEvents.onBackPressed,
         )
 
-        if (!state.isBodyPartLocked) {
-            BodyPartTabRow(
-                selected = state.selectedBodyPart,
-                onSelect = uiEvents.onSelectBodyPart,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            VerticalSpacer(space = 12.dp)
-        }
+        BodyPartTabRow(
+            selected = state.selectedBodyPart,
+            onSelect = uiEvents.onSelectBodyPart,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        VerticalSpacer(space = 12.dp)
 
         Box(modifier = Modifier.weight(1f)) {
             when {

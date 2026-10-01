@@ -1,49 +1,67 @@
 package kr.sdbk.bodyplan.core.domain.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class RoutineTest {
-    private fun routine(id: Long, bodyPart: BodyPart) =
-        Routine(id = id, name = "루틴$id", bodyPart = bodyPart, entries = emptyList())
+    private fun weightEntry(bodyPart: BodyPart, vararg sets: Pair<Int, Int>) = WorkoutEntry(
+        id = 0L,
+        exerciseId = 0L,
+        exerciseName = "종목",
+        bodyPart = bodyPart,
+        intensityType = IntensityType.WEIGHT,
+        sets = sets.map { (repeat, kg) -> WorkoutSet(repeatCount = repeat, intensity = Intensity.Weight(kg)) },
+    )
+
+    private fun angleEntry(bodyPart: BodyPart) = WorkoutEntry(
+        id = 0L,
+        exerciseId = 0L,
+        exerciseName = "종목",
+        bodyPart = bodyPart,
+        intensityType = IntensityType.ANGLE,
+        sets = listOf(WorkoutSet(repeatCount = 10, intensity = Intensity.Angle(0))),
+    )
 
     @Test
-    fun `루틴이 없는 부위는 묶음이 나오지 않는다`() {
-        val routines = listOf(routine(1L, BodyPart.CHEST))
+    fun `총 세트수는 모든 항목의 세트를 더한다`() {
+        val routine = Routine(
+            id = 1L,
+            name = "루틴",
+            entries = listOf(weightEntry(BodyPart.CHEST, 10 to 20, 8 to 25), angleEntry(BodyPart.BACK)),
+        )
 
-        val sections = routines.groupedByBodyPart()
-
-        assertEquals(listOf(BodyPart.CHEST), sections.map { it.first })
+        assertEquals(3, routine.totalSetCount)
     }
 
     @Test
-    fun `묶음은 BodyPart 선언 순서로 나온다`() {
-        val routines = listOf(routine(1L, BodyPart.LEG), routine(2L, BodyPart.CHEST), routine(3L, BodyPart.BACK))
+    fun `부위별로 종목수 세트수 무게를 BodyPart 선언 순서로 센다`() {
+        val entries = listOf(
+            weightEntry(BodyPart.BACK, 10 to 30),
+            weightEntry(BodyPart.CHEST, 10 to 20, 5 to 40),
+            weightEntry(BodyPart.CHEST, 8 to 10),
+        )
 
-        val sections = routines.groupedByBodyPart()
+        val workloads = entries.summarizedByBodyPart()
 
         assertEquals(
-            BodyPart.entries.filter { it in setOf(BodyPart.LEG, BodyPart.CHEST, BodyPart.BACK) },
-            sections.map { it.first },
+            listOf(
+                BodyPartWorkload(BodyPart.CHEST, entryCount = 2, setCount = 3, weightVolumeKg = 480),
+                BodyPartWorkload(BodyPart.BACK, entryCount = 1, setCount = 1, weightVolumeKg = 300),
+            ),
+            workloads,
         )
     }
 
     @Test
-    fun `같은 부위의 루틴은 한 묶음에 모두 들어간다`() {
-        val chestA = routine(1L, BodyPart.CHEST)
-        val chestB = routine(2L, BodyPart.CHEST)
+    fun `무게 종목이 없는 부위의 무게는 null이다`() {
+        val workloads = listOf(angleEntry(BodyPart.CHEST)).summarizedByBodyPart()
 
-        val sections = routines(chestA, chestB).groupedByBodyPart()
-
-        assertEquals(listOf(chestA, chestB), sections.single().second)
+        assertNull(workloads.single().weightVolumeKg)
     }
 
     @Test
-    fun `루틴이 하나도 없으면 묶음도 비어 있다`() {
-        val sections = emptyList<Routine>().groupedByBodyPart()
-
-        assertEquals(emptyList<Pair<BodyPart, List<Routine>>>(), sections)
+    fun `항목이 없으면 빈 목록이다`() {
+        assertEquals(emptyList<BodyPartWorkload>(), emptyList<WorkoutEntry>().summarizedByBodyPart())
     }
-
-    private fun routines(vararg routines: Routine) = routines.toList()
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,10 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kr.sdbk.bodyplan.core.designsystem.component.Badge
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BaseTextField
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
 import kr.sdbk.bodyplan.core.designsystem.component.OutlinedActionButton
+import kr.sdbk.bodyplan.core.designsystem.component.PillChip
 import kr.sdbk.bodyplan.core.designsystem.component.PrimaryButton
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.component.WeightSpacer
@@ -31,20 +34,28 @@ import kr.sdbk.bodyplan.core.designsystem.theme.Surface
 import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
+import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.Condition
+import kr.sdbk.bodyplan.core.domain.model.Effort
+import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
+import kr.sdbk.bodyplan.core.ui.components.label
 
 /**
- * 그날 하나만 남기는 메모. 보기와 편집을 같은 카드 안에서 오간다.
+ * 그날 하나만 남기는 소감. 컨디션·체감 강도·통증 부위는 칩을 눌러 바로 남기고, 글은 덧붙이고 싶을 때만 쓴다.
  *
- * 편집은 [isEditable]인 날짜(오늘·어제)에서만 열 수 있고, 저장을 눌러야 확정된다 —
- * 자동 저장으로 두면 실패를 알릴 자리가 없다.
+ * 칩은 [isEditable]인 날짜(오늘·어제)에서 누르는 즉시 저장된다. 글은 편집을 열어 저장을 눌러야 확정된다 —
+ * 글은 길게 쓰다 실패하면 잃는 것이 커서 자동 저장하지 않는다. 조회 전용 날짜는 고른 값만 읽기로 보인다.
  */
 @Composable
 internal fun WorkoutMemoCard(
-    memo: String?,
+    memo: WorkoutMemo?,
     input: String,
     isEditable: Boolean,
     isEditing: Boolean,
     isSaving: Boolean,
+    onSelectCondition: (Condition) -> Unit,
+    onSelectEffort: (Effort) -> Unit,
+    onTogglePainPart: (BodyPart) -> Unit,
     onClickEdit: () -> Unit,
     onChangeInput: (String) -> Unit,
     onClickSave: () -> Unit,
@@ -52,19 +63,49 @@ internal fun WorkoutMemoCard(
     modifier: Modifier = Modifier,
 ) {
     BodyPlanCard(modifier = modifier) {
+        BaseText(text = "오늘의 소감", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+        VerticalSpacer(space = 14.dp)
+
+        if (isEditable) {
+            ChipGroup(label = "컨디션") {
+                Condition.entries.forEach {
+                    PillChip(text = it.label, selected = memo?.condition == it, onClick = { onSelectCondition(it) })
+                }
+            }
+            VerticalSpacer(space = 12.dp)
+            ChipGroup(label = "체감 강도") {
+                Effort.entries.forEach {
+                    PillChip(text = it.label, selected = memo?.effort == it, onClick = { onSelectEffort(it) })
+                }
+            }
+            VerticalSpacer(space = 12.dp)
+            ChipGroup(label = "아픈 부위") {
+                PAIN_SELECTABLE_PARTS.forEach {
+                    PillChip(
+                        text = it.label,
+                        selected = it in memo?.painParts.orEmpty(),
+                        onClick = { onTogglePainPart(it) },
+                    )
+                }
+            }
+        } else {
+            ReadOnlySummary(memo)
+        }
+
+        VerticalSpacer(space = 16.dp)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            BaseText(text = "메모", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+            BaseText(text = "메모", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
             WeightSpacer()
             if (isEditable && !isEditing) {
                 BaseText(
-                    text = if (memo == null) "추가" else "편집",
+                    text = if (memo?.text == null) "추가" else "편집",
                     modifier = Modifier.clickable(onClick = onClickEdit),
                     style = MaterialTheme.typography.bodySmall,
                     color = TextTertiary,
                 )
             }
         }
-        VerticalSpacer(space = 14.dp)
+        VerticalSpacer(space = 10.dp)
         if (isEditing) {
             MemoEditContent(
                 input = input,
@@ -74,15 +115,43 @@ internal fun WorkoutMemoCard(
                 onClickCancel = onClickCancel,
             )
         } else {
-            MemoText(memo = memo, isEditable = isEditable)
+            MemoText(memo = memo?.text, isEditable = isEditable)
         }
     }
 }
 
 @Composable
+private fun ChipGroup(label: String, chips: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        BaseText(text = label, style = MaterialTheme.typography.labelMedium, color = TextTertiary)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) { chips() }
+    }
+}
+
+/** 조회 전용 날짜. 고른 것만 배지로 늘어놓고, 아무것도 없으면 한 줄로 알린다. */
+@Composable
+private fun ReadOnlySummary(memo: WorkoutMemo?) {
+    val badges = listOfNotNull(
+        memo?.condition?.let { "컨디션 ${it.label}" },
+        memo?.effort?.let { "강도 ${it.label}" },
+    ) + memo?.painParts.orEmpty().sortedBy { it.ordinal }.map { "${it.label} 통증" }
+    if (badges.isEmpty()) {
+        BaseText(text = "남긴 소감이 없습니다", style = MaterialTheme.typography.bodyMedium, color = TextTertiary)
+        return
+    }
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) { badges.forEach { Badge(text = it) } }
+}
+
+@Composable
 private fun MemoText(memo: String?, isEditable: Boolean) {
     BaseText(
-        text = memo ?: if (isEditable) "메모를 남겨보세요" else "메모가 없습니다",
+        text = memo ?: if (isEditable) "더 남기고 싶은 말이 있다면 적어보세요" else "메모가 없습니다",
         style = MaterialTheme.typography.bodyMedium,
         color = if (memo == null) TextTertiary else TextSecondary,
     )
@@ -123,6 +192,23 @@ private fun MemoEditContent(
     }
 }
 
+/** 통증은 몸의 부위에만 의미가 있어 유산소는 고르게 하지 않는다. */
+private val PAIN_SELECTABLE_PARTS = BodyPart.entries.filter { it != BodyPart.CARDIO }
+
+private val Condition.label: String
+    get() = when (this) {
+        Condition.GOOD -> "좋음"
+        Condition.NORMAL -> "보통"
+        Condition.BAD -> "나쁨"
+    }
+
+private val Effort.label: String
+    get() = when (this) {
+        Effort.LIGHT -> "가벼움"
+        Effort.MODERATE -> "적당"
+        Effort.HARD -> "힘듦"
+    }
+
 @Preview(showBackground = true, backgroundColor = 0xFFF2F4F6)
 @Composable
 private fun WorkoutMemoCardPreview() {
@@ -132,44 +218,33 @@ private fun WorkoutMemoCardPreview() {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             WorkoutMemoCard(
-                memo = "어깨가 뻐근해서 무게를 내렸다",
+                memo = WorkoutMemo(
+                    condition = Condition.GOOD,
+                    effort = Effort.HARD,
+                    painParts = setOf(BodyPart.SHOULDER),
+                    text = "어깨가 뻐근해서 무게를 내렸다",
+                ),
                 input = "",
                 isEditable = true,
                 isEditing = false,
                 isSaving = false,
+                onSelectCondition = {},
+                onSelectEffort = {},
+                onTogglePainPart = {},
                 onClickEdit = {},
                 onChangeInput = {},
                 onClickSave = {},
                 onClickCancel = {},
             )
             WorkoutMemoCard(
-                memo = null,
-                input = "",
-                isEditable = true,
-                isEditing = false,
-                isSaving = false,
-                onClickEdit = {},
-                onChangeInput = {},
-                onClickSave = {},
-                onClickCancel = {},
-            )
-            WorkoutMemoCard(
-                memo = null,
-                input = "컨디션이 좋았다",
-                isEditable = true,
-                isEditing = true,
-                isSaving = false,
-                onClickEdit = {},
-                onChangeInput = {},
-                onClickSave = {},
-                onClickCancel = {},
-            )
-            WorkoutMemoCard(
-                memo = "지난주에 남긴 메모",
+                memo = WorkoutMemo(condition = Condition.BAD, painParts = setOf(BodyPart.LEG)),
                 input = "",
                 isEditable = false,
                 isEditing = false,
                 isSaving = false,
+                onSelectCondition = {},
+                onSelectEffort = {},
+                onTogglePainPart = {},
                 onClickEdit = {},
                 onChangeInput = {},
                 onClickSave = {},

@@ -7,6 +7,7 @@ import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
+import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 
 /** 운동 기록 저장소. 실패는 삼키지 않고 호출부로 던진다. */
@@ -46,6 +47,6 @@ interface WorkoutLogRepository {
 
     suspend fun deleteEntry(id: Long)
 
-    /** 그날의 메모를 덮어쓴다. [text]가 공백뿐이면 메모를 지운다. */
-    suspend fun saveMemo(date: LocalDate, text: String)
+    /** 그날의 메모를 덮어쓴다. [memo]가 비어 있으면(칩도 글도 없으면) 메모를 지운다. */
+    suspend fun saveMemo(date: LocalDate, memo: WorkoutMemo)
 }

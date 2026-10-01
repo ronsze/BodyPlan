@@ -12,6 +12,7 @@ import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
+import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
 import org.junit.Assert.assertEquals
@@ -149,7 +150,7 @@ class ObserveWorkoutLogUseCaseTest {
             error("사용하지 않음")
         }
 
-        override suspend fun saveMemo(date: LocalDate, text: String) {
+        override suspend fun saveMemo(date: LocalDate, memo: WorkoutMemo) {
             error("사용하지 않음")
         }
     }

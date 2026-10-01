@@ -26,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanTopBar
@@ -37,10 +38,13 @@ import kr.sdbk.bodyplan.core.designsystem.theme.TextSecondary
 import kr.sdbk.bodyplan.core.designsystem.theme.TextTertiary
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.BodyPartVolume
+import kr.sdbk.bodyplan.core.domain.model.Condition
+import kr.sdbk.bodyplan.core.domain.model.Effort
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.RestTimer
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
+import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSession
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSetKey
@@ -68,6 +72,14 @@ internal data class WorkoutLogUiEvents(
     val onClickDeleteEntry: (Long) -> Unit,
     val onClickAnalyze: () -> Unit,
     val onClickRetry: () -> Unit,
+    val onSelectCondition: (Condition) -> Unit,
+    val onSelectEffort: (Effort) -> Unit,
+    val onTogglePainPart: (BodyPart) -> Unit,
+    val onClickPickComparisonDate: () -> Unit,
+    val onSelectComparisonDate: (LocalDate) -> Unit,
+    val onDismissComparisonDatePicker: () -> Unit,
+    val onChangeComparisonPickerMonth: (YearMonth) -> Unit,
+    val onClickClearComparisonDate: () -> Unit,
     val onClickEditMemo: () -> Unit,
     val onChangeMemoInput: (String) -> Unit,
     val onClickSaveMemo: () -> Unit,
@@ -127,6 +139,14 @@ private fun rememberUiEvents(
         onClickDeleteEntry = { viewModel.handleIntent(WorkoutLogIntent.ClickDeleteEntry(it)) },
         onClickAnalyze = { events.goToAnalysis(WorkoutAnalysisPeriod.DAILY, date) },
         onClickRetry = { viewModel.handleIntent(WorkoutLogIntent.ClickRetry) },
+        onSelectCondition = { viewModel.handleIntent(WorkoutLogIntent.SelectCondition(it)) },
+        onSelectEffort = { viewModel.handleIntent(WorkoutLogIntent.SelectEffort(it)) },
+        onTogglePainPart = { viewModel.handleIntent(WorkoutLogIntent.TogglePainPart(it)) },
+        onClickPickComparisonDate = { viewModel.handleIntent(WorkoutLogIntent.ClickPickComparisonDate) },
+        onSelectComparisonDate = { viewModel.handleIntent(WorkoutLogIntent.SelectComparisonDate(it)) },
+        onDismissComparisonDatePicker = { viewModel.handleIntent(WorkoutLogIntent.DismissComparisonDatePicker) },
+        onChangeComparisonPickerMonth = { viewModel.handleIntent(WorkoutLogIntent.ChangeComparisonPickerMonth(it)) },
+        onClickClearComparisonDate = { viewModel.handleIntent(WorkoutLogIntent.ClickClearComparisonDate) },
         onClickEditMemo = { viewModel.handleIntent(WorkoutLogIntent.ClickEditMemo) },
         onChangeMemoInput = { viewModel.handleIntent(WorkoutLogIntent.ChangeMemoInput(it)) },
         onClickSaveMemo = { viewModel.handleIntent(WorkoutLogIntent.ClickSaveMemo) },
@@ -172,9 +192,21 @@ internal fun WorkoutLogViewImpl(state: WorkoutLogState, uiEvents: WorkoutLogUiEv
         }
     }
 
+    if (state.isComparisonDatePickerVisible) {
+        ComparisonDatePickerDialog(
+            logDate = state.date,
+            selected = state.comparisonDate,
+            yearMonth = state.comparisonPickerMonth,
+            dayStatuses = state.comparisonPickerStatuses,
+            onSelect = uiEvents.onSelectComparisonDate,
+            onChangeMonth = uiEvents.onChangeComparisonPickerMonth,
+            onDismiss = uiEvents.onDismissComparisonDatePicker,
+        )
+    }
+
     if (state.isRoutineSheetVisible) {
         RoutineSheet(
-            sections = state.routineSections,
+            routines = state.routines,
             isApplying = state.isApplyingRoutine,
             onSelectRoutine = uiEvents.onSelectRoutine,
             onDismiss = uiEvents.onDismissRoutineSheet,
@@ -242,6 +274,17 @@ private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
                 emptyText = "무게 기록이 없습니다",
             )
         }
+        // 견줄 무게 기록이 없는 날에는 날짜를 골라도 보일 것이 없어 카드를 두지 않는다.
+        if (state.bodyPartVolumes.isNotEmpty()) {
+            item {
+                BodyPartVolumeComparisonCard(
+                    comparisonDate = state.comparisonDate,
+                    comparisons = state.bodyPartVolumeComparisons,
+                    onClickPickDate = uiEvents.onClickPickComparisonDate,
+                    onClickClear = uiEvents.onClickClearComparisonDate,
+                )
+            }
+        }
         item {
             WorkoutMemoCard(
                 memo = state.memo,
@@ -249,6 +292,9 @@ private fun LogContent(state: WorkoutLogState, uiEvents: WorkoutLogUiEvents) {
                 isEditable = state.isEditable,
                 isEditing = state.isEditingMemo,
                 isSaving = state.isSavingMemo,
+                onSelectCondition = uiEvents.onSelectCondition,
+                onSelectEffort = uiEvents.onSelectEffort,
+                onTogglePainPart = uiEvents.onTogglePainPart,
                 onClickEdit = uiEvents.onClickEditMemo,
                 onChangeInput = uiEvents.onChangeMemoInput,
                 onClickSave = uiEvents.onClickSaveMemo,
@@ -339,6 +385,14 @@ private val previewUiEvents = WorkoutLogUiEvents(
     onClickEntry = {},
     onClickDeleteEntry = {},
     onClickRetry = {},
+    onSelectCondition = {},
+    onSelectEffort = {},
+    onTogglePainPart = {},
+    onClickPickComparisonDate = {},
+    onSelectComparisonDate = {},
+    onDismissComparisonDatePicker = {},
+    onChangeComparisonPickerMonth = {},
+    onClickClearComparisonDate = {},
     onClickEditMemo = {},
     onChangeMemoInput = {},
     onClickSaveMemo = {},
@@ -370,7 +424,7 @@ private fun WorkoutLogViewImplPreview() {
                 ),
                 personalRecordExerciseIds = setOf(1L),
                 canStartSession = true,
-                memo = "어깨가 뻐근해서 무게를 내렸다",
+                memo = WorkoutMemo(condition = Condition.GOOD, text = "어깨가 뻐근해서 무게를 내렸다"),
             ),
             uiEvents = previewUiEvents,
         )
@@ -419,7 +473,7 @@ private fun WorkoutLogViewImplReadOnlyPreview() {
                 date = LocalDate.of(2026, 8, 30),
                 isEditable = false,
                 entries = previewEntries,
-                memo = "지난주에 남긴 메모",
+                memo = WorkoutMemo(text = "지난주에 남긴 메모"),
             ),
             uiEvents = previewUiEvents,
         )

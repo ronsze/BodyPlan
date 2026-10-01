@@ -3,7 +3,6 @@ package kr.sdbk.bodyplan.feature.workoutlog.impl.routinelist
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.feature.workoutlog.impl.MainDispatcherRule
 import kr.sdbk.bodyplan.feature.workoutlog.impl.fake.FakeRoutineRepository
@@ -19,8 +18,7 @@ internal class RoutineListViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private fun routine(id: Long, name: String, bodyPart: BodyPart) =
-        Routine(id = id, name = name, bodyPart = bodyPart, entries = emptyList())
+    private fun routine(id: Long, name: String) = Routine(id = id, name = name, entries = emptyList())
 
     private fun kotlinx.coroutines.test.TestScope.subscribe(viewModel: RoutineListViewModel) {
         backgroundScope.launch(mainDispatcherRule.dispatcher) { viewModel.uiState.collect {} }
@@ -36,31 +34,13 @@ internal class RoutineListViewModelTest {
     }
 
     @Test
-    fun `루틴 목록은 부위 순서로 묶인다`() = runTest {
-        val repository = FakeRoutineRepository(
-            listOf(
-                routine(1L, "하체A", BodyPart.LEG),
-                routine(2L, "가슴A", BodyPart.CHEST),
-            ),
-        )
+    fun `루틴 목록은 만든 순서 그대로 나온다`() = runTest {
+        val repository = FakeRoutineRepository(listOf(routine(1L, "하체A"), routine(2L, "가슴A")))
         val viewModel = RoutineListViewModel(repository)
 
         subscribe(viewModel)
 
-        assertEquals(
-            BodyPart.entries.filter { it == BodyPart.CHEST || it == BodyPart.LEG },
-            viewModel.uiState.value.sections.map { it.first },
-        )
-    }
-
-    @Test
-    fun `루틴이 없는 부위는 묶음에 나오지 않는다`() = runTest {
-        val repository = FakeRoutineRepository(listOf(routine(1L, "가슴A", BodyPart.CHEST)))
-        val viewModel = RoutineListViewModel(repository)
-
-        subscribe(viewModel)
-
-        assertEquals(listOf(BodyPart.CHEST), viewModel.uiState.value.sections.map { it.first })
+        assertEquals(listOf(1L, 2L), viewModel.uiState.value.routines.map { it.id })
     }
 
     @Test
@@ -82,7 +62,6 @@ internal class RoutineListViewModelTest {
 
         assertTrue(viewModel.uiState.value.isDialogVisible)
         assertEquals("", viewModel.uiState.value.dialogName)
-        assertEquals(BodyPart.CHEST, viewModel.uiState.value.dialogBodyPart)
     }
 
     @Test
@@ -110,14 +89,12 @@ internal class RoutineListViewModelTest {
         subscribe(viewModel)
         viewModel.handleIntent(RoutineListIntent.ClickAddRoutine)
         viewModel.handleIntent(RoutineListIntent.ChangeDialogName("하체 루틴"))
-        viewModel.handleIntent(RoutineListIntent.SelectDialogBodyPart(BodyPart.LEG))
 
         viewModel.handleIntent(RoutineListIntent.ConfirmDialog)
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isDialogVisible)
         assertEquals("하체 루틴", repository.lastAddedRoutineName)
-        assertEquals(BodyPart.LEG, repository.lastAddedRoutineBodyPart)
         assertTrue(effects.any { it is RoutineListEffect.NavigateToRoutineDetail })
     }
 
@@ -154,7 +131,7 @@ internal class RoutineListViewModelTest {
 
     @Test
     fun `루틴을 지우면 목록에서 사라진다`() = runTest {
-        val repository = FakeRoutineRepository(listOf(routine(1L, "하체A", BodyPart.LEG)))
+        val repository = FakeRoutineRepository(listOf(routine(1L, "하체A")))
         val viewModel = RoutineListViewModel(repository)
         subscribe(viewModel)
 
@@ -166,7 +143,7 @@ internal class RoutineListViewModelTest {
 
     @Test
     fun `삭제가 실패하면 메시지가 나가고 목록은 그대로다`() = runTest {
-        val repository = FakeRoutineRepository(listOf(routine(1L, "하체A", BodyPart.LEG)))
+        val repository = FakeRoutineRepository(listOf(routine(1L, "하체A")))
         repository.mutateFailure = IllegalStateException("boom")
         val viewModel = RoutineListViewModel(repository)
         val effects = collectEffects(viewModel)
@@ -183,7 +160,7 @@ internal class RoutineListViewModelTest {
 
     @Test
     fun `조회가 실패하면 에러가 실리고 재시도가 다시 조회한다`() = runTest {
-        val repository = FakeRoutineRepository(listOf(routine(1L, "하체A", BodyPart.LEG)))
+        val repository = FakeRoutineRepository(listOf(routine(1L, "하체A")))
         repository.observeFailure = IllegalStateException("boom")
         val viewModel = RoutineListViewModel(repository)
 

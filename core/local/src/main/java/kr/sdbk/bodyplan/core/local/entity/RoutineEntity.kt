@@ -10,6 +10,5 @@ import kotlinx.serialization.Serializable
 data class RoutineEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val name: String,
-    val bodyPart: String,
     val createdAtMillis: Long,
 )

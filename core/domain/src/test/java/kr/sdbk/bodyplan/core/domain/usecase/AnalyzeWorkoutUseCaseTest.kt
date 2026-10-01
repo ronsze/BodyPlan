@@ -25,6 +25,7 @@ import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
+import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
@@ -491,7 +492,7 @@ class AnalyzeWorkoutUseCaseTest {
             error("사용하지 않음")
         }
 
-        override suspend fun saveMemo(date: LocalDate, text: String) {
+        override suspend fun saveMemo(date: LocalDate, memo: WorkoutMemo) {
             error("사용하지 않음")
         }
     }

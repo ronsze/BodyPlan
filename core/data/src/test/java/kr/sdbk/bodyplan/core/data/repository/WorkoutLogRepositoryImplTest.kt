@@ -8,12 +8,16 @@ import kr.sdbk.bodyplan.core.data.repository.fake.FakeExerciseDao
 import kr.sdbk.bodyplan.core.data.repository.fake.FakeWorkoutEntryDao
 import kr.sdbk.bodyplan.core.data.repository.fake.FakeWorkoutMemoDao
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.Condition
+import kr.sdbk.bodyplan.core.domain.model.Effort
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
+import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.local.entity.ExerciseEntity
+import kr.sdbk.bodyplan.core.local.entity.WorkoutMemoEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -151,11 +155,11 @@ class WorkoutLogRepositoryImplTest {
 
     @Test
     fun `메모를 저장하면 같은 날짜의 기록을 읽을 때 함께 나온다`() = runTest {
-        repository.saveMemo(date, "어깨가 뻐근했다")
+        repository.saveMemo(date, WorkoutMemo(text = "어깨가 뻐근했다"))
 
         val log = repository.observeLog(date).first()
 
-        assertEquals("어깨가 뻐근했다", log.memo)
+        assertEquals("어깨가 뻐근했다", log.memo?.text)
     }
 
     @Test
@@ -167,20 +171,20 @@ class WorkoutLogRepositoryImplTest {
 
     @Test
     fun `메모를 다시 저장하면 앞의 메모를 덮어쓴다`() = runTest {
-        repository.saveMemo(date, "처음 메모")
-        repository.saveMemo(date, "고친 메모")
+        repository.saveMemo(date, WorkoutMemo(text = "처음 메모"))
+        repository.saveMemo(date, WorkoutMemo(text = "고친 메모"))
 
         val log = repository.observeLog(date).first()
 
-        assertEquals("고친 메모", log.memo)
+        assertEquals("고친 메모", log.memo?.text)
         assertEquals(1, memoDao.stored.size)
     }
 
     @Test
     fun `메모를 공백만 남기고 저장하면 저장된 메모가 지워진다`() = runTest {
-        repository.saveMemo(date, "지울 메모")
+        repository.saveMemo(date, WorkoutMemo(text = "지울 메모"))
 
-        repository.saveMemo(date, "   ")
+        repository.saveMemo(date, WorkoutMemo(text = "   "))
 
         val log = repository.observeLog(date).first()
         assertNull(log.memo)
@@ -189,9 +193,9 @@ class WorkoutLogRepositoryImplTest {
 
     @Test
     fun `메모는 앞뒤 공백을 떼고 저장된다`() = runTest {
-        repository.saveMemo(date, "  가벼운 날  ")
+        repository.saveMemo(date, WorkoutMemo(text = "  가벼운 날  "))
 
-        assertEquals("가벼운 날", repository.observeLog(date).first().memo)
+        assertEquals("가벼운 날", repository.observeLog(date).first().memo?.text)
     }
 
     @Test
@@ -200,7 +204,7 @@ class WorkoutLogRepositoryImplTest {
 
         var thrown: Throwable? = null
         try {
-            repository.saveMemo(date, "메모")
+            repository.saveMemo(date, WorkoutMemo(text = "메모"))
         } catch (e: IOException) {
             thrown = e
         }
@@ -210,7 +214,7 @@ class WorkoutLogRepositoryImplTest {
 
     @Test
     fun `메모는 다른 날짜의 기록에 섞이지 않는다`() = runTest {
-        repository.saveMemo(date, "이 날의 메모")
+        repository.saveMemo(date, WorkoutMemo(text = "이 날의 메모"))
 
         assertNull(repository.observeLog(date.plusDays(1)).first().memo)
     }
@@ -414,5 +418,65 @@ class WorkoutLogRepositoryImplTest {
         val latest = repository.getLatestEntry(exercise.id, date)
 
         assertNull(latest)
+    }
+
+    @Test
+    fun `칩과 글을 저장하면 같은 값으로 복원된다`() = runTest {
+        val memo = WorkoutMemo(
+            condition = Condition.GOOD,
+            effort = Effort.HARD,
+            painParts = setOf(BodyPart.LEG),
+            text = "무릎 조심",
+        )
+        repository.saveMemo(date, memo)
+
+        assertEquals(memo, repository.observeLog(date).first().memo)
+    }
+
+    @Test
+    fun `칩만 저장하면 글이 없는 메모로 복원된다`() = runTest {
+        repository.saveMemo(date, WorkoutMemo(condition = Condition.BAD))
+
+        val memo = repository.observeLog(date).first().memo
+
+        assertEquals(WorkoutMemo(condition = Condition.BAD), memo)
+        assertNull(memo?.text)
+    }
+
+    @Test
+    fun `통증 부위 여러 개는 순서와 무관하게 복원된다`() = runTest {
+        val parts = listOf(BodyPart.LEG, BodyPart.CHEST, BodyPart.BACK)
+        repository.saveMemo(date, WorkoutMemo(painParts = parts.toSet()))
+        val first = memoDao.stored.single().painParts
+        repository.saveMemo(date, WorkoutMemo(painParts = parts.reversed().toSet()))
+
+        assertEquals(first, memoDao.stored.single().painParts)
+        assertEquals(parts.toSet(), repository.observeLog(date).first().memo?.painParts)
+    }
+
+    @Test
+    fun `비어 있는 메모를 저장하면 행이 지워진다`() = runTest {
+        repository.saveMemo(date, WorkoutMemo(condition = Condition.GOOD))
+
+        repository.saveMemo(date, WorkoutMemo())
+
+        assertTrue(memoDao.stored.isEmpty())
+        assertNull(repository.observeLog(date).first().memo)
+    }
+
+    @Test
+    fun `칩 컬럼이 비어 있는 기존 행은 글만 있는 메모로 복원된다`() = runTest {
+        memoDao.seed(
+            WorkoutMemoEntity(
+                dateEpochDay = date.toEpochDay(),
+                text = "예전 메모",
+                updatedAtMillis = 0L,
+                condition = null,
+                effort = null,
+                painParts = null,
+            ),
+        )
+
+        assertEquals(WorkoutMemo(text = "예전 메모"), repository.observeLog(date).first().memo)
     }
 }

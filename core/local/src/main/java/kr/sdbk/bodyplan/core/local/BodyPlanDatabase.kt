@@ -36,7 +36,7 @@ import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
         RoutineEntryEntity::class,
         RoutineSetEntity::class,
     ],
-    version = 11,
+    version = 13,
     exportSchema = true,
 )
 abstract class BodyPlanDatabase : RoomDatabase() {

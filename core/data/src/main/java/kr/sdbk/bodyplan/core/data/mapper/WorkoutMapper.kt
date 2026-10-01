@@ -2,11 +2,14 @@ package kr.sdbk.bodyplan.core.data.mapper
 
 import java.time.LocalDate
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
+import kr.sdbk.bodyplan.core.domain.model.Condition
+import kr.sdbk.bodyplan.core.domain.model.Effort
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
+import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
 import kr.sdbk.bodyplan.core.local.entity.DateBodyPart
 import kr.sdbk.bodyplan.core.local.entity.ExerciseBestRow
@@ -92,8 +95,22 @@ internal fun List<DateBodyPart>.toBodyPartsByDate(): Map<LocalDate, Set<BodyPart
     groupBy { LocalDate.ofEpochDay(it.dateEpochDay) }
         .mapValues { (_, rows) -> rows.map { BodyPart.valueOf(it.bodyPart) }.toSet() }
 
-internal fun newMemoEntity(date: LocalDate, text: String, updatedAtMillis: Long): WorkoutMemoEntity = WorkoutMemoEntity(
-    dateEpochDay = date.toEpochDay(),
-    text = text,
-    updatedAtMillis = updatedAtMillis,
+internal fun newMemoEntity(date: LocalDate, memo: WorkoutMemo, updatedAtMillis: Long): WorkoutMemoEntity =
+    WorkoutMemoEntity(
+        dateEpochDay = date.toEpochDay(),
+        text = memo.text?.trim().orEmpty(),
+        updatedAtMillis = updatedAtMillis,
+        condition = memo.condition?.name,
+        effort = memo.effort?.name,
+        // 부위 선언 순서로 적어 같은 선택이 늘 같은 글이 되게 한다.
+        painParts = BodyPart.entries.filter { it in memo.painParts }
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(",") { it.name },
+    )
+
+internal fun WorkoutMemoEntity.toDomain(): WorkoutMemo = WorkoutMemo(
+    condition = condition?.let { Condition.valueOf(it) },
+    effort = effort?.let { Effort.valueOf(it) },
+    painParts = painParts?.split(",")?.filter { it.isNotEmpty() }?.map { BodyPart.valueOf(it) }?.toSet().orEmpty(),
+    text = text.ifEmpty { null },
 )

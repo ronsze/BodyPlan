@@ -187,3 +187,69 @@ internal val MIGRATION_10_11 = object : Migration(10, 11) {
         db.execSQL("ALTER TABLE `user_profile` ADD COLUMN `weeklyWorkoutGoal` INTEGER")
     }
 }
+
+/**
+ * 루틴에서 부위 컬럼을 뺀다. 루틴은 모든 부위의 종목을 담고 부위는 항목이 가진다.
+ *
+ * minSdk의 SQLite는 `DROP COLUMN`을 몰라 표를 다시 만든다. `routine`을 지우면 외래 키 CASCADE가 항목·세트까지
+ * 지우므로, 자식 표는 먼저 임시 표로 옮겨 두었다가 되돌려 넣는다.
+ */
+internal val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE `_routine_backup` AS SELECT `id`, `name`, `createdAtMillis` FROM `routine`")
+        db.execSQL("CREATE TABLE `_routine_entry_backup` AS SELECT * FROM `routine_entry`")
+        db.execSQL("CREATE TABLE `_routine_set_backup` AS SELECT * FROM `routine_set`")
+        db.execSQL("DROP TABLE `routine_set`")
+        db.execSQL("DROP TABLE `routine_entry`")
+        db.execSQL("DROP TABLE `routine`")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routine` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`createdAtMillis` INTEGER NOT NULL)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routine_entry` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`routineId` INTEGER NOT NULL, " +
+                "`exerciseId` INTEGER NOT NULL, " +
+                "`exerciseName` TEXT NOT NULL, " +
+                "`bodyPart` TEXT NOT NULL, " +
+                "`intensityType` TEXT NOT NULL, " +
+                "`createdAtMillis` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`routineId`) REFERENCES `routine`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_routine_entry_routineId` " +
+                "ON `routine_entry` (`routineId`)",
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `routine_set` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`entryId` INTEGER NOT NULL, " +
+                "`setNumber` INTEGER NOT NULL, " +
+                "`repeatCount` INTEGER NOT NULL, " +
+                "`intensityValue` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`entryId`) REFERENCES `routine_entry`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_routine_set_entryId` " +
+                "ON `routine_set` (`entryId`)",
+        )
+        db.execSQL("INSERT INTO `routine` SELECT * FROM `_routine_backup`")
+        db.execSQL("INSERT INTO `routine_entry` SELECT * FROM `_routine_entry_backup`")
+        db.execSQL("INSERT INTO `routine_set` SELECT * FROM `_routine_set_backup`")
+        db.execSQL("DROP TABLE `_routine_set_backup`")
+        db.execSQL("DROP TABLE `_routine_entry_backup`")
+        db.execSQL("DROP TABLE `_routine_backup`")
+    }
+}
+
+/** 운동 메모에 컨디션·체감 강도·통증 부위 컬럼을 더한다. 기존 메모는 글만 있고 칩은 비어 있다(NULL). */
+internal val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `workout_memo` ADD COLUMN `condition` TEXT")
+        db.execSQL("ALTER TABLE `workout_memo` ADD COLUMN `effort` TEXT")
+        db.execSQL("ALTER TABLE `workout_memo` ADD COLUMN `painParts` TEXT")
+    }
+}

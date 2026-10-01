@@ -6,7 +6,6 @@ import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.repository.RoutineRepository
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 
@@ -24,12 +23,10 @@ constructor(private val routineRepository: RoutineRepository) :
     override fun handleIntent(intent: RoutineListIntent) {
         when (intent) {
             is RoutineListIntent.ClickAddRoutine ->
-                updateState { it.copy(isDialogVisible = true, dialogName = "", dialogBodyPart = BodyPart.CHEST) }
+                updateState { it.copy(isDialogVisible = true, dialogName = "") }
 
             is RoutineListIntent.ChangeDialogName ->
                 updateState { it.copy(dialogName = intent.name.take(ROUTINE_NAME_MAX_LENGTH)) }
-
-            is RoutineListIntent.SelectDialogBodyPart -> updateState { it.copy(dialogBodyPart = intent.bodyPart) }
 
             is RoutineListIntent.ConfirmDialog -> createRoutine()
 
@@ -73,7 +70,7 @@ constructor(private val routineRepository: RoutineRepository) :
         }
         updateState { it.copy(isCreating = true) }
         viewModelScope.launch {
-            runCatching { routineRepository.addRoutine(name, current.dialogBodyPart) }
+            runCatching { routineRepository.addRoutine(name) }
                 .onSuccess { id ->
                     updateState { it.copy(isCreating = false, isDialogVisible = false) }
                     updateEffect(RoutineListEffect.NavigateToRoutineDetail(id))

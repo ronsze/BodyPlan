@@ -34,6 +34,7 @@ import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.Routine
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
+import kr.sdbk.bodyplan.core.domain.model.summarizedByBodyPart
 import kr.sdbk.bodyplan.core.ui.components.rememberWorkoutEntryGroupExpansion
 import kr.sdbk.bodyplan.core.ui.components.workoutEntryGroups
 import kr.sdbk.bodyplan.core.ui.coordinator.CollectEffect
@@ -114,20 +115,29 @@ internal fun RoutineDetailViewImpl(state: RoutineDetailState, uiEvents: RoutineD
 @Composable
 private fun EntryList(routine: Routine, uiEvents: RoutineDetailUiEvents) {
     val expansion = rememberWorkoutEntryGroupExpansion()
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (routine.entries.isEmpty()) {
-            item { EmptyEntriesText() }
+    Column(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (routine.entries.isEmpty()) {
+                item { EmptyEntriesText() }
+            }
+            workoutEntryGroups(
+                entries = routine.entries,
+                isEditable = true,
+                expansion = expansion,
+                onClickEntry = uiEvents.onClickEntry,
+                onClickDeleteEntry = uiEvents.onClickDeleteEntry,
+            )
         }
-        workoutEntryGroups(
-            entries = routine.entries,
-            isEditable = true,
-            expansion = expansion,
-            onClickEntry = uiEvents.onClickEntry,
-            onClickDeleteEntry = uiEvents.onClickDeleteEntry,
-        )
+        if (routine.entries.isNotEmpty()) {
+            RoutineSummaryCard(
+                workloads = routine.entries.summarizedByBodyPart(),
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            )
+        }
     }
 }
 
@@ -170,8 +180,7 @@ private fun ErrorContent(message: String, onClickRetry: () -> Unit) {
 
 private val previewRoutine = Routine(
     id = 1L,
-    name = "가슴 A",
-    bodyPart = BodyPart.CHEST,
+    name = "상체 A",
     entries = listOf(
         WorkoutEntry(
             id = 1L,
