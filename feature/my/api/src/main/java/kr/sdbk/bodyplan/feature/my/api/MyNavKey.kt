@@ -20,6 +20,12 @@ data object ProfileNavKey : BodyPlanNavKey()
 data object InbodyNavKey : BodyPlanNavKey()
 
 @Serializable
+data object InbodyAddNavKey : BodyPlanNavKey()
+
+@Serializable
+data class InbodyDetailNavKey(val recordId: Long) : BodyPlanNavKey()
+
+@Serializable
 data object WeightNavKey : BodyPlanNavKey()
 
 @Serializable
@@ -34,6 +40,10 @@ fun BodyPlanNavigator.navigateToOnboarding() = navigate(OnboardingNavKey)
 fun BodyPlanNavigator.navigateToProfile() = navigate(ProfileNavKey)
 
 fun BodyPlanNavigator.navigateToInbody() = navigate(InbodyNavKey)
+
+fun BodyPlanNavigator.navigateToInbodyAdd() = navigate(InbodyAddNavKey)
+
+fun BodyPlanNavigator.navigateToInbodyDetail(recordId: Long) = navigate(InbodyDetailNavKey(recordId))
 
 fun BodyPlanNavigator.navigateToWeight() = navigate(WeightNavKey)
 

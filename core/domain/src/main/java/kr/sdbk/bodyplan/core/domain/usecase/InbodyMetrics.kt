@@ -11,7 +11,7 @@ import kr.sdbk.bodyplan.core.domain.model.InbodyMetricKind
  * 십진 문자열로 읽어 반올림한다. `Double`을 그대로 곱하면 20.45가 20.449999…로 읽혀
  * 표시와 계산이 어긋난다.
  */
-internal object InbodyMetrics {
+object InbodyMetrics {
     private val TEN = BigDecimal(10)
     private val HUNDRED = BigDecimal(100)
 
