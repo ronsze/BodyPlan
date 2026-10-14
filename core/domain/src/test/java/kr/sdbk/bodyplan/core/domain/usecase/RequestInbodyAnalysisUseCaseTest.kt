@@ -58,6 +58,22 @@ class RequestInbodyAnalysisUseCaseTest {
         assertEquals("7", request.scopeKey)
     }
 
+    @Test
+    fun `연결이 있으면 실패 사유를 지운 뒤에 작업을 시작한다`() = runTest {
+        val events = mutableListOf<String>()
+        val recordRepository = FakeInbodyRecordRepository(events)
+        val runner = FakeAnalysisRunner(events)
+        val useCase = RequestInbodyAnalysisUseCase(
+            aiCredentialRepository = FakeAiCredentialRepository(credential),
+            inbodyRecordRepository = recordRepository,
+            analysisRunner = runner,
+        )
+
+        useCase(7L)
+
+        assertEquals(listOf("setFailureReason", "start"), events)
+    }
+
     private class FakeAiCredentialRepository(private val credential: AiCredential?) : AiCredentialRepository {
         override fun observeCredential(): Flow<AiCredential?> = error("사용하지 않음")
 
@@ -68,7 +84,8 @@ class RequestInbodyAnalysisUseCaseTest {
         override suspend fun clear() = error("사용하지 않음")
     }
 
-    private class FakeInbodyRecordRepository : InbodyRecordRepository {
+    private class FakeInbodyRecordRepository(private val events: MutableList<String> = mutableListOf()) :
+        InbodyRecordRepository {
         val failureReasonCalls: MutableList<Pair<Long, String?>> = mutableListOf()
 
         override fun observeRecords(): Flow<List<InbodyRecordWithResult>> = error("사용하지 않음")
@@ -81,14 +98,16 @@ class RequestInbodyAnalysisUseCaseTest {
         override suspend fun insert(imageFileName: String, measuredOn: LocalDate): Long = error("사용하지 않음")
 
         override suspend fun setFailureReason(id: Long, reason: String?) {
+            events.add("setFailureReason")
             failureReasonCalls.add(id to reason)
         }
     }
 
-    private class FakeAnalysisRunner : AnalysisRunner {
+    private class FakeAnalysisRunner(private val events: MutableList<String> = mutableListOf()) : AnalysisRunner {
         val started: MutableList<AnalysisRunRequest> = mutableListOf()
 
         override suspend fun start(request: AnalysisRunRequest) {
+            events.add("start")
             started.add(request)
         }
 

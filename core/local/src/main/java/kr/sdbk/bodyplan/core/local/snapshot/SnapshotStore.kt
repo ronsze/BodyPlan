@@ -41,8 +41,9 @@ constructor(private val database: BodyPlanDatabase) {
     /**
      * 표를 전부 비우고 스냅샷의 행을 원래 id 그대로 넣는다. 하나라도 실패하면 아무것도 바뀌지 않는다.
      *
-     * [MIN_IMPORTABLE_DB_VERSION]부터 지금 버전까지의 스냅샷만 들인다. 그 사이의 스키마 변화가 전부
-     * "기본값 있는 컬럼 추가"뿐이라 옛 행이 그대로 들어간다 — 엔티티의 새 필드에 기본값이 있어 JSON에 없어도 읽힌다.
+     * [MIN_IMPORTABLE_DB_VERSION]부터 지금 버전까지의 스냅샷만 들인다. 그 사이의 스키마 변화는 기본값 있는
+     * 컬럼 추가라 옛 행이 그대로 들어간다 — 엔티티의 새 필드에 기본값이 있어 JSON에 없어도 읽힌다.
+     * 14 이전 스냅샷은 인바디 결과를 기록으로 옮기는 변환을 한 번 더 거친다.
      * 더 오래된 것과 더 새 것은 [UnsupportedBackupVersionException].
      */
     suspend fun import(original: BodyPlanSnapshot) {

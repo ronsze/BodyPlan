@@ -44,6 +44,9 @@ constructor(
         )
 
         onStage(AnalysisStage.PARSING)
+        // 분석이 도는 사이에 백업 복원이 기록을 통째로 바꿨을 수 있다. 같은 번호에 다른 사진이 있으면
+        // 이 결과는 옛 사진의 것이라 붙이지 않는다.
+        if (inbodyRecordRepository.getRecord(recordId)?.imagePath != record.imagePath) return analysis.content
         analysisResultRepository.replace(
             kind = AnalysisKind.INBODY,
             scopeKey = recordId.toString(),

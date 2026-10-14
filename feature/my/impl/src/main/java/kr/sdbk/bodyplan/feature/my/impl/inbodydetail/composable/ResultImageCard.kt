@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -34,7 +33,9 @@ import kr.sdbk.bodyplan.core.designsystem.component.BaseText
 import kr.sdbk.bodyplan.core.designsystem.component.BodyPlanCard
 import kr.sdbk.bodyplan.core.designsystem.component.VerticalSpacer
 import kr.sdbk.bodyplan.core.designsystem.theme.Accent
+import kr.sdbk.bodyplan.core.designsystem.theme.Surface
 import kr.sdbk.bodyplan.core.designsystem.theme.SurfaceMuted
+import kr.sdbk.bodyplan.core.designsystem.theme.TextPrimary
 
 /** 결과지 사진 카드. 눌러도 「결과지 확대 보기」와 같이 확대 보기가 열린다. */
 @Composable
@@ -70,7 +71,7 @@ internal fun ImageViewerDialog(imagePath: String, onDismiss: () -> Unit) {
     var offset by remember { mutableStateOf(Offset.Zero) }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        Box(modifier = Modifier.fillMaxSize().background(TextPrimary)) {
             BaseImage(
                 file = File(imagePath),
                 contentDescription = "인바디 결과지 확대",
@@ -96,7 +97,7 @@ internal fun ImageViewerDialog(imagePath: String, onDismiss: () -> Unit) {
                     text = "닫기",
                     modifier = Modifier.clickable(onClick = onDismiss).padding(8.dp),
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color.White,
+                    color = Surface,
                 )
             }
         }

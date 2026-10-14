@@ -9,6 +9,7 @@ import kr.sdbk.bodyplan.core.domain.model.AiProvider
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.model.InbodyRecordWithResult
+import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
 import kr.sdbk.bodyplan.core.domain.usecase.BuildInbodyDetailUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.ObserveInbodyEntriesUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.RequestInbodyAnalysisUseCase
@@ -38,7 +39,7 @@ internal class InbodyDetailViewModelTest {
     private fun viewModel(
         items: List<InbodyRecordWithResult>,
         recordId: Long = 1L,
-        credentials: FakeAiCredentialRepository = FakeAiCredentialRepository(credential),
+        credentials: AiCredentialRepository = FakeAiCredentialRepository(credential),
     ): InbodyDetailViewModel {
         val records = FakeInbodyRecordRepository(items)
         return InbodyDetailViewModel(
@@ -106,6 +107,44 @@ internal class InbodyDetailViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.isTokenDialogVisible)
+        assertTrue(runner.startCalls.isEmpty())
+    }
+
+    @Test
+    fun `요청이 실패하면 오류 문구가 보이고 다음 요청이 시작되면 지워진다`() = runTest {
+        val viewModel = viewModel(listOf(inbodyItem(1, measurement = measurement)))
+        subscribe(viewModel)
+        runner.startFailure = IllegalStateException("start")
+
+        viewModel.handleIntent(InbodyDetailIntent.ClickAnalyze)
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.uiState.value.errorMessage)
+
+        runner.startFailure = null
+        val callsBefore = runner.startCalls.size
+        viewModel.handleIntent(InbodyDetailIntent.ClickAnalyze)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.errorMessage)
+        assertEquals(callsBefore + 1, runner.startCalls.size)
+    }
+
+    @Test
+    fun `AI 연결이 없어 요청이 막히면 오류 문구가 아니라 안내가 열린다`() = runTest {
+        val backing = FakeAiCredentialRepository(credential)
+        val vanishing = object : AiCredentialRepository by backing {
+            override suspend fun getCredential(): AiCredential? = null
+        }
+        val viewModel = viewModel(listOf(inbodyItem(1)), credentials = vanishing)
+        subscribe(viewModel)
+        assertTrue(viewModel.uiState.value.hasCredential)
+
+        viewModel.handleIntent(InbodyDetailIntent.ClickAnalyze)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isTokenDialogVisible)
+        assertNull(viewModel.uiState.value.errorMessage)
         assertTrue(runner.startCalls.isEmpty())
     }
 

@@ -13,6 +13,8 @@ internal data class InbodyDetailState(
     val hasCredential: Boolean = false,
     val isTokenDialogVisible: Boolean = false,
     val isImageViewerVisible: Boolean = false,
+    /** 요청 자체가 실패했을 때의 문구. 분석이 돌다 실패한 것은 기록의 실패 사유로 보인다. */
+    val errorMessage: String? = null,
 ) : State {
     /** 분석 중이면 같은 기록을 다시 요청할 수 없다. */
     val canAnalyze: Boolean get() = detail != null && detail.entry.status != InbodyEntryStatus.RUNNING

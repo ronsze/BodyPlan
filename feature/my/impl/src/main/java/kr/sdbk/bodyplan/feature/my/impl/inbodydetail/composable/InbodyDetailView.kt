@@ -161,6 +161,9 @@ private fun Content(
 
             else -> Unit
         }
+        state.errorMessage?.let { message ->
+            BaseText(text = message, style = MaterialTheme.typography.bodyMedium, color = Danger)
+        }
         val result = entry.result
         if (result != null) {
             AnalysisResultContent(result, modifier = Modifier.fillMaxWidth())

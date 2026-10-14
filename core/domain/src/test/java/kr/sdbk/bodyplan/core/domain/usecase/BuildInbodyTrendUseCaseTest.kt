@@ -301,6 +301,19 @@ class BuildInbodyTrendUseCaseTest {
     }
 
     @Test
+    fun `읽힌 값이 하나도 없는 결과는 측정 횟수와 그래프에 들어가지 않는다`() {
+        val entries = listOf(
+            inbodyEntry(1, today, InbodyMeasurement(), withResult = true),
+            inbodyEntry(2, today.minusDays(1), null, withResult = true),
+        )
+
+        val trend = build(entries, InbodyPeriod.ONE_MONTH, today)
+
+        assertEquals(0, trend.measuredCount)
+        assertTrue(trend.cards.isEmpty())
+    }
+
+    @Test
     fun `분석 대기 안내의 수는 결과가 없는 분석 전 분석 중 분석 실패 기록의 수다`() {
         val running = AnalysisRun(AnalysisKind.INBODY, "2", AnalysisRunState.RUNNING)
         val entries = listOf(

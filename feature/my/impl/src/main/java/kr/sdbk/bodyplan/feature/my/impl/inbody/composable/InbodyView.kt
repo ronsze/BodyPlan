@@ -91,6 +91,9 @@ internal fun InbodyViewImpl(state: InbodyState, uiEvents: InbodyUiEvents) {
     var pendingRecordId by remember { mutableStateOf<Long?>(null) }
     val analyzeAfterPermission = requestNotificationThen { pendingRecordId?.let(uiEvents.onClickAnalyze) }
 
+    // 최근 측정 판정은 기록이 바뀔 때만 다시 한다. 카드마다 읽을 때 전체를 다시 정렬하지 않게 한다.
+    val latestMeasuredId = remember(state.entries) { state.latestMeasuredId }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -115,6 +118,8 @@ internal fun InbodyViewImpl(state: InbodyState, uiEvents: InbodyUiEvents) {
 
             val trend = state.trend
             when {
+                trend == null && state.errorMessage != null -> Unit
+
                 trend == null || (state.isLoading && state.entries.isEmpty()) ->
                     Column(
                         modifier = Modifier
@@ -130,6 +135,7 @@ internal fun InbodyViewImpl(state: InbodyState, uiEvents: InbodyUiEvents) {
 
             RecordSection(
                 state = state,
+                latestMeasuredId = latestMeasuredId,
                 onClickDetail = uiEvents.onClickDetail,
                 onClickAnalyze = { recordId ->
                     pendingRecordId = recordId
@@ -211,7 +217,12 @@ private fun TrendSection(trend: InbodyTrend) {
 }
 
 @Composable
-private fun RecordSection(state: InbodyState, onClickDetail: (Long) -> Unit, onClickAnalyze: (Long) -> Unit) {
+private fun RecordSection(
+    state: InbodyState,
+    latestMeasuredId: Long?,
+    onClickDetail: (Long) -> Unit,
+    onClickAnalyze: (Long) -> Unit,
+) {
     if (state.entries.isEmpty()) return
 
     VerticalSpacer(space = 4.dp)
@@ -228,7 +239,7 @@ private fun RecordSection(state: InbodyState, onClickDetail: (Long) -> Unit, onC
         state.entries.forEach { entry ->
             InbodyRecordCard(
                 entry = entry,
-                isLatest = entry.record.id == state.latestMeasuredId,
+                isLatest = entry.record.id == latestMeasuredId,
                 onClickDetail = { onClickDetail(entry.record.id) },
                 onClickAnalyze = { onClickAnalyze(entry.record.id) },
             )

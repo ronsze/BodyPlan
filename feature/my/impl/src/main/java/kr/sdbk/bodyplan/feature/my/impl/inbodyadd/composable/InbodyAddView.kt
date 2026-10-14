@@ -75,6 +75,8 @@ internal fun InbodyAddView(events: InbodyAddEvents, viewModel: InbodyAddViewMode
     var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
         val uri = cameraUri
+        // 찍지 못했으면 지금 고른 사진을 그대로 두고 비어 있는 새 파일만 치운다.
+        cleanCameraDirectory(context, keep = if (saved) uri else null, current = viewModel.uiState.value.pickedImageUri)
         if (saved && uri != null) viewModel.handleIntent(InbodyAddIntent.PickImage(uri.toString()))
     }
 
@@ -111,16 +113,24 @@ internal fun InbodyAddView(events: InbodyAddEvents, viewModel: InbodyAddViewMode
     }
 }
 
-/**
- * 촬영 결과를 받을 임시 파일의 주소.
- *
- * 앞서 찍은 임시 파일은 지운다. 사진 보관소로 복사된 뒤에는 쓸 곳이 없다.
- */
+/** 촬영 결과를 받을 임시 파일의 주소. */
 private fun newCameraUri(context: android.content.Context): Uri {
     val directory = File(context.cacheDir, CAMERA_DIRECTORY).apply { mkdirs() }
-    directory.listFiles()?.forEach { it.delete() }
     val file = File(directory, "inbody-${System.currentTimeMillis()}.jpg")
     return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+}
+
+/**
+ * 촬영 임시 파일을 치운다. [keep]과 지금 고른 사진([current])이 가리키는 파일은 남긴다.
+ *
+ * 촬영을 취소해도 이미 고른 사진은 그대로여야 한다. 고른 사진이 임시 파일이면 그 파일을 지우는 순간
+ * 미리보기가 비고 추가가 실패한다.
+ */
+private fun cleanCameraDirectory(context: android.content.Context, keep: Uri?, current: String?) {
+    val keepNames = listOfNotNull(keep?.lastPathSegment, current?.let(Uri::parse)?.lastPathSegment)
+    File(context.cacheDir, CAMERA_DIRECTORY).listFiles()
+        ?.filter { it.name !in keepNames }
+        ?.forEach { it.delete() }
 }
 
 private const val CAMERA_DIRECTORY = "camera"
@@ -179,7 +189,7 @@ internal fun InbodyAddViewImpl(state: InbodyAddState, uiEvents: InbodyAddUiEvent
     if (state.isDatePickerVisible) {
         MeasuredDatePickerDialog(
             selected = state.measuredOn,
-            today = LocalDate.now(),
+            today = state.today,
             yearMonth = state.pickerYearMonth,
             onSelect = uiEvents.onSelectDate,
             onChangeMonth = uiEvents.onChangePickerMonth,

@@ -69,4 +69,42 @@ class BuildInbodyDetailUseCaseTest {
         assertNull(detail.previous)
         assertEquals(true, detail.metrics.all { it.changeTenths == null && it.previousTenths == null })
     }
+
+    private fun assertNoComparison(detail: InbodyDetail) {
+        assertNull(detail.previous)
+        assertEquals(true, detail.metrics.all { it.previousTenths == null && it.changeTenths == null })
+    }
+
+    @Test
+    fun `분석 전 기록은 앞에 측정 기록이 있어도 비교 정보가 없다`() {
+        val entries = listOf(
+            inbodyEntry(1, day1, InbodyMeasurement(weightKg = 69.0)),
+            inbodyEntry(2, day2),
+        )
+
+        assertNoComparison(build(entries, 2)!!)
+    }
+
+    @Test
+    fun `읽힌 값이 없는 결과도 비교 정보가 없다`() {
+        val entries = listOf(
+            inbodyEntry(1, day1, InbodyMeasurement(weightKg = 69.0)),
+            inbodyEntry(2, day2, measurement = null, withResult = true),
+        )
+
+        assertNoComparison(build(entries, 2)!!)
+    }
+
+    @Test
+    fun `실패했어도 이전 결과가 있으면 비교 정보가 있다`() {
+        val entries = listOf(
+            inbodyEntry(1, day1, InbodyMeasurement(weightKg = 69.0)),
+            inbodyEntry(2, day2, InbodyMeasurement(weightKg = 68.4), failureReason = "실패"),
+        )
+
+        val detail = build(entries, 2)!!
+
+        assertEquals(1L, detail.previous?.record?.id)
+        assertEquals(-6, detail.metric(InbodyMetricKind.WEIGHT).changeTenths)
+    }
 }

@@ -60,6 +60,7 @@ class AnalyzeInbodyUseCaseTest {
         existing: List<AnalysisResult> = emptyList(),
         measurements: Map<String, InbodyMeasurement> = emptyMap(),
         defaultMeasurement: InbodyMeasurement = InbodyMeasurement(),
+        credential: AiCredential? = this.credential,
     ): Env {
         val resultRepository = FakeAnalysisResultRepository(existing.toMutableList())
         val recordRepository = FakeInbodyRecordRepository(records, resultRepository)
@@ -78,6 +79,49 @@ class AnalyzeInbodyUseCaseTest {
                 inbodyRecordRepository = recordRepository,
             ),
         )
+    }
+
+    @Test
+    fun `AI 연결이 없으면 연결 없음 예외를 던지고 AI를 부르지 않는다`() = runTest {
+        val e = env(records = listOf(inbodyRecord(1, sep1)), credential = null)
+
+        try {
+            e.useCase(1L)
+            fail("AiCredentialMissingException이 나야 한다")
+        } catch (ex: AiCredentialMissingException) {
+            // 기대한 예외
+        }
+
+        assertEquals(0, e.aiRepository.analyzeCallCount)
+        assertEquals(0, e.resultRepository.replaceCallCount)
+    }
+
+    @Test
+    fun `기록이 없으면 예외를 던지고 AI를 부르지 않는다`() = runTest {
+        val e = env(records = listOf(inbodyRecord(1, sep1)))
+
+        try {
+            e.useCase(99L)
+            fail("예외가 나야 한다")
+        } catch (ex: IllegalStateException) {
+            // 기대한 예외
+        }
+
+        assertEquals(0, e.aiRepository.analyzeCallCount)
+    }
+
+    @Test
+    fun `프로필 반영이 실패해도 분석은 성공한다`() = runTest {
+        val e = env(
+            records = listOf(inbodyRecord(1, sep1)),
+            defaultMeasurement = InbodyMeasurement(weightKg = 72.4, heightCm = 175.4),
+        )
+        e.profileRepository.saveFailure = IllegalStateException("profile")
+
+        val returned = e.useCase(1L)
+
+        assertEquals(content, returned)
+        assertEquals(content, e.resultRepository.results.single { it.scopeKey == "1" }.content)
     }
 
     @Test
@@ -221,6 +265,39 @@ class AnalyzeInbodyUseCaseTest {
         )
     }
 
+    @Test
+    fun `분석하는 사이에 기록의 사진이 바뀌면 결과를 저장하지 않는다`() = runTest {
+        val e = env(
+            records = listOf(inbodyRecord(1, sep1)),
+            defaultMeasurement = InbodyMeasurement(weightKg = 72.4, heightCm = 175.4),
+        )
+        e.recordRepository.getRecordOverride = { call ->
+            inbodyRecord(1, sep1).copy(imagePath = if (call == 0) "/a.jpg" else "/b.jpg")
+        }
+
+        val returned = e.useCase(1L)
+
+        assertEquals(content, returned)
+        assertEquals(0, e.resultRepository.replaceCallCount)
+        assertEquals(initialProfile, e.profileRepository.profile)
+        assertEquals(0, e.profileRepository.saveCount)
+    }
+
+    @Test
+    fun `분석하는 사이에 기록이 사라지면 결과를 저장하지 않는다`() = runTest {
+        val e = env(
+            records = listOf(inbodyRecord(1, sep1)),
+            defaultMeasurement = InbodyMeasurement(weightKg = 72.4, heightCm = 175.4),
+        )
+        e.recordRepository.getRecordOverride = { call -> if (call == 0) inbodyRecord(1, sep1) else null }
+
+        e.useCase(1L)
+
+        assertEquals(0, e.resultRepository.replaceCallCount)
+        assertEquals(initialProfile, e.profileRepository.profile)
+        assertEquals(0, e.profileRepository.saveCount)
+    }
+
     private class FakeUserProfileRepository(initial: UserProfile) : UserProfileRepository {
         var profile: UserProfile = initial
             private set
@@ -231,7 +308,10 @@ class AnalyzeInbodyUseCaseTest {
 
         override suspend fun getProfile(): UserProfile = profile
 
+        var saveFailure: Throwable? = null
+
         override suspend fun saveProfile(profile: UserProfile) {
+            saveFailure?.let { throw it }
             saveCount++
             this.profile = profile
         }
@@ -257,7 +337,14 @@ class AnalyzeInbodyUseCaseTest {
             InbodyRecordWithResult(record, resultRepository.results.firstOrNull { it.scopeKey == record.id.toString() })
         }
 
-        override suspend fun getRecord(id: Long): InbodyRecord? = records.firstOrNull { it.id == id }
+        var getRecordOverride: ((callIndex: Int) -> InbodyRecord?)? = null
+        private var getRecordCalls = 0
+
+        override suspend fun getRecord(id: Long): InbodyRecord? {
+            val override = getRecordOverride
+            if (override != null) return override(getRecordCalls++)
+            return records.firstOrNull { it.id == id }
+        }
 
         override suspend fun insert(imageFileName: String, measuredOn: LocalDate): Long = error("사용하지 않음")
 
@@ -305,6 +392,8 @@ class AnalyzeInbodyUseCaseTest {
         var lastRequest: InbodyAnalysisRequest? = null
             private set
         var analyzeInbodyFailure: Throwable? = null
+        var analyzeCallCount: Int = 0
+            private set
 
         override suspend fun verifyCredential(credential: AiCredential) = error("사용하지 않음")
 
@@ -319,6 +408,7 @@ class AnalyzeInbodyUseCaseTest {
         ): AnalysisContent = error("사용하지 않음")
 
         override suspend fun analyzeInbody(request: InbodyAnalysisRequest): InbodyAnalysis {
+            analyzeCallCount++
             lastRequest = request
             analyzeInbodyFailure?.let { throw it }
             return InbodyAnalysis(

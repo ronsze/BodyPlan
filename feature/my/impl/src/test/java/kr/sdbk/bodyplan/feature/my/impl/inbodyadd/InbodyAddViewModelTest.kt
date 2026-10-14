@@ -1,5 +1,7 @@
 package kr.sdbk.bodyplan.feature.my.impl.inbodyadd
 
+import java.time.LocalDate
+import java.time.YearMonth
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -18,6 +20,7 @@ import kr.sdbk.bodyplan.feature.my.impl.testClock
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -164,6 +167,38 @@ internal class InbodyAddViewModelTest {
         assertEquals(2, effects.size)
         assertTrue(effects[0] is InbodyAddEffect.ShowMessage)
         assertTrue(effects[1] is InbodyAddEffect.Close)
+    }
+
+    @Test
+    fun `사진을 고르면 이전 오류가 지워진다`() = runTest {
+        records.insertFailure = IllegalStateException("저장 실패")
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        viewModel.handleIntent(InbodyAddIntent.PickImage(uri))
+        viewModel.handleIntent(InbodyAddIntent.ClickAddOnly)
+        advanceUntilIdle()
+        assertNotNull(viewModel.uiState.value.errorMessage)
+
+        viewModel.handleIntent(InbodyAddIntent.PickImage("content://picked/other.jpg"))
+
+        assertNull(viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `날짜 선택창을 열면 고른 측정일의 달이 보이고 달을 옮기거나 닫을 수 있다`() = runTest {
+        val viewModel = viewModel()
+        subscribe(viewModel)
+        viewModel.handleIntent(InbodyAddIntent.SelectDate(LocalDate.of(2026, 9, 30)))
+
+        viewModel.handleIntent(InbodyAddIntent.ClickPickDate)
+        assertTrue(viewModel.uiState.value.isDatePickerVisible)
+        assertEquals(YearMonth.of(2026, 9), viewModel.uiState.value.pickerYearMonth)
+
+        viewModel.handleIntent(InbodyAddIntent.ChangePickerMonth(YearMonth.of(2026, 8)))
+        assertEquals(YearMonth.of(2026, 8), viewModel.uiState.value.pickerYearMonth)
+
+        viewModel.handleIntent(InbodyAddIntent.DismissDatePicker)
+        assertFalse(viewModel.uiState.value.isDatePickerVisible)
     }
 
     @Test

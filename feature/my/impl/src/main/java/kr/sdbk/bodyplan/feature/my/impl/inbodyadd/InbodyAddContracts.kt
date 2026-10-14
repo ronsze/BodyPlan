@@ -10,6 +10,8 @@ internal data class InbodyAddState(
     val pickedImageUri: String? = null,
     /** 처음 값은 오늘이다. 화면이 열릴 때의 시계로 정한다. */
     val measuredOn: LocalDate,
+    /** 선택창이 막을 날의 기준. 화면이 따로 시계를 읽으면 뷰모델의 오늘과 어긋날 수 있어 상태로 둔다. */
+    val today: LocalDate = measuredOn,
     val isDatePickerVisible: Boolean = false,
     val pickerYearMonth: YearMonth = YearMonth.from(measuredOn),
     val isSubmitting: Boolean = false,

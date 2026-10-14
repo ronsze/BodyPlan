@@ -62,8 +62,8 @@ constructor(
     }
 
     /**
-     * 요청이 실패해도 여기서 문구를 내지 않는다. 실패는 기록의 실패 사유로 남아 상세가 그대로 보여 주고,
-     * 요청 자체가 던지는 경우는 연결이 사라진 때뿐이라 안내를 연다.
+     * 요청 자체가 실패하면(연결이 사라진 경우는 안내, 그 밖은 문구) 작업이 돌지 않아 기록에는 아무것도
+     * 남지 않는다. 분석이 돌다 실패한 것은 기록의 실패 사유로 상세가 그대로 보여 준다.
      */
     private fun analyze() {
         val current = state.value
@@ -74,14 +74,15 @@ constructor(
         }
 
         viewModelScope.launch {
+            updateState { it.copy(errorMessage = null) }
             try {
                 requestInbodyAnalysis(navKey.recordId)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (missing: AiCredentialMissingException) {
                 updateState { it.copy(isTokenDialogVisible = true) }
-            } catch (ignored: Throwable) {
-                // 실패 사유는 기록에 남는다.
+            } catch (failure: Throwable) {
+                updateState { it.copy(errorMessage = ANALYZE_FAILED) }
             }
         }
     }
@@ -91,3 +92,5 @@ constructor(
         fun create(navKey: InbodyDetailNavKey): InbodyDetailViewModel
     }
 }
+
+private const val ANALYZE_FAILED = "분석을 요청하지 못했습니다"

@@ -124,7 +124,7 @@ internal abstract class DataModule {
         /** 날짜 판정 UseCase가 오늘을 읽는 창구. 테스트가 고정 시각을 넣을 수 있게 주입한다. */
         @Provides
         @Singleton
-        fun provideClock(): Clock = Clock.systemDefaultZone()
+        fun provideClock(): Clock = SystemZoneClock
 
         @Provides
         @Singleton

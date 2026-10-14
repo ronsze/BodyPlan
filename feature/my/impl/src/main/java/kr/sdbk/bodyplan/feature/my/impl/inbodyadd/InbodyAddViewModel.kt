@@ -22,7 +22,7 @@ constructor(
     private val aiCredentialRepository: AiCredentialRepository,
     private val clock: Clock,
 ) : BaseViewModel<InbodyAddState, InbodyAddIntent, InbodyAddEffect>(
-    initialState = InbodyAddState(measuredOn = LocalDate.now(clock)),
+    initialState = LocalDate.now(clock).let { today -> InbodyAddState(measuredOn = today, today = today) },
 ) {
     override suspend fun initializeData() {
         viewModelScope.launch {
