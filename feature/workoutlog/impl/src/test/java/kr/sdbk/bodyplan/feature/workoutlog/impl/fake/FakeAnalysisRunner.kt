@@ -2,6 +2,7 @@ package kr.sdbk.bodyplan.feature.workoutlog.impl.fake
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisRun
 import kr.sdbk.bodyplan.core.domain.model.AnalysisRunRequest
@@ -22,6 +23,8 @@ internal class FakeAnalysisRunner : AnalysisRunner {
     }
 
     override fun observe(kind: AnalysisKind, scopeKey: String): Flow<AnalysisRun?> = flowFor(kind, scopeKey)
+
+    override fun observeAll(kind: AnalysisKind): Flow<List<AnalysisRun>> = emptyFlow()
 
     fun flowFor(kind: AnalysisKind, scopeKey: String): MutableStateFlow<AnalysisRun?> =
         flows.getOrPut(kind to scopeKey) { MutableStateFlow(null) }

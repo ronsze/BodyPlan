@@ -29,8 +29,7 @@ data class AnalysisRun(
 /**
  * 분석 한 번을 시작하는 데 필요한 것.
  *
- * 기간 분석과 인바디가 쓰는 값이 달라 한 타입에 담고, 쓰지 않는 쪽은 비워 둔다.
- * 타입을 둘로 나누면 워커와 저장소가 둘 다 갈래를 알아야 한다.
+ * 인바디는 기간이 없어 [scopeKey]가 기록 번호이고 기간 값은 비워 둔다.
  */
 data class AnalysisRunRequest(
     val kind: AnalysisKind,
@@ -38,6 +37,4 @@ data class AnalysisRunRequest(
     val periodLabel: String,
     val from: LocalDate? = null,
     val to: LocalDate? = null,
-    /** 인바디만 쓴다. 고른 사진. */
-    val sourceUri: String? = null,
 )

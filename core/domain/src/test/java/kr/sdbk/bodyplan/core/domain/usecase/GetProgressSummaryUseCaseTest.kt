@@ -7,14 +7,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
-import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
-import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
 import kr.sdbk.bodyplan.core.domain.model.Goal
 import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
+import kr.sdbk.bodyplan.core.domain.model.InbodyRecord
+import kr.sdbk.bodyplan.core.domain.model.InbodyRecordWithResult
 import kr.sdbk.bodyplan.core.domain.model.Intensity
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.ProgressDirection
@@ -26,7 +25,7 @@ import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
 import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
-import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
+import kr.sdbk.bodyplan.core.domain.repository.InbodyRecordRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 import kr.sdbk.bodyplan.core.domain.repository.WeightLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
@@ -45,12 +44,13 @@ class GetProgressSummaryUseCaseTest {
         weightRecords: List<WeightRecord> = emptyList(),
         entriesByDate: Map<LocalDate, List<WorkoutEntry>> = emptyMap(),
         profile: UserProfile = UserProfile(),
-        inbodyHistory: List<AnalysisResult> = emptyList(),
+        inbodyHistory: List<InbodyMeasurement> = emptyList(),
+        inbodyRecords: List<InbodyRecordWithResult> = emptyList(),
     ): GetProgressSummaryUseCase = GetProgressSummaryUseCase(
         weightLogRepository = FakeWeightLogRepository(weightRecords),
         workoutLogRepository = FakeWorkoutLogRepository(entriesByDate),
         userProfileRepository = FakeUserProfileRepository(profile),
-        analysisResultRepository = FakeAnalysisResultRepository(inbodyHistory),
+        inbodyRecordRepository = FakeInbodyRecordRepository(historyRecords(inbodyHistory) + inbodyRecords),
         getWeightTrend = GetWeightTrendUseCase(),
         summarizeWorkoutVolume = SummarizeWorkoutVolumeUseCase(),
         summarizeBodyPartVolumeTrend = SummarizeBodyPartVolumeTrendUseCase(SummarizeBodyPartVolumeUseCase()),
@@ -75,15 +75,18 @@ class GetProgressSummaryUseCaseTest {
         sets = listOf(WorkoutSet(repeatCount = 1, intensity = Intensity.Angle(30))),
     )
 
-    private fun inbodyResult(skeletalMuscleKg: Double? = null, bodyFatKg: Double? = null): AnalysisResult =
-        AnalysisResult(
-            id = 1L,
-            kind = AnalysisKind.INBODY,
-            scopeKey = "",
-            content = AnalysisContent(summary = "", sections = emptyList()),
-            createdAtMillis = 0L,
-            measurement = InbodyMeasurement(skeletalMuscleKg = skeletalMuscleKg, bodyFatKg = bodyFatKg),
-        )
+    private fun inbodyReading(skeletalMuscleKg: Double? = null, bodyFatKg: Double? = null): InbodyMeasurement =
+        InbodyMeasurement(skeletalMuscleKg = skeletalMuscleKg, bodyFatKg = bodyFatKg)
+
+    /** 최신이 앞인 측정값 목록을 측정일이 최신일수록 늦은 기록으로 옮긴다. */
+    private fun historyRecords(newestFirst: List<InbodyMeasurement>): List<InbodyRecordWithResult> =
+        newestFirst.mapIndexed { index, measurement ->
+            inbodyRecordWithResult(
+                id = (newestFirst.size - index).toLong(),
+                measuredOn = today.minusDays(index.toLong()),
+                measurement = measurement,
+            )
+        }
 
     @Test
     fun `최근 7일과 그 앞 7일에 체중 기록이 모두 있으면 두 구간 평균의 차이다`() = runTest {
@@ -181,8 +184,8 @@ class GetProgressSummaryUseCaseTest {
     fun `골격근량 증가가 IMPROVING 체지방량 감소가 IMPROVING이다`() = runTest {
         // observeHistory는 최신이 앞이므로 첫 번째가 최신값이다.
         val history = listOf(
-            inbodyResult(skeletalMuscleKg = 30.0, bodyFatKg = 15.0),
-            inbodyResult(skeletalMuscleKg = 28.0, bodyFatKg = 17.0),
+            inbodyReading(skeletalMuscleKg = 30.0, bodyFatKg = 15.0),
+            inbodyReading(skeletalMuscleKg = 28.0, bodyFatKg = 17.0),
         )
 
         val summary = useCaseWith(inbodyHistory = history)().first()
@@ -197,7 +200,7 @@ class GetProgressSummaryUseCaseTest {
 
     @Test
     fun `측정값이 있는 인바디 결과가 1건 이하면 체성분 두 축이 UNKNOWN이다`() = runTest {
-        val history = listOf(inbodyResult(skeletalMuscleKg = 30.0, bodyFatKg = 15.0))
+        val history = listOf(inbodyReading(skeletalMuscleKg = 30.0, bodyFatKg = 15.0))
 
         val summary = useCaseWith(inbodyHistory = history)().first()
 
@@ -211,8 +214,8 @@ class GetProgressSummaryUseCaseTest {
         val records = listOf(WeightRecord(recentDay, 68.0), WeightRecord(previousDay, 70.0))
         val profile = UserProfile(goals = setOf(Goal.DIET))
         val history = listOf(
-            inbodyResult(skeletalMuscleKg = 30.0, bodyFatKg = 15.0),
-            inbodyResult(skeletalMuscleKg = 28.0, bodyFatKg = 17.0),
+            inbodyReading(skeletalMuscleKg = 30.0, bodyFatKg = 15.0),
+            inbodyReading(skeletalMuscleKg = 28.0, bodyFatKg = 17.0),
         )
 
         val summary = useCaseWith(weightRecords = records, profile = profile, inbodyHistory = history)().first()
@@ -225,8 +228,8 @@ class GetProgressSummaryUseCaseTest {
         val records = listOf(WeightRecord(recentDay, 70.0), WeightRecord(previousDay, 68.0))
         val profile = UserProfile(goals = setOf(Goal.DIET))
         val history = listOf(
-            inbodyResult(skeletalMuscleKg = 28.0, bodyFatKg = 17.0),
-            inbodyResult(skeletalMuscleKg = 30.0, bodyFatKg = 15.0),
+            inbodyReading(skeletalMuscleKg = 28.0, bodyFatKg = 17.0),
+            inbodyReading(skeletalMuscleKg = 30.0, bodyFatKg = 15.0),
         )
 
         val summary = useCaseWith(weightRecords = records, profile = profile, inbodyHistory = history)().first()
@@ -240,8 +243,8 @@ class GetProgressSummaryUseCaseTest {
         val records = listOf(WeightRecord(recentDay, 68.0), WeightRecord(previousDay, 70.0))
         val profile = UserProfile(goals = setOf(Goal.DIET))
         val history = listOf(
-            inbodyResult(skeletalMuscleKg = 28.0),
-            inbodyResult(skeletalMuscleKg = 30.0),
+            inbodyReading(skeletalMuscleKg = 28.0),
+            inbodyReading(skeletalMuscleKg = 30.0),
         )
 
         val summary = useCaseWith(weightRecords = records, profile = profile, inbodyHistory = history)().first()
@@ -319,6 +322,33 @@ class GetProgressSummaryUseCaseTest {
         assertEquals(emptyList<Any>(), summary.bodyPartVolumeTrends)
     }
 
+    @Test
+    fun `골격근량 변화는 그 지표 값이 있는 마지막 두 기록의 차이다`() = runTest {
+        val records = listOf(
+            inbodyRecordWithResult(1, today.minusDays(3), InbodyMeasurement(skeletalMuscleKg = 30.0)),
+            inbodyRecordWithResult(2, today.minusDays(2), InbodyMeasurement(weightKg = 70.0)),
+            inbodyRecordWithResult(3, today.minusDays(1), InbodyMeasurement(skeletalMuscleKg = 30.6)),
+        )
+
+        val muscle = useCaseWith(inbodyRecords = records)().first().bodyCompositionMetrics
+            .first { it.key == ProgressMetricKey.SKELETAL_MUSCLE }
+
+        assertEquals(0.6, muscle.changeValue!!, 0.0001)
+    }
+
+    @Test
+    fun `값이 있는 기록이 둘 미만이면 변화가 없다`() = runTest {
+        val records = listOf(
+            inbodyRecordWithResult(1, today.minusDays(2), InbodyMeasurement(weightKg = 70.0)),
+            inbodyRecordWithResult(2, today.minusDays(1), InbodyMeasurement(skeletalMuscleKg = 30.0)),
+        )
+
+        val muscle = useCaseWith(inbodyRecords = records)().first().bodyCompositionMetrics
+            .first { it.key == ProgressMetricKey.SKELETAL_MUSCLE }
+
+        assertEquals(null, muscle.changeValue)
+    }
+
     private class FakeWeightLogRepository(private val records: List<WeightRecord>) : WeightLogRepository {
         override fun observeRecordsInRange(from: LocalDate, to: LocalDate): Flow<List<WeightRecord>> =
             flowOf(records.filter { !it.date.isBefore(from) && !it.date.isAfter(to) })
@@ -370,20 +400,16 @@ class GetProgressSummaryUseCaseTest {
         override suspend fun saveProfile(profile: UserProfile) = error("사용하지 않음")
     }
 
-    private class FakeAnalysisResultRepository(private val history: List<AnalysisResult>) : AnalysisResultRepository {
-        override fun observeLatest(kind: AnalysisKind, scopeKey: String): Flow<AnalysisResult?> = error("사용하지 않음")
+    private class FakeInbodyRecordRepository(private val records: List<InbodyRecordWithResult>) :
+        InbodyRecordRepository {
+        override fun observeRecords(): Flow<List<InbodyRecordWithResult>> = flowOf(records)
 
-        override suspend fun getLatestOf(kind: AnalysisKind, scopeKeys: List<String>): Map<String, AnalysisResult> =
-            error("사용하지 않음")
+        override suspend fun getRecords(): List<InbodyRecordWithResult> = error("사용하지 않음")
 
-        override fun observeHistory(kind: AnalysisKind): Flow<List<AnalysisResult>> = flowOf(history)
+        override suspend fun getRecord(id: Long): InbodyRecord? = error("사용하지 않음")
 
-        override suspend fun save(
-            kind: AnalysisKind,
-            scopeKey: String,
-            content: AnalysisContent,
-            imageFileName: String?,
-            measurement: InbodyMeasurement?,
-        ) = error("사용하지 않음")
+        override suspend fun insert(imageFileName: String, measuredOn: LocalDate): Long = error("사용하지 않음")
+
+        override suspend fun setFailureReason(id: Long, reason: String?) = error("사용하지 않음")
     }
 }

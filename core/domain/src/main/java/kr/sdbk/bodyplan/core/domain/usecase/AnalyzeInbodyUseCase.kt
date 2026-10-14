@@ -8,18 +8,19 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisStage
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
+import kr.sdbk.bodyplan.core.domain.model.InbodyEntry
 import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
-import kr.sdbk.bodyplan.core.domain.repository.InbodyImageRepository
+import kr.sdbk.bodyplan.core.domain.repository.InbodyRecordRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 
 /**
- * 인바디 사진을 분석하고 결과를 사진과 함께 저장한다.
+ * 기록 하나의 사진을 분석하고 그 기록의 결과를 새 결과로 바꾼다.
  *
- * 사진을 먼저 앱 안으로 복사해야 이력에서 다시 볼 수 있다. 다만 분석이 실패하면 그 복사본을
- * 쓸 곳이 없으므로 지운다 — 남기면 아무 결과도 가리키지 않는 파일이 쌓인다.
+ * 프로필은 그 기록이 가장 최근 측정일 때만 갱신한다 — 과거 사진을 다시 분석할 때 옛 값이
+ * 프로필을 덮지 않게 하려는 것이다.
  */
 class AnalyzeInbodyUseCase
 @Inject
@@ -28,41 +29,28 @@ constructor(
     private val aiCredentialRepository: AiCredentialRepository,
     private val aiAnalysisRepository: AiAnalysisRepository,
     private val analysisResultRepository: AnalysisResultRepository,
-    private val inbodyImageRepository: InbodyImageRepository,
+    private val inbodyRecordRepository: InbodyRecordRepository,
 ) {
-    suspend operator fun invoke(sourceUri: String, onStage: suspend (AnalysisStage) -> Unit = {}): AnalysisContent {
+    suspend operator fun invoke(recordId: Long, onStage: suspend (AnalysisStage) -> Unit = {}): AnalysisContent {
         onStage(AnalysisStage.COLLECTING)
         val credential = aiCredentialRepository.getCredential() ?: throw AiCredentialMissingException()
         val profile = userProfileRepository.getProfile()
+        val record = inbodyRecordRepository.getRecord(recordId) ?: error("인바디 기록을 찾을 수 없습니다: $recordId")
 
         onStage(AnalysisStage.PREPARING_IMAGES)
-        val fileName = inbodyImageRepository.save(sourceUri)
         onStage(AnalysisStage.CALLING)
-        val analysis = try {
-            aiAnalysisRepository.analyzeInbody(
-                InbodyAnalysisRequest(
-                    credential = credential,
-                    profile = profile,
-                    imagePath = inbodyImageRepository.pathOf(fileName),
-                ),
-            )
-        } catch (throwable: Throwable) {
-            // 화면을 벗어나 취소된 경우에도 지운다. 취소된 코루틴에서는 보통 일이 돌지 않아
-            // NonCancellable로 감싸지 않으면 복사본만 남는다 — 가장 흔한 실패 경로다.
-            withContext(NonCancellable) { inbodyImageRepository.delete(fileName) }
-            throw throwable
-        }
+        val analysis = aiAnalysisRepository.analyzeInbody(
+            InbodyAnalysisRequest(credential = credential, profile = profile, imagePath = record.imagePath),
+        )
 
         onStage(AnalysisStage.PARSING)
-        // 인바디는 매번 새 결과를 쌓는다. 같은 대상이라는 개념이 없어 열쇠가 비어 있다.
-        analysisResultRepository.save(
+        analysisResultRepository.replace(
             kind = AnalysisKind.INBODY,
-            scopeKey = "",
+            scopeKey = recordId.toString(),
             content = analysis.content,
-            imageFileName = fileName,
             measurement = analysis.measurement,
         )
-        updateProfile(analysis.measurement)
+        updateProfileIfLatest(recordId, analysis.measurement)
         return analysis.content
     }
 
@@ -77,10 +65,14 @@ constructor(
      *
      * 갱신에 실패해도 분석은 성공이다. 결과는 이미 저장됐고, 프로필 갱신은 곁다리다.
      */
-    private suspend fun updateProfile(measurement: InbodyMeasurement) {
+    private suspend fun updateProfileIfLatest(recordId: Long, measurement: InbodyMeasurement) {
         if (measurement.isEmpty) return
         runCatching {
             withContext(NonCancellable) {
+                // 결과를 저장한 뒤의 기록 전체로 판정한다. 두 분석이 거의 동시에 끝나도 마지막 반영이 맞다.
+                val entries = inbodyRecordRepository.getRecords().map { InbodyEntry(it.record, it.result, null) }
+                if (InbodyTimeline.latestMeasured(entries)?.record?.id != recordId) return@withContext
+
                 val current = userProfileRepository.getProfile()
                 val updated = current.copy(
                     heightCm = measurement.heightCm?.roundToInt() ?: current.heightCm,

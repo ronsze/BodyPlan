@@ -1,5 +1,6 @@
 package kr.sdbk.bodyplan.core.domain.usecase
 
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
@@ -8,18 +9,20 @@ import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
+import kr.sdbk.bodyplan.core.domain.model.AnalysisStage
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysis
 import kr.sdbk.bodyplan.core.domain.model.InbodyAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
+import kr.sdbk.bodyplan.core.domain.model.InbodyRecord
+import kr.sdbk.bodyplan.core.domain.model.InbodyRecordWithResult
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WorkoutAnalysisRequest
 import kr.sdbk.bodyplan.core.domain.repository.AiAnalysisRepository
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
 import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
-import kr.sdbk.bodyplan.core.domain.repository.InbodyImageRepository
+import kr.sdbk.bodyplan.core.domain.repository.InbodyRecordRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
@@ -29,189 +32,212 @@ class AnalyzeInbodyUseCaseTest {
         summary = "요약",
         sections = listOf(AnalysisSection(title = "체성분", body = "근육량")),
     )
-    private val sourceUri = "content://picked/image.jpg"
+    private val oldContent = AnalysisContent(summary = "이전", sections = emptyList())
+    private val sep1 = LocalDate.of(2026, 9, 1)
+    private val sep8 = LocalDate.of(2026, 9, 8)
+    private val initialProfile = UserProfile(heightCm = 170, weightKg = 60)
 
-    private fun useCaseWith(
-        inbodyImageRepository: FakeInbodyImageRepository = FakeInbodyImageRepository(),
-        analysisResultRepository: FakeAnalysisResultRepository = FakeAnalysisResultRepository(),
-        aiAnalysisRepository: FakeAiAnalysisRepository = FakeAiAnalysisRepository(),
-        userProfileRepository: FakeUserProfileRepository = FakeUserProfileRepository(),
-        credential: AiCredential? = this.credential,
-    ): AnalyzeInbodyUseCase = AnalyzeInbodyUseCase(
-        userProfileRepository = userProfileRepository,
-        aiCredentialRepository = FakeAiCredentialRepository(credential),
-        aiAnalysisRepository = aiAnalysisRepository,
-        analysisResultRepository = analysisResultRepository,
-        inbodyImageRepository = inbodyImageRepository,
+    private fun oldResult(recordId: Long, measurement: InbodyMeasurement? = InbodyMeasurement(weightKg = 65.0)) =
+        AnalysisResult(
+            id = 100 + recordId,
+            kind = AnalysisKind.INBODY,
+            scopeKey = recordId.toString(),
+            content = oldContent,
+            createdAtMillis = 0L,
+            measurement = measurement,
+        )
+
+    private inner class Env(
+        val resultRepository: FakeAnalysisResultRepository,
+        val recordRepository: FakeInbodyRecordRepository,
+        val aiRepository: FakeAiAnalysisRepository,
+        val profileRepository: FakeUserProfileRepository,
+        val useCase: AnalyzeInbodyUseCase,
     )
 
-    @Test
-    fun `사진을 고르고 분석하면 사진이 먼저 복사되고 그 경로로 AI가 불리고 결과가 파일명과 함께 저장된다`() = runTest {
-        val inbodyImageRepository = FakeInbodyImageRepository()
-        val aiAnalysisRepository = FakeAiAnalysisRepository()
-        val analysisResultRepository = FakeAnalysisResultRepository()
-        val useCase = useCaseWith(
-            inbodyImageRepository = inbodyImageRepository,
-            aiAnalysisRepository = aiAnalysisRepository,
-            analysisResultRepository = analysisResultRepository,
+    private fun env(
+        records: List<InbodyRecord>,
+        existing: List<AnalysisResult> = emptyList(),
+        measurements: Map<String, InbodyMeasurement> = emptyMap(),
+        defaultMeasurement: InbodyMeasurement = InbodyMeasurement(),
+    ): Env {
+        val resultRepository = FakeAnalysisResultRepository(existing.toMutableList())
+        val recordRepository = FakeInbodyRecordRepository(records, resultRepository)
+        val aiRepository = FakeAiAnalysisRepository(measurements, defaultMeasurement)
+        val profileRepository = FakeUserProfileRepository(initialProfile)
+        return Env(
+            resultRepository,
+            recordRepository,
+            aiRepository,
+            profileRepository,
+            AnalyzeInbodyUseCase(
+                userProfileRepository = profileRepository,
+                aiCredentialRepository = FakeAiCredentialRepository(credential),
+                aiAnalysisRepository = aiRepository,
+                analysisResultRepository = resultRepository,
+                inbodyRecordRepository = recordRepository,
+            ),
         )
-
-        val result = useCase(sourceUri)
-
-        assertEquals(content, result)
-        assertEquals(listOf(sourceUri), inbodyImageRepository.saved)
-        assertEquals(
-            inbodyImageRepository.pathOf("saved-$sourceUri"),
-            aiAnalysisRepository.lastRequest?.imagePath,
-        )
-        assertEquals(1, aiAnalysisRepository.analyzeInbodyCallCount)
-        val savedEntry = analysisResultRepository.saved.entries.single()
-        assertEquals(AnalysisKind.INBODY to "", savedEntry.key)
-        assertEquals(content, savedEntry.value.content)
-        assertEquals("saved-$sourceUri", savedEntry.value.imageFileName)
     }
 
     @Test
-    fun `저장되는 결과의 kind는 INBODY이고 scopeKey는 빈 문자열이다`() = runTest {
-        val analysisResultRepository = FakeAnalysisResultRepository()
-        val useCase = useCaseWith(analysisResultRepository = analysisResultRepository)
+    fun `성공하면 그 기록의 결과를 교체한다`() = runTest {
+        val measurement = InbodyMeasurement(weightKg = 72.4)
+        val e = env(
+            records = listOf(inbodyRecord(1, sep1)),
+            existing = listOf(oldResult(1)),
+            defaultMeasurement = measurement,
+        )
 
-        useCase(sourceUri)
+        val returned = e.useCase(1L)
 
-        val key = analysisResultRepository.saved.keys.single()
-        assertEquals(AnalysisKind.INBODY, key.first)
-        assertEquals("", key.second)
+        assertEquals(content, returned)
+        val results = e.resultRepository.results.filter { it.scopeKey == "1" }
+        assertEquals(1, results.size)
+        assertEquals(content, results.single().content)
+        assertEquals(measurement, results.single().measurement)
     }
 
     @Test
-    fun `분석이 실패하면 복사한 파일을 지우고 결과를 저장하지 않는다`() = runTest {
-        val inbodyImageRepository = FakeInbodyImageRepository()
-        val aiAnalysisRepository = FakeAiAnalysisRepository()
-        aiAnalysisRepository.analyzeInbodyFailure = IllegalStateException("boom")
-        val analysisResultRepository = FakeAnalysisResultRepository()
-        val useCase = useCaseWith(
-            inbodyImageRepository = inbodyImageRepository,
-            aiAnalysisRepository = aiAnalysisRepository,
-            analysisResultRepository = analysisResultRepository,
+    fun `측정일이 가장 늦은 기록이면 읽힌 키와 체중을 프로필에 반영한다`() = runTest {
+        val e = env(
+            records = listOf(inbodyRecord(1, sep1), inbodyRecord(2, sep8)),
+            existing = listOf(oldResult(1)),
+            defaultMeasurement = InbodyMeasurement(weightKg = 72.4, heightCm = 175.4),
         )
+
+        e.useCase(2L)
+
+        assertEquals(175, e.profileRepository.profile.heightCm)
+        assertEquals(72, e.profileRepository.profile.weightKg)
+    }
+
+    @Test
+    fun `측정일이 가장 늦지 않은 기록을 분석하면 프로필을 바꾸지 않는다`() = runTest {
+        val e = env(
+            records = listOf(inbodyRecord(1, sep1), inbodyRecord(2, sep8)),
+            existing = listOf(oldResult(2)),
+            defaultMeasurement = InbodyMeasurement(weightKg = 72.4, heightCm = 175.4),
+        )
+
+        e.useCase(1L)
+
+        assertEquals(initialProfile, e.profileRepository.profile)
+        assertEquals(0, e.profileRepository.saveCount)
+    }
+
+    @Test
+    fun `읽히지 않은 값은 프로필을 그대로 둔다`() = runTest {
+        val e = env(
+            records = listOf(inbodyRecord(1, sep1)),
+            defaultMeasurement = InbodyMeasurement(weightKg = 72.4),
+        )
+
+        e.useCase(1L)
+
+        assertEquals(170, e.profileRepository.profile.heightCm)
+        assertEquals(72, e.profileRepository.profile.weightKg)
+    }
+
+    @Test
+    fun `읽힌 값이 하나도 없으면 프로필을 바꾸지 않는다`() = runTest {
+        val e = env(records = listOf(inbodyRecord(1, sep1)), defaultMeasurement = InbodyMeasurement())
+
+        e.useCase(1L)
+
+        assertEquals(initialProfile, e.profileRepository.profile)
+        assertEquals(0, e.profileRepository.saveCount)
+    }
+
+    @Test
+    fun `두 기록을 차례로 분석해도 최종 프로필은 가장 최근 측정 기록의 값이다`() = runTest {
+        val e = env(
+            records = listOf(inbodyRecord(1, sep1), inbodyRecord(2, sep8)),
+            measurements = mapOf(
+                "/path/2.jpg" to InbodyMeasurement(weightKg = 70.0),
+                "/path/1.jpg" to InbodyMeasurement(weightKg = 68.0),
+            ),
+        )
+
+        e.useCase(2L)
+        e.useCase(1L)
+
+        assertEquals(70, e.profileRepository.profile.weightKg)
+    }
+
+    @Test
+    fun `분석이 실패하면 이전 결과가 그대로 남는다`() = runTest {
+        val previous = oldResult(1)
+        val e = env(records = listOf(inbodyRecord(1, sep1)), existing = listOf(previous))
+        e.aiRepository.analyzeInbodyFailure = IllegalStateException("boom")
 
         try {
-            useCase(sourceUri)
+            e.useCase(1L)
             fail("예외가 그대로 나야 한다")
-        } catch (e: IllegalStateException) {
-            assertEquals("boom", e.message)
+        } catch (ex: IllegalStateException) {
+            assertEquals("boom", ex.message)
         }
 
-        assertEquals(inbodyImageRepository.saved, inbodyImageRepository.deleted)
-        assertTrue(analysisResultRepository.saved.isEmpty())
+        assertEquals(0, e.resultRepository.replaceCallCount)
+        assertEquals(listOf(previous), e.resultRepository.results)
     }
 
     @Test
-    fun `토큰이 없으면 사진을 복사하지도 AI를 부르지도 않고 AiCredentialMissingException을 던진다`() = runTest {
-        val inbodyImageRepository = FakeInbodyImageRepository()
-        val aiAnalysisRepository = FakeAiAnalysisRepository()
-        val analysisResultRepository = FakeAnalysisResultRepository()
-        val useCase = useCaseWith(
-            inbodyImageRepository = inbodyImageRepository,
-            aiAnalysisRepository = aiAnalysisRepository,
-            analysisResultRepository = analysisResultRepository,
-            credential = null,
+    fun `결과 교체 저장이 실패하면 이전 결과가 그대로 남는다`() = runTest {
+        val previous = oldResult(1)
+        val e = env(
+            records = listOf(inbodyRecord(1, sep1)),
+            existing = listOf(previous),
+            defaultMeasurement = InbodyMeasurement(weightKg = 72.4),
         )
+        e.resultRepository.replaceFailure = IllegalStateException("db")
 
         try {
-            useCase(sourceUri)
-            fail("AiCredentialMissingException이 나야 한다")
-        } catch (e: AiCredentialMissingException) {
-            // 기대한 결과
+            e.useCase(1L)
+        } catch (ex: Exception) {
+            // 저장 실패는 호출자에게 전달될 수 있다
         }
 
-        assertTrue(inbodyImageRepository.saved.isEmpty())
-        assertEquals(0, aiAnalysisRepository.analyzeInbodyCallCount)
-        assertTrue(analysisResultRepository.saved.isEmpty())
+        assertEquals(1, e.resultRepository.replaceCallCount)
+        assertEquals(listOf(previous), e.resultRepository.results)
     }
 
     @Test
-    fun `읽힌 체중과 키가 프로필에 반영된다`() = runTest {
-        val userProfileRepository = FakeUserProfileRepository(UserProfile(heightCm = 170, weightKg = 60))
-        val aiAnalysisRepository = FakeAiAnalysisRepository(
-            measurement = InbodyMeasurement(weightKg = 65.4, heightCm = 172.0),
-        )
-        val useCase = useCaseWith(
-            aiAnalysisRepository = aiAnalysisRepository,
-            userProfileRepository = userProfileRepository,
-        )
+    fun `AI 호출에는 기록의 사진 경로를 쓰고 단계가 차례로 보고된다`() = runTest {
+        val e = env(records = listOf(inbodyRecord(1, sep1)))
+        val stages = mutableListOf<AnalysisStage>()
 
-        useCase(sourceUri)
+        e.useCase(1L) { stages.add(it) }
 
-        assertEquals(65, userProfileRepository.savedProfile?.weightKg)
-        assertEquals(172, userProfileRepository.savedProfile?.heightCm)
+        assertEquals("/path/1.jpg", e.aiRepository.lastRequest?.imagePath)
+        assertEquals(
+            listOf(
+                AnalysisStage.COLLECTING,
+                AnalysisStage.PREPARING_IMAGES,
+                AnalysisStage.CALLING,
+                AnalysisStage.PARSING,
+            ),
+            stages,
+        )
     }
 
-    @Test
-    fun `키를 못 읽으면 기존 키가 그대로 남고 체중도 같다`() = runTest {
-        val userProfileRepository = FakeUserProfileRepository(UserProfile(heightCm = 170, weightKg = 60))
-        val aiAnalysisRepository = FakeAiAnalysisRepository(
-            measurement = InbodyMeasurement(weightKg = 65.0, heightCm = null),
-        )
-        val useCase = useCaseWith(
-            aiAnalysisRepository = aiAnalysisRepository,
-            userProfileRepository = userProfileRepository,
-        )
-
-        useCase(sourceUri)
-
-        assertEquals(170, userProfileRepository.savedProfile?.heightCm)
-        assertEquals(65, userProfileRepository.savedProfile?.weightKg)
-    }
-
-    @Test
-    fun `측정값이 전부 비어 있으면 프로필을 저장하지 않는다`() = runTest {
-        val userProfileRepository = FakeUserProfileRepository(UserProfile(heightCm = 170, weightKg = 60))
-        val aiAnalysisRepository = FakeAiAnalysisRepository(measurement = InbodyMeasurement())
-        val useCase = useCaseWith(
-            aiAnalysisRepository = aiAnalysisRepository,
-            userProfileRepository = userProfileRepository,
-        )
-
-        useCase(sourceUri)
-
-        assertEquals(0, userProfileRepository.saveCount)
-    }
-
-    @Test
-    fun `저장되는 결과에 측정값이 함께 담긴다`() = runTest {
-        val measurement = InbodyMeasurement(weightKg = 65.0, heightCm = 172.0)
-        val aiAnalysisRepository = FakeAiAnalysisRepository(measurement = measurement)
-        val analysisResultRepository = FakeAnalysisResultRepository()
-        val useCase = useCaseWith(
-            aiAnalysisRepository = aiAnalysisRepository,
-            analysisResultRepository = analysisResultRepository,
-        )
-
-        useCase(sourceUri)
-
-        val savedEntry = analysisResultRepository.saved.entries.single()
-        assertEquals(measurement, savedEntry.value.measurement)
-    }
-
-    private inner class FakeUserProfileRepository(private val initial: UserProfile = UserProfile()) :
-        UserProfileRepository {
-        var savedProfile: UserProfile? = null
+    private class FakeUserProfileRepository(initial: UserProfile) : UserProfileRepository {
+        var profile: UserProfile = initial
             private set
         var saveCount: Int = 0
             private set
 
         override fun observeProfile(): Flow<UserProfile> = error("사용하지 않음")
 
-        override suspend fun getProfile(): UserProfile = initial
+        override suspend fun getProfile(): UserProfile = profile
 
         override suspend fun saveProfile(profile: UserProfile) {
             saveCount++
-            savedProfile = profile
+            this.profile = profile
         }
     }
 
-    private inner class FakeAiCredentialRepository(private val credential: AiCredential?) : AiCredentialRepository {
+    private class FakeAiCredentialRepository(private val credential: AiCredential?) : AiCredentialRepository {
         override fun observeCredential(): Flow<AiCredential?> = error("사용하지 않음")
 
         override suspend fun getCredential(): AiCredential? = credential
@@ -221,26 +247,61 @@ class AnalyzeInbodyUseCaseTest {
         override suspend fun clear() = error("사용하지 않음")
     }
 
-    private inner class FakeInbodyImageRepository : InbodyImageRepository {
-        val saved: MutableList<String> = mutableListOf()
-        val deleted: MutableList<String> = mutableListOf()
+    private class FakeInbodyRecordRepository(
+        private val records: List<InbodyRecord>,
+        private val resultRepository: FakeAnalysisResultRepository,
+    ) : InbodyRecordRepository {
+        override fun observeRecords(): Flow<List<InbodyRecordWithResult>> = error("사용하지 않음")
 
-        override suspend fun save(sourceUri: String): String {
-            saved.add(sourceUri)
-            return "saved-$sourceUri"
+        override suspend fun getRecords(): List<InbodyRecordWithResult> = records.map { record ->
+            InbodyRecordWithResult(record, resultRepository.results.firstOrNull { it.scopeKey == record.id.toString() })
         }
 
-        override suspend fun delete(fileName: String) {
-            deleted.add(fileName.removePrefix("saved-"))
-        }
+        override suspend fun getRecord(id: Long): InbodyRecord? = records.firstOrNull { it.id == id }
 
-        override fun pathOf(fileName: String): String = "/path/$fileName"
+        override suspend fun insert(imageFileName: String, measuredOn: LocalDate): Long = error("사용하지 않음")
+
+        override suspend fun setFailureReason(id: Long, reason: String?) = error("사용하지 않음")
     }
 
-    private inner class FakeAiAnalysisRepository(private val measurement: InbodyMeasurement = InbodyMeasurement()) :
-        AiAnalysisRepository {
-        var analyzeInbodyCallCount: Int = 0
+    private class FakeAnalysisResultRepository(val results: MutableList<AnalysisResult>) : AnalysisResultRepository {
+        var replaceCallCount: Int = 0
             private set
+        var replaceFailure: Throwable? = null
+        private var nextId = 1000L
+
+        override fun observeLatest(kind: AnalysisKind, scopeKey: String): Flow<AnalysisResult?> = error("사용하지 않음")
+
+        override suspend fun getLatestOf(kind: AnalysisKind, scopeKeys: List<String>): Map<String, AnalysisResult> =
+            error("사용하지 않음")
+
+        override fun observeHistory(kind: AnalysisKind): Flow<List<AnalysisResult>> = error("사용하지 않음")
+
+        override suspend fun save(
+            kind: AnalysisKind,
+            scopeKey: String,
+            content: AnalysisContent,
+            imageFileName: String?,
+            measurement: InbodyMeasurement?,
+        ) = error("사용하지 않음")
+
+        override suspend fun replace(
+            kind: AnalysisKind,
+            scopeKey: String,
+            content: AnalysisContent,
+            measurement: InbodyMeasurement?,
+        ) {
+            replaceCallCount++
+            replaceFailure?.let { throw it }
+            results.removeAll { it.kind == kind && it.scopeKey == scopeKey }
+            results.add(AnalysisResult(nextId++, kind, scopeKey, content, 0L, null, measurement))
+        }
+    }
+
+    private inner class FakeAiAnalysisRepository(
+        private val measurements: Map<String, InbodyMeasurement>,
+        private val defaultMeasurement: InbodyMeasurement,
+    ) : AiAnalysisRepository {
         var lastRequest: InbodyAnalysisRequest? = null
             private set
         var analyzeInbodyFailure: Throwable? = null
@@ -258,37 +319,12 @@ class AnalyzeInbodyUseCaseTest {
         ): AnalysisContent = error("사용하지 않음")
 
         override suspend fun analyzeInbody(request: InbodyAnalysisRequest): InbodyAnalysis {
-            analyzeInbodyCallCount++
             lastRequest = request
             analyzeInbodyFailure?.let { throw it }
-            return InbodyAnalysis(content = content, measurement = measurement)
-        }
-    }
-
-    private data class SavedAnalysis(
-        val content: AnalysisContent,
-        val imageFileName: String?,
-        val measurement: InbodyMeasurement?,
-    )
-
-    private inner class FakeAnalysisResultRepository : AnalysisResultRepository {
-        val saved: MutableMap<Pair<AnalysisKind, String>, SavedAnalysis> = mutableMapOf()
-
-        override fun observeLatest(kind: AnalysisKind, scopeKey: String): Flow<AnalysisResult?> = error("사용하지 않음")
-
-        override suspend fun getLatestOf(kind: AnalysisKind, scopeKeys: List<String>): Map<String, AnalysisResult> =
-            error("사용하지 않음")
-
-        override fun observeHistory(kind: AnalysisKind): Flow<List<AnalysisResult>> = error("사용하지 않음")
-
-        override suspend fun save(
-            kind: AnalysisKind,
-            scopeKey: String,
-            content: AnalysisContent,
-            imageFileName: String?,
-            measurement: InbodyMeasurement?,
-        ) {
-            saved[kind to scopeKey] = SavedAnalysis(content, imageFileName, measurement)
+            return InbodyAnalysis(
+                content = content,
+                measurement = measurements[request.imagePath] ?: defaultMeasurement,
+            )
         }
     }
 }

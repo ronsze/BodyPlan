@@ -50,4 +50,11 @@ internal class FakeAnalysisResultRepository(initial: Map<Pair<AnalysisKind, Stri
         )
         results.value = results.value + ((kind to scopeKey) to result)
     }
+
+    override suspend fun replace(
+        kind: AnalysisKind,
+        scopeKey: String,
+        content: AnalysisContent,
+        measurement: InbodyMeasurement?,
+    ) = error("사용하지 않음")
 }

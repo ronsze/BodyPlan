@@ -6,9 +6,9 @@ import javax.inject.Inject
 import kotlin.math.abs
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
-import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.Goal
+import kr.sdbk.bodyplan.core.domain.model.InbodyEntry
+import kr.sdbk.bodyplan.core.domain.model.InbodyRecordWithResult
 import kr.sdbk.bodyplan.core.domain.model.IntensityType
 import kr.sdbk.bodyplan.core.domain.model.ProgressDirection
 import kr.sdbk.bodyplan.core.domain.model.ProgressHeadline
@@ -19,7 +19,7 @@ import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WeightRecord
 import kr.sdbk.bodyplan.core.domain.model.WeightTrend
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
-import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
+import kr.sdbk.bodyplan.core.domain.repository.InbodyRecordRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 import kr.sdbk.bodyplan.core.domain.repository.WeightLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
@@ -37,7 +37,7 @@ constructor(
     private val weightLogRepository: WeightLogRepository,
     private val workoutLogRepository: WorkoutLogRepository,
     private val userProfileRepository: UserProfileRepository,
-    private val analysisResultRepository: AnalysisResultRepository,
+    private val inbodyRecordRepository: InbodyRecordRepository,
     private val getWeightTrend: GetWeightTrendUseCase,
     private val summarizeWorkoutVolume: SummarizeWorkoutVolumeUseCase,
     private val summarizeBodyPartVolumeTrend: SummarizeBodyPartVolumeTrendUseCase,
@@ -53,7 +53,7 @@ constructor(
             weightLogRepository.observeRecordsInRange(previousFrom, today),
             workoutLogRepository.observeEntriesInRange(previousFrom, today),
             userProfileRepository.observeProfile(),
-            analysisResultRepository.observeHistory(AnalysisKind.INBODY),
+            inbodyRecordRepository.observeRecords(),
         ) { records, entriesByDate, profile, inbodyHistory ->
             val recent = listOf(
                 weightMetric(records, today, profile),
@@ -141,19 +141,20 @@ constructor(
     }
 
     /**
-     * 인바디 최근 두 건의 차이. 기간으로 묶지 않는 것은 인바디를 매일 찍지 않기 때문이다.
+     * 지표마다 값이 있는 마지막 두 기록의 차이. 기간으로 묶지 않는 것은 인바디를 매일 찍지 않기 때문이다.
      *
-     * 결과지가 항목을 늘 싣지는 않아 값이 있는 것만 골라 센다 — 축마다 견줄 두 건이 다를 수 있다.
+     * 결과지가 항목을 늘 싣지는 않아 지표별로 값이 있는 기록만 골라 센다 — 축마다 견줄 두 건이 다를 수 있다.
      */
-    private fun bodyCompositionMetrics(history: List<AnalysisResult>): List<ProgressMetric> {
-        val measurements = history.mapNotNull { it.measurement }
+    private fun bodyCompositionMetrics(records: List<InbodyRecordWithResult>): List<ProgressMetric> {
+        val measurements = InbodyTimeline.descending(records.map { InbodyEntry(it.record, it.result, null) })
+            .mapNotNull { it.measurement }
         return listOf(
             metric(ProgressMetricKey.SKELETAL_MUSCLE, latestChange(measurements.mapNotNull { it.skeletalMuscleKg })),
             metric(ProgressMetricKey.BODY_FAT, latestChange(measurements.mapNotNull { it.bodyFatKg })),
         )
     }
 
-    /** [values]는 최신이 앞이다([AnalysisResultRepository.observeHistory]가 그렇게 낸다). */
+    /** [values]는 최신이 앞이다([InbodyTimeline.descending]이 그렇게 낸다). */
     private fun latestChange(values: List<Double>): Double? = if (values.size < 2) null else values[0] - values[1]
 
     private fun metric(key: ProgressMetricKey, change: Double?): ProgressMetric = ProgressMetric(
