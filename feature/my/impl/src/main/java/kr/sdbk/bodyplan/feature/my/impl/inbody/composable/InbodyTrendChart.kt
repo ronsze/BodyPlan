@@ -55,6 +55,7 @@ internal fun InbodyTrendChart(points: List<InbodyTrendPoint>, modifier: Modifier
             lines = lines,
             startLabel = points.first().measuredAtMillis.toDateText(),
             endLabel = points.last().measuredAtMillis.toDateText(),
+            separated = true,
         )
     }
 }
