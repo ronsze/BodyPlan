@@ -2,7 +2,9 @@ package kr.sdbk.bodyplan.core.local.migration
 
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import java.time.ZoneId
 import kr.sdbk.bodyplan.core.local.DefaultExercises
+import kr.sdbk.bodyplan.core.local.entity.AnalysisResultEntity
 
 /**
  * 식단 기록 테이블을 더한다. 기존 운동 기록은 건드리지 않는다.
@@ -251,5 +253,65 @@ internal val MIGRATION_12_13 = object : Migration(12, 13) {
         db.execSQL("ALTER TABLE `workout_memo` ADD COLUMN `condition` TEXT")
         db.execSQL("ALTER TABLE `workout_memo` ADD COLUMN `effort` TEXT")
         db.execSQL("ALTER TABLE `workout_memo` ADD COLUMN `painParts` TEXT")
+    }
+}
+
+/**
+ * 인바디 기록 표를 더하고, 쌓여 있던 인바디 분석 결과를 기록으로 옮긴다.
+ *
+ * 옮긴 결과는 열쇠가 기록 번호가 되고 사진 파일 이름은 기록이 대신 든다. 사진 없는 옛 결과는
+ * 기록이 될 수 없어 그대로 남는다. 새 코드가 읽지 않는다.
+ */
+internal val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `inbody_record` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`imageFileName` TEXT NOT NULL, " +
+                "`measuredOnEpochDay` INTEGER NOT NULL, " +
+                "`createdAtMillis` INTEGER NOT NULL, " +
+                "`failureReason` TEXT)",
+        )
+
+        val converted = LegacyInbodyConverter.convert(readLegacyInbodyResults(db), ZoneId.systemDefault())
+        converted.records.forEach { record ->
+            db.execSQL(
+                "INSERT INTO `inbody_record` (`id`, `imageFileName`, `measuredOnEpochDay`, `createdAtMillis`) " +
+                    "VALUES (?, ?, ?, ?)",
+                arrayOf(record.id, record.imageFileName, record.measuredOnEpochDay, record.createdAtMillis),
+            )
+        }
+        converted.rewritten.forEach { result ->
+            db.execSQL(
+                "UPDATE `analysis_result` SET `scopeKey` = ?, `imageFileName` = NULL WHERE `id` = ?",
+                arrayOf(result.scopeKey, result.id),
+            )
+        }
+    }
+
+    private fun readLegacyInbodyResults(db: SupportSQLiteDatabase): List<AnalysisResultEntity> {
+        val results = mutableListOf<AnalysisResultEntity>()
+        db.query(
+            "SELECT `id`, `kind`, `scopeKey`, `summary`, `sections`, `imageFileName`, " +
+                "`weightKg`, `skeletalMuscleKg`, `bodyFatKg`, `heightCm`, `createdAtMillis` " +
+                "FROM `analysis_result` WHERE `kind` = 'INBODY' AND `scopeKey` = ''",
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                results += AnalysisResultEntity(
+                    id = cursor.getLong(0),
+                    kind = cursor.getString(1),
+                    scopeKey = cursor.getString(2),
+                    summary = cursor.getString(3),
+                    sections = cursor.getString(4),
+                    imageFileName = if (cursor.isNull(5)) null else cursor.getString(5),
+                    weightKg = if (cursor.isNull(6)) null else cursor.getDouble(6),
+                    skeletalMuscleKg = if (cursor.isNull(7)) null else cursor.getDouble(7),
+                    bodyFatKg = if (cursor.isNull(8)) null else cursor.getDouble(8),
+                    heightCm = if (cursor.isNull(9)) null else cursor.getDouble(9),
+                    createdAtMillis = cursor.getLong(10),
+                )
+            }
+        }
+        return results
     }
 }

@@ -1,10 +1,12 @@
 package kr.sdbk.bodyplan.core.local.snapshot
 
 import androidx.room.withTransaction
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 import kr.sdbk.bodyplan.core.domain.model.UnsupportedBackupVersionException
 import kr.sdbk.bodyplan.core.local.BodyPlanDatabase
+import kr.sdbk.bodyplan.core.local.migration.LegacyInbodyConverter
 
 /**
  * DB 전체를 [BodyPlanSnapshot]으로 뜨고, 스냅샷으로 통째로 되돌린다.
@@ -32,6 +34,7 @@ constructor(private val database: BodyPlanDatabase) {
             routines = database.routineDao().getAll(),
             routineEntries = database.routineDao().getAllEntries(),
             routineSets = database.routineDao().getAllSets(),
+            inbodyRecords = database.inbodyRecordDao().getAll(),
         )
     }
 
@@ -42,10 +45,12 @@ constructor(private val database: BodyPlanDatabase) {
      * "기본값 있는 컬럼 추가"뿐이라 옛 행이 그대로 들어간다 — 엔티티의 새 필드에 기본값이 있어 JSON에 없어도 읽힌다.
      * 더 오래된 것과 더 새 것은 [UnsupportedBackupVersionException].
      */
-    suspend fun import(snapshot: BodyPlanSnapshot) {
-        if (snapshot.dbVersion !in MIN_IMPORTABLE_DB_VERSION..currentDbVersion()) {
-            throw UnsupportedBackupVersionException(snapshot.dbVersion)
+    suspend fun import(original: BodyPlanSnapshot) {
+        if (original.dbVersion !in MIN_IMPORTABLE_DB_VERSION..currentDbVersion()) {
+            throw UnsupportedBackupVersionException(original.dbVersion)
         }
+        // 기록 구조가 생기기 전의 백업은 인바디 결과를 기록으로 옮겨 들인다.
+        val snapshot = LegacyInbodyConverter.convert(original, ZoneId.systemDefault())
         database.withTransaction {
             // 부모만 지운다. 자식(세트·루틴 항목)은 외래 키 CASCADE가 따라 지운다.
             database.exerciseDao().deleteAll()
@@ -53,6 +58,7 @@ constructor(private val database: BodyPlanDatabase) {
             database.dietEntryDao().deleteAll()
             database.userProfileDao().deleteAll()
             database.analysisResultDao().deleteAll()
+            database.inbodyRecordDao().deleteAll()
             database.weightRecordDao().deleteAll()
             database.workoutMemoDao().deleteAll()
             database.routineDao().deleteAll()
@@ -64,6 +70,7 @@ constructor(private val database: BodyPlanDatabase) {
             database.dietEntryDao().insertAll(snapshot.dietEntries)
             database.userProfileDao().insertAll(snapshot.userProfiles)
             database.analysisResultDao().insertAll(snapshot.analysisResults)
+            database.inbodyRecordDao().insertAll(snapshot.inbodyRecords)
             database.weightRecordDao().insertAll(snapshot.weightRecords)
             database.workoutMemoDao().insertAll(snapshot.workoutMemos)
             database.routineDao().insertAll(snapshot.routines)

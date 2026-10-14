@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import kr.sdbk.bodyplan.core.local.entity.AnalysisResultEntity
 import kr.sdbk.bodyplan.core.local.entity.DietEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.ExerciseEntity
+import kr.sdbk.bodyplan.core.local.entity.InbodyRecordEntity
 import kr.sdbk.bodyplan.core.local.entity.RoutineEntity
 import kr.sdbk.bodyplan.core.local.entity.RoutineEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.RoutineSetEntity
@@ -36,6 +37,8 @@ data class BodyPlanSnapshot(
     val routines: List<RoutineEntity>,
     val routineEntries: List<RoutineEntryEntity>,
     val routineSets: List<RoutineSetEntity>,
+    /** 14 이전 스냅샷에는 없다. 기본값이 있어 옛 파일도 읽히고, 그때는 결과에서 변환해 채운다. */
+    val inbodyRecords: List<InbodyRecordEntity> = emptyList(),
 ) {
     companion object {
         const val FORMAT_VERSION = 1

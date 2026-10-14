@@ -15,6 +15,7 @@ import kr.sdbk.bodyplan.core.local.DefaultExercises
 import kr.sdbk.bodyplan.core.local.dao.AnalysisResultDao
 import kr.sdbk.bodyplan.core.local.dao.DietEntryDao
 import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
+import kr.sdbk.bodyplan.core.local.dao.InbodyRecordDao
 import kr.sdbk.bodyplan.core.local.dao.RoutineDao
 import kr.sdbk.bodyplan.core.local.dao.UserProfileDao
 import kr.sdbk.bodyplan.core.local.dao.WeightRecordDao
@@ -24,6 +25,7 @@ import kr.sdbk.bodyplan.core.local.datastore.AppPreferences
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_10_11
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_11_12
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_12_13
+import kr.sdbk.bodyplan.core.local.migration.MIGRATION_13_14
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_1_2
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_2_3
 import kr.sdbk.bodyplan.core.local.migration.MIGRATION_3_4
@@ -56,6 +58,7 @@ object LocalModule {
                 MIGRATION_10_11,
                 MIGRATION_11_12,
                 MIGRATION_12_13,
+                MIGRATION_13_14,
             )
             .build()
 
@@ -82,6 +85,9 @@ object LocalModule {
 
     @Provides
     fun provideRoutineDao(database: BodyPlanDatabase): RoutineDao = database.routineDao()
+
+    @Provides
+    fun provideInbodyRecordDao(database: BodyPlanDatabase): InbodyRecordDao = database.inbodyRecordDao()
 
     @Provides
     @Singleton
