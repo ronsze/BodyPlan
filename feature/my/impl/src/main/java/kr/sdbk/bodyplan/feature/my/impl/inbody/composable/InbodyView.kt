@@ -201,7 +201,7 @@ private fun TrendSection(trend: InbodyTrend) {
 
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             BaseText(
-                text = "날짜 범위는 같고, 지표별 세로축 범위는 달라요.",
+                text = "점은 기록 순서대로 놓이고, 지표별 세로축 범위는 달라요.",
                 style = MaterialTheme.typography.labelSmall,
                 color = TextTertiary,
             )

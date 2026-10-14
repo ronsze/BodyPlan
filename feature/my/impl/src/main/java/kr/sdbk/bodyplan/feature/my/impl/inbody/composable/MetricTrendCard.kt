@@ -87,6 +87,8 @@ internal fun MetricTrendCard(card: InbodyMetricCard, modifier: Modifier = Modifi
                 .fillMaxWidth()
                 .padding(start = AXIS_LABEL_WIDTH, end = PLOT_END_PADDING),
         ) {
+            // 첫 기록은 왼쪽 끝, 마지막 기록은 오른쪽 끝에 둔다. 기록이 하나면 점과 같이 가운데다.
+            if (card.dateLabels.size == 1) WeightSpacer()
             card.dateLabels.forEachIndexed { index, date ->
                 if (index > 0) WeightSpacer()
                 BaseText(
@@ -95,6 +97,7 @@ internal fun MetricTrendCard(card: InbodyMetricCard, modifier: Modifier = Modifi
                     color = TextTertiary,
                 )
             }
+            if (card.dateLabels.size == 1) WeightSpacer()
         }
     }
 }
@@ -174,7 +177,7 @@ private fun MetricTrendCardPreview() {
                 axisMinTenths = 680,
                 axisMaxTenths = 710,
                 tickTenths = listOf(680, 695, 710),
-                dateLabels = listOf(LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 15), LocalDate.of(2026, 9, 30)),
+                dateLabels = listOf(LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 30)),
             ),
             modifier = Modifier.padding(16.dp),
         )

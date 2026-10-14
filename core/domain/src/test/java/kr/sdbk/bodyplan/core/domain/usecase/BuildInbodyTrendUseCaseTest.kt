@@ -194,35 +194,70 @@ class BuildInbodyTrendUseCaseTest {
     }
 
     @Test
-    fun `시작일과 끝일이 같으면 점의 가로 위치는 0점5이고 날짜 셋은 같은 날이다`() {
+    fun `값이 있는 기록이 하나뿐이면 점의 가로 위치는 0점5이고 날짜 표기는 그 하나다`() {
         val entries = listOf(weightEntry(1, today, 70.0))
 
         val card = build(entries, InbodyPeriod.ALL, today).card(InbodyMetricKind.WEIGHT)
 
         assertEquals(0.5f, card.points.single().xFraction, 0f)
-        assertEquals(listOf(today, today, today), card.dateLabels)
+        assertEquals(listOf(today), card.dateLabels)
     }
 
     @Test
-    fun `같은 측정일의 두 점은 같은 가로 위치이고 최근 값은 나중 기록이다`() {
+    fun `같은 측정일의 두 기록은 서로 다른 가로 위치의 점이 되고 최근 값은 나중 기록이다`() {
         val day = today.minusDays(5)
         val entries = listOf(weightEntry(1, day, 70.0), weightEntry(2, day, 69.0))
 
         val card = build(entries, InbodyPeriod.ONE_MONTH, today).card(InbodyMetricKind.WEIGHT)
 
-        assertEquals(card.points[0].xFraction, card.points[1].xFraction, 0f)
+        assertEquals(listOf(0f, 1f), card.points.map { it.xFraction })
         assertEquals(690, card.latestTenths)
+        assertEquals(listOf(700, 690), card.points.map { it.valueTenths })
     }
 
     @Test
-    fun `가운데 날짜는 일수 차이의 절반을 내린 날이다`() {
-        val start = LocalDate.of(2026, 9, 1)
-        val end = LocalDate.of(2026, 9, 30)
-        val entries = listOf(weightEntry(1, start, 70.0))
+    fun `점은 기록 순서대로 같은 간격이고 날짜 표기는 첫 기록과 마지막 기록이다`() {
+        val first = LocalDate.of(2026, 9, 1)
+        val last = LocalDate.of(2026, 9, 30)
+        val entries = listOf(
+            weightEntry(1, first, 70.0),
+            weightEntry(2, LocalDate.of(2026, 9, 2), 69.0),
+            weightEntry(3, last, 68.0),
+        )
 
-        val card = build(entries, InbodyPeriod.ALL, end).card(InbodyMetricKind.WEIGHT)
+        val card = build(entries, InbodyPeriod.ALL, last).card(InbodyMetricKind.WEIGHT)
 
-        assertEquals(listOf(start, LocalDate.of(2026, 9, 15), end), card.dateLabels)
+        assertEquals(listOf(0f, 0.5f, 1f), card.points.map { it.xFraction })
+        assertEquals(listOf(first, last), card.dateLabels)
+    }
+
+    @Test
+    fun `기록이 둘이면 날짜 표기도 둘이다`() {
+        val first = LocalDate.of(2026, 9, 1)
+        val last = LocalDate.of(2026, 9, 30)
+        val entries = listOf(weightEntry(1, first, 70.0), weightEntry(2, last, 69.0))
+
+        val card = build(entries, InbodyPeriod.ALL, last).card(InbodyMetricKind.WEIGHT)
+
+        assertEquals(2, card.dateLabels.size)
+        assertEquals(listOf(0f, 1f), card.points.map { it.xFraction })
+    }
+
+    @Test
+    fun `날짜 간격이 일정하지 않아도 점 간격은 같다`() {
+        val entries = listOf(
+            weightEntry(1, LocalDate.of(2026, 9, 1), 70.0),
+            weightEntry(2, LocalDate.of(2026, 9, 2), 69.0),
+            weightEntry(3, LocalDate.of(2026, 9, 3), 68.0),
+            weightEntry(4, LocalDate.of(2026, 9, 30), 67.0),
+        )
+
+        val card = build(entries, InbodyPeriod.ALL, today).card(InbodyMetricKind.WEIGHT)
+
+        val expected = listOf(0f, 1f / 3f, 2f / 3f, 1f)
+        val actual = card.points.map { it.xFraction }
+        assertEquals(expected.size, actual.size)
+        expected.zip(actual).forEach { (e, a) -> assertEquals(e, a, 1e-5f) }
     }
 
     @Test

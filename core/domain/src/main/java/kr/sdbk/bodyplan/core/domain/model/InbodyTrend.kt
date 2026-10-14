@@ -10,7 +10,7 @@ enum class InbodyMetricKind { WEIGHT, SKELETAL_MUSCLE, BODY_FAT_PERCENT }
  * 그래프의 점 하나.
  *
  * 값은 표시값을 십분의 일 단위 정수로 든다(68.4 → 684). 비교와 변화량을 정수로 해야 부동소수 오차로
- * 화면의 두 수가 같은데 다르게 계산되는 일이 없다. [xFraction]은 기간 안의 가로 위치(0~1),
+ * 화면의 두 수가 같은데 다르게 계산되는 일이 없다. [xFraction]은 기록 순서에 따른 가로 위치(0~1, 날짜 간격이 아니라 같은 간격),
  * [yFraction]은 축 안의 세로 위치(0이 아래, 1이 위)다.
  */
 data class InbodyTrendPoint(
@@ -30,7 +30,7 @@ data class InbodyMetricCard(
     val axisMaxTenths: Int,
     /** 아래, 가운데, 위 순서의 세로 눈금 셋. */
     val tickTenths: List<Int>,
-    /** 시작일, 가운데 날, 끝일 순서의 가로 날짜 셋. */
+    /** 첫 기록과 마지막 기록의 측정일. 기록이 하나면 그 하나뿐이다. */
     val dateLabels: List<LocalDate>,
 )
 

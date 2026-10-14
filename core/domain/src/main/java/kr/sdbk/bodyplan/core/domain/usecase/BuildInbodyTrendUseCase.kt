@@ -1,7 +1,6 @@
 package kr.sdbk.bodyplan.core.domain.usecase
 
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import kr.sdbk.bodyplan.core.domain.model.InbodyEntry
 import kr.sdbk.bodyplan.core.domain.model.InbodyEntryStatus
@@ -31,7 +30,7 @@ class BuildInbodyTrendUseCase @Inject constructor() {
             measuredCount = counted.size,
             latestMeasuredOn = counted.lastOrNull()?.record?.measuredOn,
             pendingCount = entries.count { it.result == null && it.status in PENDING_STATUSES },
-            cards = DISPLAYED_KINDS.mapNotNull { kind -> cardOf(kind, inRange, start, today) },
+            cards = DISPLAYED_KINDS.mapNotNull { kind -> cardOf(kind, inRange) },
         )
     }
 
@@ -46,12 +45,7 @@ class BuildInbodyTrendUseCase @Inject constructor() {
             ordered.firstOrNull(InbodyTimeline::isMeasured)?.record?.measuredOn ?: today
     }
 
-    private fun cardOf(
-        kind: InbodyMetricKind,
-        inRange: List<InbodyEntry>,
-        start: LocalDate,
-        end: LocalDate,
-    ): InbodyMetricCard? {
+    private fun cardOf(kind: InbodyMetricKind, inRange: List<InbodyEntry>): InbodyMetricCard? {
         val valued = inRange.mapNotNull { entry ->
             InbodyMetrics.tenthsOf(entry.measurement, kind)?.let { entry.record.measuredOn to it }
         }
@@ -66,16 +60,13 @@ class BuildInbodyTrendUseCase @Inject constructor() {
         val axisMax = -Math.floorDiv(-(10 * centerTimesTwo + lengthTimesTen), 20)
         val axisLength = (axisMax - axisMin).toFloat()
 
-        val totalDays = ChronoUnit.DAYS.between(start, end)
-        val points = valued.map { (date, tenths) ->
+        // 가로는 날짜가 아니라 기록 순서다. 날짜 간격으로 놓으면 같은 날 기록이 한 곳에 겹쳐 수직으로 꺾인다.
+        val lastIndex = valued.lastIndex
+        val points = valued.mapIndexed { index, (date, tenths) ->
             InbodyTrendPoint(
                 measuredOn = date,
                 valueTenths = tenths,
-                xFraction = if (totalDays == 0L) {
-                    CENTER
-                } else {
-                    ChronoUnit.DAYS.between(start, date).toFloat() / totalDays
-                },
+                xFraction = if (lastIndex == 0) CENTER else index.toFloat() / lastIndex,
                 yFraction = (tenths - axisMin) / axisLength,
             )
         }
@@ -87,7 +78,13 @@ class BuildInbodyTrendUseCase @Inject constructor() {
             axisMinTenths = axisMin,
             axisMaxTenths = axisMax,
             tickTenths = listOf(axisMin, Math.floorDiv(axisMin + axisMax + 1, 2), axisMax),
-            dateLabels = listOf(start, start.plusDays(totalDays / 2), end),
+            dateLabels = if (lastIndex ==
+                0
+            ) {
+                listOf(valued.first().first)
+            } else {
+                listOf(valued.first().first, valued.last().first)
+            },
         )
     }
 
