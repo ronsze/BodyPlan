@@ -64,5 +64,26 @@ constructor(
         )
     }
 
+    override suspend fun replace(
+        kind: AnalysisKind,
+        scopeKey: String,
+        content: AnalysisContent,
+        measurement: InbodyMeasurement?,
+    ) {
+        analysisResultDao.replace(
+            AnalysisResultEntity(
+                kind = kind.name,
+                scopeKey = scopeKey,
+                summary = content.summary,
+                sections = encodeSections(json, content.sections),
+                weightKg = measurement?.weightKg,
+                skeletalMuscleKg = measurement?.skeletalMuscleKg,
+                bodyFatKg = measurement?.bodyFatKg,
+                heightCm = measurement?.heightCm,
+                createdAtMillis = clock.millis(),
+            ),
+        )
+    }
+
     private fun pathOf(fileName: String): String = inbodyImageStore.pathOf(fileName)
 }

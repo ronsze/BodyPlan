@@ -13,7 +13,6 @@ internal object AnalysisWork {
     const val KEY_PERIOD_LABEL = "periodLabel"
     const val KEY_FROM = "fromEpochDay"
     const val KEY_TO = "toEpochDay"
-    const val KEY_SOURCE_URI = "sourceUri"
     const val KEY_STAGE = "stage"
     const val KEY_REASON = "reason"
 
@@ -26,4 +25,15 @@ internal object AnalysisWork {
      * 대상이 다르면 이름도 달라 동시에 돈다.
      */
     fun nameOf(kind: AnalysisKind, scopeKey: String): String = "analysis:${kind.name}:$scopeKey"
+
+    /** 한 종류의 작업을 한꺼번에 찾는 꼬리표. 목록 화면이 기록마다 따로 구독하지 않게 한다. */
+    fun tagOf(kind: AnalysisKind): String = "analysis-kind:${kind.name}"
+
+    /** 꼬리표만으로 어느 대상의 작업인지 알 수 있어야 해서 대상 열쇠도 꼬리표로 남긴다. */
+    fun scopeTagOf(scopeKey: String): String = "$SCOPE_TAG_PREFIX$scopeKey"
+
+    fun scopeKeyOf(tags: Set<String>): String? =
+        tags.firstOrNull { it.startsWith(SCOPE_TAG_PREFIX) }?.removePrefix(SCOPE_TAG_PREFIX)
+
+    private const val SCOPE_TAG_PREFIX = "analysis-scope:"
 }
