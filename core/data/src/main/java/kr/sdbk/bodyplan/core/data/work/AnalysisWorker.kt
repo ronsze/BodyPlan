@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import java.io.IOException
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
 import kr.sdbk.bodyplan.core.domain.model.AiRequestFailedException
@@ -53,6 +54,9 @@ constructor(
             // 취소는 실패가 아니다. 알리지 않고 WorkManager가 취소로 다루게 그대로 던진다.
             throw cancellation
         } catch (failure: Throwable) {
+            // 망이 잠깐 끊긴 것은 사용자가 할 일이 아니다. 실패로 알리기 전에 몇 번 더 부른다.
+            if (failure.isNetworkFailure() && runAttemptCount < MAX_RETRIES) return Result.retry()
+
             val reason = failure.toReason()
             notifier.notifyFailed(kind, reason, fromEpochDay)
             Result.failure(workDataOf(AnalysisWork.KEY_REASON to reason))
@@ -105,7 +109,11 @@ constructor(
 
     private companion object {
         const val UNKNOWN_KIND = "분석하지 못했습니다"
+        const val MAX_RETRIES = 2
     }
+
+    /** HTTP 오류와 온디바이스 오류는 다시 불러도 같은 결과라 제외한다. 전송 계층 실패만 본다. */
+    private fun Throwable.isNetworkFailure(): Boolean = this is AiRequestFailedException && cause is IOException
 
     private fun Throwable.toReason(): String = when (this) {
         is NoRecordToAnalyzeException -> "분석할 기록이 없습니다"
