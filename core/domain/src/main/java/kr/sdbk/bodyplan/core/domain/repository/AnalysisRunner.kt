@@ -17,4 +17,7 @@ interface AnalysisRunner {
 
     /** 그 대상의 지금 상태. 돌린 적이 없으면 `null`. */
     fun observe(kind: AnalysisKind, scopeKey: String): Flow<AnalysisRun?>
+
+    /** 그 종류의 모든 작업 상태. 목록 화면이 기록마다 따로 구독하지 않게 한다. */
+    fun observeAll(kind: AnalysisKind): Flow<List<AnalysisRun>>
 }

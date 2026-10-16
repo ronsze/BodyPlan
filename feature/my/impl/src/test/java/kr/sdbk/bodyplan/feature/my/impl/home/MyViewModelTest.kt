@@ -5,16 +5,15 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kr.sdbk.bodyplan.core.domain.model.AiCredential
 import kr.sdbk.bodyplan.core.domain.model.AiProvider
-import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
-import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
-import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
-import kr.sdbk.bodyplan.core.domain.model.AnalysisSection
 import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
+import kr.sdbk.bodyplan.core.domain.model.InbodyRecordWithResult
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.feature.my.impl.MainDispatcherRule
+import kr.sdbk.bodyplan.feature.my.impl.TEST_TODAY
 import kr.sdbk.bodyplan.feature.my.impl.fake.FakeAiCredentialRepository
-import kr.sdbk.bodyplan.feature.my.impl.fake.FakeAnalysisResultRepository
+import kr.sdbk.bodyplan.feature.my.impl.fake.FakeInbodyRecordRepository
 import kr.sdbk.bodyplan.feature.my.impl.fake.FakeUserProfileRepository
+import kr.sdbk.bodyplan.feature.my.impl.inbodyItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -26,25 +25,14 @@ internal class MyViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private val content = AnalysisContent(
-        summary = "요약",
-        sections = listOf(AnalysisSection(title = "체성분", body = "근육량")),
-    )
-
     private fun viewModel(
         aiCredentialRepository: FakeAiCredentialRepository = FakeAiCredentialRepository(),
         userProfileRepository: FakeUserProfileRepository = FakeUserProfileRepository(),
-        analysisResultRepository: FakeAnalysisResultRepository = FakeAnalysisResultRepository(),
-    ): MyViewModel = MyViewModel(aiCredentialRepository, userProfileRepository, analysisResultRepository)
+        inbodyRecordRepository: FakeInbodyRecordRepository = FakeInbodyRecordRepository(),
+    ): MyViewModel = MyViewModel(aiCredentialRepository, userProfileRepository, inbodyRecordRepository)
 
-    private fun inbodyResult(id: Long, measurement: InbodyMeasurement): AnalysisResult = AnalysisResult(
-        id = id,
-        kind = AnalysisKind.INBODY,
-        scopeKey = "",
-        content = content,
-        createdAtMillis = 0L,
-        measurement = measurement,
-    )
+    private fun inbodyResult(id: Long, measurement: InbodyMeasurement): InbodyRecordWithResult =
+        inbodyItem(id = id, measuredOn = TEST_TODAY.minusDays(100L - id), measurement = measurement)
 
     @Test
     fun `연결된 제공자가 없으면 비어 있다`() = runTest {
@@ -101,8 +89,8 @@ internal class MyViewModelTest {
     fun `최근 인바디 측정값이 latestInbody에 실린다`() = runTest {
         val measurement = InbodyMeasurement(weightKg = 70.0, skeletalMuscleKg = 32.0, bodyFatKg = 14.0)
         val viewModel = viewModel(
-            analysisResultRepository = FakeAnalysisResultRepository(
-                initialHistory = listOf(inbodyResult(id = 1L, measurement = measurement)),
+            inbodyRecordRepository = FakeInbodyRecordRepository(
+                initial = listOf(inbodyResult(id = 1L, measurement = measurement)),
             ),
         )
 
@@ -123,12 +111,12 @@ internal class MyViewModelTest {
     @Test
     fun `최근 인바디의 체중이 반올림해 프로필 체중과 같으면 profileFromInbody가 참이다`() = runTest {
         val userProfileRepository = FakeUserProfileRepository(UserProfile(weightKg = 65))
-        val analysisResultRepository = FakeAnalysisResultRepository(
-            initialHistory = listOf(inbodyResult(id = 1L, measurement = InbodyMeasurement(weightKg = 65.0))),
+        val inbodyRecordRepository = FakeInbodyRecordRepository(
+            initial = listOf(inbodyResult(id = 1L, measurement = InbodyMeasurement(weightKg = 65.0))),
         )
         val viewModel = viewModel(
             userProfileRepository = userProfileRepository,
-            analysisResultRepository = analysisResultRepository,
+            inbodyRecordRepository = inbodyRecordRepository,
         )
 
         subscribe(viewModel)
@@ -139,12 +127,12 @@ internal class MyViewModelTest {
     @Test
     fun `최근 인바디의 키가 반올림해 프로필 키와 같으면 profileFromInbody가 참이다`() = runTest {
         val userProfileRepository = FakeUserProfileRepository(UserProfile(heightCm = 172))
-        val analysisResultRepository = FakeAnalysisResultRepository(
-            initialHistory = listOf(inbodyResult(id = 1L, measurement = InbodyMeasurement(heightCm = 172.0))),
+        val inbodyRecordRepository = FakeInbodyRecordRepository(
+            initial = listOf(inbodyResult(id = 1L, measurement = InbodyMeasurement(heightCm = 172.0))),
         )
         val viewModel = viewModel(
             userProfileRepository = userProfileRepository,
-            analysisResultRepository = analysisResultRepository,
+            inbodyRecordRepository = inbodyRecordRepository,
         )
 
         subscribe(viewModel)
@@ -154,12 +142,12 @@ internal class MyViewModelTest {
 
     @Test
     fun `최근 인바디에 체중도 키도 없으면 profileFromInbody가 거짓이다`() = runTest {
-        val analysisResultRepository = FakeAnalysisResultRepository(
-            initialHistory = listOf(
+        val inbodyRecordRepository = FakeInbodyRecordRepository(
+            initial = listOf(
                 inbodyResult(id = 1L, measurement = InbodyMeasurement(skeletalMuscleKg = 30.0)),
             ),
         )
-        val viewModel = viewModel(analysisResultRepository = analysisResultRepository)
+        val viewModel = viewModel(inbodyRecordRepository = inbodyRecordRepository)
 
         subscribe(viewModel)
 
@@ -169,14 +157,14 @@ internal class MyViewModelTest {
     @Test
     fun `측정값이 있어도 프로필 값과 다르면(손수 고쳤으면) profileFromInbody가 거짓이다`() = runTest {
         val userProfileRepository = FakeUserProfileRepository(UserProfile(weightKg = 70, heightCm = 180))
-        val analysisResultRepository = FakeAnalysisResultRepository(
-            initialHistory = listOf(
+        val inbodyRecordRepository = FakeInbodyRecordRepository(
+            initial = listOf(
                 inbodyResult(id = 1L, measurement = InbodyMeasurement(weightKg = 65.0, heightCm = 172.0)),
             ),
         )
         val viewModel = viewModel(
             userProfileRepository = userProfileRepository,
-            analysisResultRepository = analysisResultRepository,
+            inbodyRecordRepository = inbodyRecordRepository,
         )
 
         subscribe(viewModel)
@@ -191,6 +179,22 @@ internal class MyViewModelTest {
         subscribe(viewModel)
 
         assertFalse(viewModel.uiState.value.profileFromInbody)
+    }
+
+    @Test
+    fun `프로필 카드의 인바디 값은 측정일이 가장 늦은 측정 기록의 값이다`() = runTest {
+        val viewModel = viewModel(
+            inbodyRecordRepository = FakeInbodyRecordRepository(
+                listOf(
+                    inbodyItem(1L, TEST_TODAY.minusDays(30), InbodyMeasurement(weightKg = 68.0)),
+                    inbodyItem(2L, TEST_TODAY.minusDays(1), InbodyMeasurement(weightKg = 70.0)),
+                ),
+            ),
+        )
+
+        subscribe(viewModel)
+
+        assertEquals(70.0, viewModel.uiState.value.latestInbody?.weightKg)
     }
 
     @Test

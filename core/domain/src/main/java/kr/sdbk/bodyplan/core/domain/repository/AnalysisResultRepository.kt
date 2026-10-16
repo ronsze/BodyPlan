@@ -26,4 +26,7 @@ interface AnalysisResultRepository {
         imageFileName: String? = null,
         measurement: InbodyMeasurement? = null,
     )
+
+    /** 같은 열쇠의 결과를 지우고 이것 하나만 남긴다. 저장이 실패하면 이전 결과가 그대로다. */
+    suspend fun replace(kind: AnalysisKind, scopeKey: String, content: AnalysisContent, measurement: InbodyMeasurement?)
 }

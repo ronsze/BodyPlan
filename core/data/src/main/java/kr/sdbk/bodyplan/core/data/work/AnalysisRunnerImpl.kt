@@ -38,12 +38,24 @@ constructor(private val workManager: WorkManager) : AnalysisRunner {
                         AnalysisWork.KEY_PERIOD_LABEL to request.periodLabel,
                         AnalysisWork.KEY_FROM to (request.from?.toEpochDay() ?: AnalysisWork.NO_DATE),
                         AnalysisWork.KEY_TO to (request.to?.toEpochDay() ?: AnalysisWork.NO_DATE),
-                        AnalysisWork.KEY_SOURCE_URI to request.sourceUri,
                     ),
                 )
+                .addTag(AnalysisWork.tagOf(request.kind))
+                .addTag(AnalysisWork.scopeTagOf(request.scopeKey))
                 .build(),
         ).await()
     }
+
+    override fun observeAll(kind: AnalysisKind): Flow<List<AnalysisRun>> =
+        workManager.getWorkInfosByTagFlow(AnalysisWork.tagOf(kind)).map { infos ->
+            infos
+                .mapNotNull { info ->
+                    AnalysisWork.scopeKeyOf(info.tags)?.let { scopeKey -> info.toRun(kind, scopeKey) }
+                }
+                // 같은 대상의 작업이 둘 남아 있어도 돌고 있는 쪽을 보인다.
+                .groupBy { it.scopeKey }
+                .map { (_, runs) -> runs.firstOrNull { it.state == AnalysisRunState.RUNNING } ?: runs.first() }
+        }
 
     override fun observe(kind: AnalysisKind, scopeKey: String): Flow<AnalysisRun?> =
         workManager.getWorkInfosForUniqueWorkFlow(AnalysisWork.nameOf(kind, scopeKey))

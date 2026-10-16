@@ -14,6 +14,7 @@ import kr.sdbk.bodyplan.core.domain.model.AiRequestFailedException
 import kr.sdbk.bodyplan.core.domain.model.AiUnauthorizedException
 import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
 import kr.sdbk.bodyplan.core.domain.model.AnalysisStage
+import kr.sdbk.bodyplan.core.domain.repository.InbodyRecordRepository
 import kr.sdbk.bodyplan.core.domain.usecase.AiCredentialMissingException
 import kr.sdbk.bodyplan.core.domain.usecase.AnalyzeDietUseCase
 import kr.sdbk.bodyplan.core.domain.usecase.AnalyzeInbodyUseCase
@@ -36,6 +37,7 @@ constructor(
     private val analyzeDiet: AnalyzeDietUseCase,
     private val analyzeWorkout: AnalyzeWorkoutUseCase,
     private val analyzeInbody: AnalyzeInbodyUseCase,
+    private val inbodyRecordRepository: InbodyRecordRepository,
     private val notifier: AnalysisNotifier,
 ) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
@@ -58,6 +60,8 @@ constructor(
             if (failure.isNetworkFailure() && runAttemptCount < MAX_RETRIES) return Result.retry()
 
             val reason = failure.toReason()
+            // 작업 시스템의 기록은 정리되면 사라져 실패 표시가 남지 않는다. 기록에 직접 남긴다.
+            if (kind == AnalysisKind.INBODY) saveInbodyFailure(reason)
             notifier.notifyFailed(kind, reason, fromEpochDay)
             Result.failure(workDataOf(AnalysisWork.KEY_REASON to reason))
         }
@@ -69,9 +73,8 @@ constructor(
 
         when (kind) {
             AnalysisKind.INBODY -> {
-                val sourceUri = inputData.getString(AnalysisWork.KEY_SOURCE_URI)
-                    ?: error("인바디 분석에 사진이 없습니다")
-                analyzeInbody(sourceUri, ::publishStage)
+                val recordId = scopeKey.toLongOrNull() ?: error("인바디 분석에 기록 번호가 없습니다")
+                analyzeInbody(recordId, ::publishStage)
             }
 
             AnalysisKind.DIET_DAILY, AnalysisKind.DIET_WEEKLY, AnalysisKind.DIET_MONTHLY ->
@@ -94,6 +97,11 @@ constructor(
                     ::publishStage,
                 )
         }
+    }
+
+    private suspend fun saveInbodyFailure(reason: String) {
+        val recordId = inputData.getString(AnalysisWork.KEY_SCOPE)?.toLongOrNull() ?: return
+        runCatching { inbodyRecordRepository.setFailureReason(recordId, reason) }
     }
 
     private fun dateAt(key: String): LocalDate {

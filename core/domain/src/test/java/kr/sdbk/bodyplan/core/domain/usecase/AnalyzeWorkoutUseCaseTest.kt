@@ -566,5 +566,12 @@ class AnalyzeWorkoutUseCaseTest {
         ) {
             saved[kind to scopeKey] = content
         }
+
+        override suspend fun replace(
+            kind: AnalysisKind,
+            scopeKey: String,
+            content: AnalysisContent,
+            measurement: InbodyMeasurement?,
+        ) = error("사용하지 않음")
     }
 }

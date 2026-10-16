@@ -6,6 +6,8 @@ import kr.sdbk.bodyplan.core.navigation.BodyPlanEntryProviderScope
 import kr.sdbk.bodyplan.core.navigation.BodyPlanNavigator
 import kr.sdbk.bodyplan.feature.my.api.AiTokenNavKey
 import kr.sdbk.bodyplan.feature.my.api.BackupNavKey
+import kr.sdbk.bodyplan.feature.my.api.InbodyAddNavKey
+import kr.sdbk.bodyplan.feature.my.api.InbodyDetailNavKey
 import kr.sdbk.bodyplan.feature.my.api.InbodyNavKey
 import kr.sdbk.bodyplan.feature.my.api.MyNavKey
 import kr.sdbk.bodyplan.feature.my.api.OnboardingNavKey
@@ -14,6 +16,8 @@ import kr.sdbk.bodyplan.feature.my.api.WeightNavKey
 import kr.sdbk.bodyplan.feature.my.api.navigateToAiToken
 import kr.sdbk.bodyplan.feature.my.api.navigateToBackup
 import kr.sdbk.bodyplan.feature.my.api.navigateToInbody
+import kr.sdbk.bodyplan.feature.my.api.navigateToInbodyAdd
+import kr.sdbk.bodyplan.feature.my.api.navigateToInbodyDetail
 import kr.sdbk.bodyplan.feature.my.api.navigateToProfile
 import kr.sdbk.bodyplan.feature.my.api.navigateToWeight
 import kr.sdbk.bodyplan.feature.my.impl.aitoken.composable.AiTokenEvents
@@ -24,6 +28,11 @@ import kr.sdbk.bodyplan.feature.my.impl.home.composable.MyEvents
 import kr.sdbk.bodyplan.feature.my.impl.home.composable.MyView
 import kr.sdbk.bodyplan.feature.my.impl.inbody.composable.InbodyEvents
 import kr.sdbk.bodyplan.feature.my.impl.inbody.composable.InbodyView
+import kr.sdbk.bodyplan.feature.my.impl.inbodyadd.composable.InbodyAddEvents
+import kr.sdbk.bodyplan.feature.my.impl.inbodyadd.composable.InbodyAddView
+import kr.sdbk.bodyplan.feature.my.impl.inbodydetail.InbodyDetailViewModel
+import kr.sdbk.bodyplan.feature.my.impl.inbodydetail.composable.InbodyDetailEvents
+import kr.sdbk.bodyplan.feature.my.impl.inbodydetail.composable.InbodyDetailView
 import kr.sdbk.bodyplan.feature.my.impl.onboarding.composable.OnboardingView
 import kr.sdbk.bodyplan.feature.my.impl.profile.composable.ProfileEvents
 import kr.sdbk.bodyplan.feature.my.impl.profile.composable.ProfileView
@@ -61,9 +70,36 @@ fun BodyPlanEntryProviderScope.myNavGraph(navigator: BodyPlanNavigator) {
             InbodyEvents(
                 goBack = navigator::goBack,
                 goToAiToken = navigator::navigateToAiToken,
+                goToAdd = navigator::navigateToInbodyAdd,
+                goToDetail = navigator::navigateToInbodyDetail,
             )
         }
         InbodyView(events = events, viewModel = hiltViewModel())
+    }
+
+    entry<InbodyAddNavKey> {
+        val events = remember {
+            InbodyAddEvents(
+                goBack = navigator::goBack,
+                goToAiToken = navigator::navigateToAiToken,
+            )
+        }
+        InbodyAddView(events = events, viewModel = hiltViewModel())
+    }
+
+    entry<InbodyDetailNavKey> { navKey ->
+        val events = remember {
+            InbodyDetailEvents(
+                goBack = navigator::goBack,
+                goToAiToken = navigator::navigateToAiToken,
+            )
+        }
+        InbodyDetailView(
+            events = events,
+            viewModel = hiltViewModel<InbodyDetailViewModel, InbodyDetailViewModel.Factory> {
+                it.create(navKey)
+            },
+        )
     }
 
     entry<WeightNavKey> {

@@ -33,6 +33,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- 인바디 사진 촬영 결과를 카메라 앱이 쓸 임시 파일 주소로 내준다. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
         <!-- 기본 초기화가 먼저 돌면 Hilt 워커 팩터리가 쓰이지 않는다. -->
         <provider
             android:name="androidx.startup.InitializationProvider"

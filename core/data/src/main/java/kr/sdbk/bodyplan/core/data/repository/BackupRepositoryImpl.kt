@@ -42,10 +42,8 @@ constructor(
         val dietImages = snapshot.dietEntries.map { entry ->
             BackupArchive.ImageEntry(DIET_IMAGE_DIRECTORY, File(dietImageStore.pathOf(entry.imageFileName)))
         }
-        val inbodyImages = snapshot.analysisResults.mapNotNull { result ->
-            result.imageFileName?.let {
-                BackupArchive.ImageEntry(INBODY_IMAGE_DIRECTORY, File(inbodyImageStore.pathOf(it)))
-            }
+        val inbodyImages = snapshot.inbodyRecords.map { record ->
+            BackupArchive.ImageEntry(INBODY_IMAGE_DIRECTORY, File(inbodyImageStore.pathOf(record.imageFileName)))
         }
         // 기록은 있는데 파일이 사라진 사진은 건너뛴다. 사진 하나 때문에 백업 전체를 막지 않는다.
         val images = (dietImages + inbodyImages).filter { it.file.exists() }

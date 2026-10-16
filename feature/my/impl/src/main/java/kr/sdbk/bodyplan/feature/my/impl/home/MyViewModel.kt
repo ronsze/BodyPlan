@@ -6,12 +6,13 @@ import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
+import kr.sdbk.bodyplan.core.domain.model.InbodyEntry
 import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.repository.AiCredentialRepository
-import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
+import kr.sdbk.bodyplan.core.domain.repository.InbodyRecordRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
+import kr.sdbk.bodyplan.core.domain.usecase.InbodyTimeline
 import kr.sdbk.bodyplan.core.ui.coordinator.BaseViewModel
 
 @HiltViewModel
@@ -20,7 +21,7 @@ internal class MyViewModel
 constructor(
     private val aiCredentialRepository: AiCredentialRepository,
     private val userProfileRepository: UserProfileRepository,
-    private val analysisResultRepository: AnalysisResultRepository,
+    private val inbodyRecordRepository: InbodyRecordRepository,
 ) : BaseViewModel<MyState, MyIntent, MyEffect>(initialState = MyState()) {
     override suspend fun initializeData() {
         observeInbodySource()
@@ -44,11 +45,12 @@ constructor(
     private fun observeInbodySource() {
         viewModelScope.launch {
             combine(
-                analysisResultRepository.observeHistory(AnalysisKind.INBODY),
+                inbodyRecordRepository.observeRecords(),
                 userProfileRepository.observeProfile(),
                 ::Pair,
-            ).collect { (history, profile) ->
-                val latest = history.firstOrNull()?.measurement
+            ).collect { (records, profile) ->
+                val latest = InbodyTimeline.latestMeasured(records.map { InbodyEntry(it.record, it.result, null) })
+                    ?.measurement
                 updateState { it.copy(profileFromInbody = profile.matches(latest), latestInbody = latest) }
             }
         }

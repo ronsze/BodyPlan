@@ -19,6 +19,7 @@ private fun style(size: Int, weight: FontWeight, lineHeight: Int = size + 6) = T
  * - `titleLarge` 화면 제목, `titleMedium` 월 표기, `titleSmall` 카드 제목
  * - `labelLarge` 상단 오른쪽 동작, `bodyLarge` 강조 값, `bodyMedium` 본문
  * - `bodySmall` 보조 동작, `labelMedium` 캡션, `labelSmall` 탭·배지
+ * - `headlineMedium` 화면 머리글의 큰 수치·날짜, `displaySmall` 카드의 가장 큰 수치
  */
 val Typography = Typography(
     titleLarge = style(20, FontWeight.Bold),
@@ -30,4 +31,6 @@ val Typography = Typography(
     bodySmall = style(14, FontWeight.Medium),
     labelMedium = style(13, FontWeight.SemiBold),
     labelSmall = style(12, FontWeight.Medium),
+    headlineMedium = style(24, FontWeight.Bold),
+    displaySmall = style(32, FontWeight.ExtraBold),
 )

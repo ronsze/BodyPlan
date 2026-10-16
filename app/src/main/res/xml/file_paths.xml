@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 인바디 촬영 임시 파일. 사진 보관소로 복사한 뒤에는 쓰이지 않는다. -->
+    <cache-path
+        name="camera"
+        path="camera/" />
+</paths>

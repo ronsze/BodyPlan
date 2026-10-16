@@ -26,6 +26,7 @@ import kr.sdbk.bodyplan.core.data.repository.BackupRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.DietLogRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.ExerciseRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.InbodyImageRepositoryImpl
+import kr.sdbk.bodyplan.core.data.repository.InbodyRecordRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.OnDeviceAiRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.OnboardingRepositoryImpl
 import kr.sdbk.bodyplan.core.data.repository.RoutineRepositoryImpl
@@ -43,6 +44,7 @@ import kr.sdbk.bodyplan.core.domain.repository.BackupRepository
 import kr.sdbk.bodyplan.core.domain.repository.DietLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.ExerciseRepository
 import kr.sdbk.bodyplan.core.domain.repository.InbodyImageRepository
+import kr.sdbk.bodyplan.core.domain.repository.InbodyRecordRepository
 import kr.sdbk.bodyplan.core.domain.repository.OnDeviceAiRepository
 import kr.sdbk.bodyplan.core.domain.repository.OnboardingRepository
 import kr.sdbk.bodyplan.core.domain.repository.RoutineRepository
@@ -54,6 +56,10 @@ import kr.sdbk.bodyplan.core.domain.repository.WorkoutSessionController
 @Module
 @InstallIn(SingletonComponent::class)
 internal abstract class DataModule {
+    @Binds
+    @Singleton
+    abstract fun bindInbodyRecordRepository(impl: InbodyRecordRepositoryImpl): InbodyRecordRepository
+
     @Binds
     @Singleton
     abstract fun bindExerciseRepository(impl: ExerciseRepositoryImpl): ExerciseRepository
@@ -118,7 +124,7 @@ internal abstract class DataModule {
         /** 날짜 판정 UseCase가 오늘을 읽는 창구. 테스트가 고정 시각을 넣을 수 있게 주입한다. */
         @Provides
         @Singleton
-        fun provideClock(): Clock = Clock.systemDefaultZone()
+        fun provideClock(): Clock = SystemZoneClock
 
         @Provides
         @Singleton

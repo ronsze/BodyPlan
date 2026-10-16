@@ -9,20 +9,18 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kr.sdbk.bodyplan.core.domain.model.AnalysisContent
-import kr.sdbk.bodyplan.core.domain.model.AnalysisKind
-import kr.sdbk.bodyplan.core.domain.model.AnalysisResult
 import kr.sdbk.bodyplan.core.domain.model.BodyPart
 import kr.sdbk.bodyplan.core.domain.model.Exercise
 import kr.sdbk.bodyplan.core.domain.model.ExerciseBest
-import kr.sdbk.bodyplan.core.domain.model.InbodyMeasurement
+import kr.sdbk.bodyplan.core.domain.model.InbodyRecord
+import kr.sdbk.bodyplan.core.domain.model.InbodyRecordWithResult
 import kr.sdbk.bodyplan.core.domain.model.UserProfile
 import kr.sdbk.bodyplan.core.domain.model.WeightRecord
 import kr.sdbk.bodyplan.core.domain.model.WorkoutEntry
 import kr.sdbk.bodyplan.core.domain.model.WorkoutLog
 import kr.sdbk.bodyplan.core.domain.model.WorkoutMemo
 import kr.sdbk.bodyplan.core.domain.model.WorkoutSet
-import kr.sdbk.bodyplan.core.domain.repository.AnalysisResultRepository
+import kr.sdbk.bodyplan.core.domain.repository.InbodyRecordRepository
 import kr.sdbk.bodyplan.core.domain.repository.UserProfileRepository
 import kr.sdbk.bodyplan.core.domain.repository.WeightLogRepository
 import kr.sdbk.bodyplan.core.domain.repository.WorkoutLogRepository
@@ -52,7 +50,7 @@ internal class HomeViewModelTest {
             weightLogRepository = weightLogRepository,
             workoutLogRepository = FakeWorkoutLogRepository(),
             userProfileRepository = FakeUserProfileRepository(),
-            analysisResultRepository = FakeAnalysisResultRepository(),
+            inbodyRecordRepository = FakeInbodyRecordRepository(),
             getWeightTrend = GetWeightTrendUseCase(),
             summarizeWorkoutVolume = SummarizeWorkoutVolumeUseCase(),
             summarizeBodyPartVolumeTrend = SummarizeBodyPartVolumeTrendUseCase(SummarizeBodyPartVolumeUseCase()),
@@ -171,21 +169,15 @@ internal class HomeViewModelTest {
         override suspend fun saveProfile(profile: UserProfile) = error("사용하지 않음")
     }
 
-    private class FakeAnalysisResultRepository(private val history: List<AnalysisResult> = emptyList()) :
-        AnalysisResultRepository {
-        override fun observeLatest(kind: AnalysisKind, scopeKey: String): Flow<AnalysisResult?> = error("사용하지 않음")
+    private class FakeInbodyRecordRepository : InbodyRecordRepository {
+        override fun observeRecords(): Flow<List<InbodyRecordWithResult>> = flowOf(emptyList())
 
-        override suspend fun getLatestOf(kind: AnalysisKind, scopeKeys: List<String>): Map<String, AnalysisResult> =
-            error("사용하지 않음")
+        override suspend fun getRecords(): List<InbodyRecordWithResult> = emptyList()
 
-        override fun observeHistory(kind: AnalysisKind): Flow<List<AnalysisResult>> = flowOf(history)
+        override suspend fun getRecord(id: Long): InbodyRecord? = null
 
-        override suspend fun save(
-            kind: AnalysisKind,
-            scopeKey: String,
-            content: AnalysisContent,
-            imageFileName: String?,
-            measurement: InbodyMeasurement?,
-        ) = error("사용하지 않음")
+        override suspend fun insert(imageFileName: String, measuredOn: LocalDate): Long = error("사용하지 않음")
+
+        override suspend fun setFailureReason(id: Long, reason: String?) = error("사용하지 않음")
     }
 }

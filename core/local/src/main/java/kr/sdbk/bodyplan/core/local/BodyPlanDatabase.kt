@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import kr.sdbk.bodyplan.core.local.dao.AnalysisResultDao
 import kr.sdbk.bodyplan.core.local.dao.DietEntryDao
 import kr.sdbk.bodyplan.core.local.dao.ExerciseDao
+import kr.sdbk.bodyplan.core.local.dao.InbodyRecordDao
 import kr.sdbk.bodyplan.core.local.dao.RoutineDao
 import kr.sdbk.bodyplan.core.local.dao.UserProfileDao
 import kr.sdbk.bodyplan.core.local.dao.WeightRecordDao
@@ -13,6 +14,7 @@ import kr.sdbk.bodyplan.core.local.dao.WorkoutMemoDao
 import kr.sdbk.bodyplan.core.local.entity.AnalysisResultEntity
 import kr.sdbk.bodyplan.core.local.entity.DietEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.ExerciseEntity
+import kr.sdbk.bodyplan.core.local.entity.InbodyRecordEntity
 import kr.sdbk.bodyplan.core.local.entity.RoutineEntity
 import kr.sdbk.bodyplan.core.local.entity.RoutineEntryEntity
 import kr.sdbk.bodyplan.core.local.entity.RoutineSetEntity
@@ -35,8 +37,9 @@ import kr.sdbk.bodyplan.core.local.entity.WorkoutSetEntity
         RoutineEntity::class,
         RoutineEntryEntity::class,
         RoutineSetEntity::class,
+        InbodyRecordEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = true,
 )
 abstract class BodyPlanDatabase : RoomDatabase() {
@@ -55,4 +58,6 @@ abstract class BodyPlanDatabase : RoomDatabase() {
     abstract fun workoutMemoDao(): WorkoutMemoDao
 
     abstract fun routineDao(): RoutineDao
+
+    abstract fun inbodyRecordDao(): InbodyRecordDao
 }
