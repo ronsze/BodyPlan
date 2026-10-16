@@ -17,6 +17,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import java.util.Locale
@@ -40,6 +44,9 @@ data class TrendChartLine(val label: String, val color: Color, val values: List<
  * 최고중량 수십과 총볼륨 수천). 한 축에 두면 작은 줄이 바닥에 눌려 변화가 보이지 않는다.
  * 줄마다 자기 최소·최대에 맞춰 펴고, 이름 옆에 마지막 값을 적는다.
  *
+ * [separated]가 켜지면 줄마다 가로 띠를 따로 받아 서로 겹치지 않고, 각 점 위에 값을 적는다.
+ * 띠마다 자기 최소·최대에 맞추므로 값이 가까운 줄끼리도 위아래로 갈라져 읽힌다.
+ *
  * 카드 껍데기와 제목은 호출부가 씌운다 — 화면마다 문구가 다르다.
  * 값이 하나도 없는 줄은 호출부가 걸러 넘긴다.
  */
@@ -49,17 +56,29 @@ fun TrendChart(
     startLabel: String,
     endLabel: String,
     modifier: Modifier = Modifier,
+    separated: Boolean = false,
     valueText: (Double) -> String = ::defaultValueText,
 ) {
     if (lines.isEmpty()) return
+
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall
 
     Column(modifier = modifier) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(CHART_HEIGHT),
+                .height(if (separated) LANE_HEIGHT * lines.size else CHART_HEIGHT),
         ) {
-            lines.forEach { line -> drawTrend(line) }
+            if (separated) {
+                val laneHeight = size.height / lines.size
+                val valueLabel = ValueLabel(textMeasurer, labelStyle, valueText)
+                lines.forEachIndexed { index, line ->
+                    drawTrend(line, laneTop = laneHeight * index, laneHeight = laneHeight, valueLabel = valueLabel)
+                }
+            } else {
+                lines.forEach { line -> drawTrend(line) }
+            }
         }
 
         // 좌우 어느 쪽이 최근인지 알려 준다. 목록을 최신순으로 두는 화면과 방향이 반대일 수 있다.
@@ -89,12 +108,21 @@ private fun Legend(line: TrendChartLine, valueText: (Double) -> String) {
     }
 }
 
+/** 점 위에 값을 적는 데 필요한 것. 글자는 캔버스 안에서 재서 그린다. */
+private class ValueLabel(val measurer: TextMeasurer, val style: TextStyle, val text: (Double) -> String)
+
 /**
  * 줄 하나를 그린다. 값들의 크기가 달라 한 눈금을 함께 쓸 수 없어 줄마다 따로 편다.
  *
  * 점이 하나면 선 없이 점만 찍는다 — 한 번만 기록한 사용자에게도 그것이 보여야 한다.
+ * [valueLabel]이 있으면 점 위에 값을 적는다 — 글자 자리를 위에 비워 두고 그 아래로 편다.
  */
-private fun DrawScope.drawTrend(line: TrendChartLine) {
+private fun DrawScope.drawTrend(
+    line: TrendChartLine,
+    laneTop: Float = 0f,
+    laneHeight: Float = size.height,
+    valueLabel: ValueLabel? = null,
+) {
     val points = line.values.mapIndexedNotNull { index, value -> value?.let { index to it } }
     if (points.isEmpty()) return
 
@@ -102,9 +130,10 @@ private fun DrawScope.drawTrend(line: TrendChartLine) {
     val maxValue = points.maxOf { it.second }
     val span = maxValue - minValue
     val lastIndex = (line.values.size - 1).coerceAtLeast(1)
+    val labelHeight = valueLabel?.let { it.measurer.measure("0", it.style).size.height + LABEL_GAP } ?: 0f
     // 점이 위아래 끝에 닿으면 반이 잘린다. 그만큼 안쪽으로 들인다.
-    val top = POINT_RADIUS
-    val usableHeight = size.height - POINT_RADIUS * 2
+    val top = laneTop + labelHeight + POINT_RADIUS
+    val usableHeight = laneHeight - labelHeight - POINT_RADIUS * 2
 
     val path = Path()
     points.forEachIndexed { order, (index, value) ->
@@ -114,8 +143,16 @@ private fun DrawScope.drawTrend(line: TrendChartLine) {
         val y = top + usableHeight * (1f - ratio)
         if (order == 0) path.moveTo(x, y) else path.lineTo(x, y)
         drawCircle(color = line.color, radius = POINT_RADIUS, center = Offset(x, y))
+        valueLabel?.let { drawValue(it, valueText = it.text(value), color = line.color, x = x, y = y) }
     }
     if (points.size >= 2) drawPath(path = path, color = line.color, style = Stroke(width = LINE_WIDTH))
+}
+
+/** 점 바로 위에 가운데 맞춰 적는다. 양끝 점은 글자가 캔버스 밖으로 나가지 않게 안으로 민다. */
+private fun DrawScope.drawValue(valueLabel: ValueLabel, valueText: String, color: Color, x: Float, y: Float) {
+    val layout = valueLabel.measurer.measure(valueText, valueLabel.style.copy(color = color))
+    val left = (x - layout.size.width / 2f).coerceIn(0f, (size.width - layout.size.width).coerceAtLeast(0f))
+    drawText(layout, topLeft = Offset(left, y - POINT_RADIUS - LABEL_GAP - layout.size.height))
 }
 
 /** 정수면 소수를 적지 않는다. 단위는 호출부가 붙인다. */
@@ -124,8 +161,10 @@ fun defaultValueText(value: Double): String =
 
 private const val LINE_WIDTH = 3f
 private const val POINT_RADIUS = 5f
+private const val LABEL_GAP = 4f
 private val DOT_SIZE = 8.dp
 private val CHART_HEIGHT = 160.dp
+private val LANE_HEIGHT = 80.dp
 
 @Preview(showBackground = true)
 @Composable
